@@ -25,6 +25,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FaraTaraz.BuildingBlocks.Te
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FaraTaraz.ArchitectureTests", "tests\FaraTaraz.ArchitectureTests\FaraTaraz.ArchitectureTests.csproj", "{A5D5F75B-6C4D-46DF-B437-DD3EC1FCFEE4}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FaraTaraz.SyncContracts.Tests", "tests\FaraTaraz.SyncContracts.Tests\FaraTaraz.SyncContracts.Tests.csproj", "{3C8BB8A0-5B69-49AD-BF5E-C2B2CE8A9F40}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -95,6 +97,18 @@ Global
 		{A5D5F75B-6C4D-46DF-B437-DD3EC1FCFEE4}.Release|x64.Build.0 = Release|Any CPU
 		{A5D5F75B-6C4D-46DF-B437-DD3EC1FCFEE4}.Release|x86.ActiveCfg = Release|Any CPU
 		{A5D5F75B-6C4D-46DF-B437-DD3EC1FCFEE4}.Release|x86.Build.0 = Release|Any CPU
+		{3C8BB8A0-5B69-49AD-BF5E-C2B2CE8A9F40}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3C8BB8A0-5B69-49AD-BF5E-C2B2CE8A9F40}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3C8BB8A0-5B69-49AD-BF5E-C2B2CE8A9F40}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{3C8BB8A0-5B69-49AD-BF5E-C2B2CE8A9F40}.Debug|x64.Build.0 = Debug|Any CPU
+		{3C8BB8A0-5B69-49AD-BF5E-C2B2CE8A9F40}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{3C8BB8A0-5B69-49AD-BF5E-C2B2CE8A9F40}.Debug|x86.Build.0 = Debug|Any CPU
+		{3C8BB8A0-5B69-49AD-BF5E-C2B2CE8A9F40}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3C8BB8A0-5B69-49AD-BF5E-C2B2CE8A9F40}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3C8BB8A0-5B69-49AD-BF5E-C2B2CE8A9F40}.Release|x64.ActiveCfg = Release|Any CPU
+		{3C8BB8A0-5B69-49AD-BF5E-C2B2CE8A9F40}.Release|x64.Build.0 = Release|Any CPU
+		{3C8BB8A0-5B69-49AD-BF5E-C2B2CE8A9F40}.Release|x86.ActiveCfg = Release|Any CPU
+		{3C8BB8A0-5B69-49AD-BF5E-C2B2CE8A9F40}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -109,5 +123,6 @@ Global
 		{8762C4AC-9A5B-401A-B539-CCA90AAC1DFB} = {19FA6243-3475-9F81-4DBC-2DEB3C86DF2F}
 		{C8303080-08A7-406A-8744-FBE7C1175AD1} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{A5D5F75B-6C4D-46DF-B437-DD3EC1FCFEE4} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+		{3C8BB8A0-5B69-49AD-BF5E-C2B2CE8A9F40} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 	EndGlobalSection
 EndGlobal

@@ -1,78 +1,57 @@
 namespace FaraTaraz.Adapters.Accounting.Mock;
 
-using System.Collections.Generic;
 using FaraTaraz.BuildingBlocks.Accounting;
-using FaraTaraz.BuildingBlocks.Identifiers;
 using FaraTaraz.Core.Accounting;
 using FaraTaraz.Core.SourceModel;
+using FaraTaraz.Core.Synchronization;
 
 /// <summary>
-/// Mock customer capability. Demonstrates a PARTIAL capability set: this provider
-/// supports Customers and Products but NOT Inventory/Sales/Purchases/Payments.
+/// Deterministic Mock accounting provider used to prove the synchronization contract (W1).
 ///
-/// External codes are source-scoped. Two sources may share or differ on codes;
-/// equal codes do NOT imply equal canonical entities (see architecture ADR-004).
-/// </summary>
-public sealed class MockCustomerSource : ICustomerSource
-{
-    private readonly IReadOnlyList<SourceCustomer> _customers;
-
-    public MockCustomerSource(IReadOnlyList<SourceCustomer> customers)
-    {
-        _customers = customers;
-    }
-
-    public IReadOnlyList<SourceCustomer> ListCustomers(AccountingSourceId sourceId)
-        => _customers;
-}
-
-/// <summary>Mock product capability. See <see cref="MockCustomerSource"/> for the contract.</summary>
-public sealed class MockProductSource : IProductSource
-{
-    private readonly IReadOnlyList<SourceProduct> _products;
-
-    public MockProductSource(IReadOnlyList<SourceProduct> products)
-    {
-        _products = products;
-    }
-
-    public IReadOnlyList<SourceProduct> ListProducts(AccountingSourceId sourceId)
-        => _products;
-}
-
-/// <summary>
-/// Mock accounting provider. Supports Customers + Products only.
+/// It supports Customers + Products only (NOT Inventory/Sales/Purchases/Payments), so
+/// unsupported capabilities still fail explicitly via <c>RequireCapability</c>. Each
+/// capability is backed by a <see cref="MockCapabilitySync{TRecord}"/> configured with a
+/// deterministic scenario. Provider-specific concepts stay inside this namespace; the
+/// platform core references only neutral Core types.
 ///
-/// This adapter proves the capability contract end-to-end:
-/// - SupportedCapabilities = Customers | Products (Inventory is NOT declared).
-/// - It implements ICustomerSource / IProductSource directly, so the matching
-///   capability ports resolve; IInventorySource is NOT implemented, so
-///   RequireCapability&lt;IInventorySource&gt; fails explicitly.
-/// - Provider-specific concepts stay inside this namespace; the platform core
-///   references only neutral Core types.
+/// The two capability ports each declare their own <c>CapabilityName</c>/<c>SyncModeSupport</c>
+/// via their closed <c>ISyncablePort&lt;*&gt;</c> interface, so explicit interface
+/// implementation keeps each port's values independent.
 /// </summary>
 public sealed class MockAccountingProvider : IAccountingProvider, ICustomerSource, IProductSource
 {
+    public const string CustomersCapability = "Customers";
+    public const string ProductsCapability = "Products";
+
     public AccountingCapability SupportedCapabilities { get; }
 
-    private readonly ICustomerSource _customers;
-    private readonly IProductSource _products;
+    private readonly MockCapabilitySync<SourceCustomer> _customers;
+    private readonly MockCapabilitySync<SourceProduct> _products;
 
     public MockAccountingProvider(
-        AccountingCapability supportedCapabilities,
-        ICustomerSource customers,
-        IProductSource products)
+        MockCapabilitySync<SourceCustomer> customers,
+        MockCapabilitySync<SourceProduct> products)
     {
-        SupportedCapabilities = supportedCapabilities;
         _customers = customers;
         _products = products;
+        SupportedCapabilities = AccountingCapability.Customers | AccountingCapability.Products;
     }
 
-    // ICustomerSource — resolved via RequireCapability<ICustomerSource>.
-    public IReadOnlyList<SourceCustomer> ListCustomers(AccountingSourceId sourceId)
-        => _customers.ListCustomers(sourceId);
+    // ISyncablePort<SourceCustomer>
+    string ISyncablePort<SourceCustomer>.CapabilityName => CustomersCapability;
+    SyncModeSupport ISyncablePort<SourceCustomer>.SyncModeSupport => _customers.ModeSupport;
 
-    // IProductSource — resolved via RequireCapability<IProductSource>.
-    public IReadOnlyList<SourceProduct> ListProducts(AccountingSourceId sourceId)
-        => _products.ListProducts(sourceId);
+    Task<SyncBatch<SourceCustomer>> ISyncablePort<SourceCustomer>.SyncAsync(
+        SyncRequest request,
+        CancellationToken cancellationToken)
+        => _customers.SyncAsync(request, cancellationToken);
+
+    // ISyncablePort<SourceProduct>
+    string ISyncablePort<SourceProduct>.CapabilityName => ProductsCapability;
+    SyncModeSupport ISyncablePort<SourceProduct>.SyncModeSupport => _products.ModeSupport;
+
+    Task<SyncBatch<SourceProduct>> ISyncablePort<SourceProduct>.SyncAsync(
+        SyncRequest request,
+        CancellationToken cancellationToken)
+        => _products.SyncAsync(request, cancellationToken);
 }

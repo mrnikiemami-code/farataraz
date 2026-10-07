@@ -4,6 +4,7 @@ using FaraTaraz.Adapters.Accounting.Mock;
 using FaraTaraz.BuildingBlocks.Accounting;
 using FaraTaraz.Core.Accounting;
 using FaraTaraz.Core.SourceModel;
+using FaraTaraz.Core.Synchronization;
 using Xunit;
 
 /// <summary>
@@ -13,9 +14,14 @@ using Xunit;
 public class CapabilityModelTests
 {
     private static MockAccountingProvider NewProvider() => new(
-        AccountingCapability.Customers | AccountingCapability.Products,
-        new MockCustomerSource(Array.Empty<SourceCustomer>()),
-        new MockProductSource(Array.Empty<SourceProduct>()));
+        new MockCapabilitySync<SourceCustomer>(
+            MockAccountingProvider.CustomersCapability,
+            Array.Empty<SourceCustomer>(),
+            SyncModeSupport.FullAndIncremental),
+        new MockCapabilitySync<SourceProduct>(
+            MockAccountingProvider.ProductsCapability,
+            Array.Empty<SourceProduct>(),
+            SyncModeSupport.FullAndIncremental));
 
     [Fact]
     public void Supported_capability_is_declared_and_resolvable()

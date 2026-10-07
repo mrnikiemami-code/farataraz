@@ -88,8 +88,11 @@ A wave is not complete merely because code compiles. Where applicable:
 | --- | --- | --- |
 | P0 — Planning & Source of Truth | CERTIFIED | this planning area |
 | W0 — Architecture Foundation | CERTIFIED | baseline `d499e61730579c2ad9810d306dd2620c986bd9f3` |
-| W1 — Synchronization Contracts | PLANNED | **not authorized by P0**; next candidate |
+| W1 — Synchronization Contracts | PASS | acceptance criteria passed; **not certified** — reviewer must accept before it becomes the baseline |
 | W2..W17 | PLANNED | see `ROADMAP.md` |
+
+**W1 does not authorize W2.** W2 (PostgreSQL/EF Core) requires a separate explicit task
+and an explicit architecture decision to introduce a persistence stack.
 
 ---
 

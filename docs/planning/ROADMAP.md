@@ -72,7 +72,8 @@ empty valid source; unsupported capability.
 
 **No PostgreSQL yet** unless required by an explicit architecture decision.
 
-**Status:** `PLANNED` — **NOT authorized by P0.** A separate explicit task is required.
+**Status:** `PASS` — acceptance criteria passed. **Not certified:** a reviewer must accept
+the W1 evidence before it becomes the baseline. **W1 does not authorize W2.**
 
 ---
 
