@@ -55,6 +55,22 @@ Never reverse these. `Core` must never reference a concrete adapter.
   architecture test in `tests/FaraTaraz.ArchitectureTests/`. If a rule cannot be
   automated yet, document exactly why and when it must become executable.
 
+## Planning & source of truth
+
+The repository is the source of truth for execution. Before starting any work, read:
+
+1. `AGENTS.md`
+2. `docs/architecture/architecture-constitution.md` (authoritative)
+3. `docs/planning/CURRENT-STATE.md`
+4. relevant ADRs (`docs/architecture/adr/`)
+5. relevant roadmap wave (`docs/planning/ROADMAP.md`)
+
+SoT hierarchy (highest first): Constitution → accepted ADRs → Current State → Roadmap /
+Delivery Plan → current authorized task → implementation. If a task conflicts with the
+Constitution or an accepted ADR, STOP; do not silently follow the lower-level instruction.
+
+Waves are not auto-started. P0 does NOT authorize W1; a separate explicit task is required.
+
 ## Build & test
 ```bash
 dotnet build FaraTaraz.sln
