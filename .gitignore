@@ -1,0 +1,32 @@
+# .NET build output
+bin/
+obj/
+[Bb]uild/
+[Oo]utput/
+
+# IDE / editor
+.vs/
+.vscode/
+.idea/
+*.user
+*.slnx.local
+
+# Test results
+[Tt]est[Rr]esult*/
+*.trx
+
+# Local / machine-specific
+local*.json
+*.user
+
+# NuGet
+**/NuGet/
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Secrets (defensive)
+*.key
+*.pfx
+secrets*.json
