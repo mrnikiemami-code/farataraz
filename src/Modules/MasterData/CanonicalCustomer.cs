@@ -2,7 +2,10 @@ namespace FaraTaraz.Modules.MasterData;
 
 using FaraTaraz.BuildingBlocks.Identifiers;
 
-/// <summary>Tenant-bound canonical customer, independent of source customer codes.</summary>
+/// <summary>
+/// A canonical customer — owned by FaraTaraz and BOUND to a tenant.
+/// One canonical customer may be linked to several external identities across sources.
+/// </summary>
 public sealed record CanonicalCustomer(TenantId TenantId, CanonicalId Value)
 {
     public override string ToString() => $"tenant({TenantId})#canon({Value})";
