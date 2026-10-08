@@ -1,7 +1,8 @@
-namespace FaraTaraz.Core.Accounting;
+namespace FaraTaraz.Modules.AccountingSources;
 
 using FaraTaraz.BuildingBlocks.Accounting;
-using FaraTaraz.Core.Synchronization;
+using FaraTaraz.Modules.Ingestion.Domain.Synchronization;
+using FaraTaraz.Modules.Ingestion.Domain.SourceModel;
 
 /// <summary>
 /// Marker interface for a single capability port.
@@ -55,32 +56,32 @@ public interface ISyncablePort<TRecord> : ICapabilityPort
 }
 
 /// <summary>Customers capability port.</summary>
-public interface ICustomerSource : ISyncablePort<SourceModel.SourceCustomer>
+public interface ICustomerSource : ISyncablePort<SourceCustomer>
 {
 }
 
 /// <summary>Products capability port.</summary>
-public interface IProductSource : ISyncablePort<SourceModel.SourceProduct>
+public interface IProductSource : ISyncablePort<SourceProduct>
 {
 }
 
 /// <summary>Sales capability port.</summary>
-public interface ISalesSource : ISyncablePort<SourceModel.SourceSalesRecord>
+public interface ISalesSource : ISyncablePort<SourceSalesRecord>
 {
 }
 
 /// <summary>Inventory capability port.</summary>
-public interface IInventorySource : ISyncablePort<SourceModel.SourceInventoryRecord>
+public interface IInventorySource : ISyncablePort<SourceInventoryRecord>
 {
 }
 
 /// <summary>Purchases capability port.</summary>
-public interface IPurchaseSource : ISyncablePort<SourceModel.SourcePurchaseRecord>
+public interface IPurchaseSource : ISyncablePort<SourcePurchaseRecord>
 {
 }
 
 /// <summary>Payments capability port.</summary>
-public interface IPaymentSource : ISyncablePort<SourceModel.SourcePaymentRecord>
+public interface IPaymentSource : ISyncablePort<SourcePaymentRecord>
 {
 }
 

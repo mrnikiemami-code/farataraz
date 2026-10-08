@@ -139,6 +139,26 @@ automated architecture tests where feasible (see `tests/FaraTaraz.ArchitectureTe
 40. **Architecture invariants are enforced by automated guards where feasible.** Rules
     that cannot yet be automated are documented with the reason and a plan to automate.
 
+### L. Module structure and CQRS layering
+
+41. **Capability-first module ownership.** Platform capabilities are organized into
+    capability modules (`MasterData`; `AccountingSources`; `Ingestion.Domain`;
+    `Ingestion.Application`) over a `BuildingBlocks` foundation. Each module owns exactly
+    one capability domain; no module spans multiple unrelated domains. The former `Core`
+    project is decomposed; nothing references it. See `structure.md`.
+42. **Inward dependency direction.** The foundation depends on nothing platform-wide;
+    platform modules depend on the foundation and on lower modules; adapters depend inward
+    and are never depended on by a platform module. No platform module references a concrete
+    adapter.
+43. **One namespace per module folder.** Each source folder maps to exactly one
+    fully-qualified namespace; a namespace is not split across folders and a folder holds no
+    more than one namespace. See `structure.md`.
+44. **CQRS through a delivery boundary.** Application use cases are dispatched through
+    <c>ISender</c>; a handler depends only on the inward, provider-independent capability
+    port and the inbound trusted tenant context — never on a concrete provider, and never on
+    <c>ISender</c> itself. The Domain layer does not reference the mediator or the
+    Application layer.
+
 ---
 
 ## Source of Truth for Behavior

@@ -5,9 +5,9 @@ using System.Threading.Tasks;
 using FaraTaraz.Adapters.Accounting.Mock;
 using FaraTaraz.BuildingBlocks.Accounting;
 using FaraTaraz.BuildingBlocks.Identifiers;
-using FaraTaraz.Core.Accounting;
-using FaraTaraz.Core.SourceModel;
-using FaraTaraz.Core.Synchronization;
+using FaraTaraz.Modules.AccountingSources;
+using FaraTaraz.Modules.Ingestion.Domain.SourceModel;
+using FaraTaraz.Modules.Ingestion.Domain.Synchronization;
 using Xunit;
 
 /// <summary>

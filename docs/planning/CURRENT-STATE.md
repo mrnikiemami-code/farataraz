@@ -51,7 +51,19 @@ W1 deliverables:
 - Mock synchronization scenarios (`MockCapabilitySync`, `MockSources`)
 - reusable adapter-agnostic conformance harness + Mock conformance tests
 - architecture guards: async ports require `CancellationToken`, source identity shape,
-  no persistence packages in Core/BuildingBlocks, `SyncRequest` carries no `TenantId`
+  no persistence packages in BuildingBlocks/modules, `SyncRequest` carries no `TenantId`
+
+W1-R1 (Architecture Structure + CQRS Foundation) — structural refinement of W1 (still
+part of W1; W1 remains `PASS`, not certified):
+- decomposed the former `Core` project into `BuildingBlocks` (foundation) plus capability
+  modules: `MasterData`, `AccountingSources`, `Ingestion.Domain`, `Ingestion.Application`
+- capability-first module ownership with an exact path-to-namespace mapping
+  (see `../architecture/structure.md`)
+- CQRS through MediatR (12.5.0 / Apache-2.0) with `ISender` as the delivery boundary;
+  `SynchronizeCustomersQuery` + `SynchronizeCustomersHandler` dispatch over the capability
+  port and enforce the trusted `TenantContext` invariant
+- structural architecture guards (reference graph, dependency direction, CQRS dispatch,
+  no persistence packages, one namespace per folder)
 
 Critical acceptance: processing the same source record repeatedly is behaviorally
 **idempotent** (stable identity across repeated delivery).

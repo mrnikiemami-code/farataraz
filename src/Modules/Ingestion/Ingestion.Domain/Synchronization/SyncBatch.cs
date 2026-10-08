@@ -1,4 +1,4 @@
-namespace FaraTaraz.Core.Synchronization;
+namespace FaraTaraz.Modules.Ingestion.Domain.Synchronization;
 
 /// <summary>
 /// Bounded, provider-independent synchronization result for one page.

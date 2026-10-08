@@ -7,11 +7,13 @@
     <IsPackable>false</IsPackable>
   </PropertyGroup>
 
-  <ItemGroup>
+    <ItemGroup>
     <PackageReference Include="coverlet.collector" Version="6.0.4" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageReference Include="xunit" Version="2.9.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
+    <PackageReference Include="MediatR" Version="12.5.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.0" />
   </ItemGroup>
 
   <ItemGroup>
@@ -20,7 +22,10 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\BuildingBlocks\FaraTaraz.BuildingBlocks.csproj" />
-    <ProjectReference Include="..\..\src\Core\FaraTaraz.Core.csproj" />
+    <ProjectReference Include="..\..\src\Modules\MasterData\FaraTaraz.Modules.MasterData.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Ingestion\Ingestion.Domain\FaraTaraz.Modules.Ingestion.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Ingestion\Ingestion.Application\FaraTaraz.Modules.Ingestion.Application.csproj" />
+    <ProjectReference Include="..\..\src\Modules\AccountingSources\FaraTaraz.Modules.AccountingSources.csproj" />
     <ProjectReference Include="..\..\src\Adapters\Accounting.Mock\FaraTaraz.Adapters.Accounting.Mock.csproj" />
   </ItemGroup>
 

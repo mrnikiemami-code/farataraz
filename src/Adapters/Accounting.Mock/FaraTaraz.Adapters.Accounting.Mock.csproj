@@ -2,7 +2,9 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\BuildingBlocks\FaraTaraz.BuildingBlocks.csproj" />
-    <ProjectReference Include="..\..\Core\FaraTaraz.Core.csproj" />
+    <ProjectReference Include="..\..\Modules\MasterData\FaraTaraz.Modules.MasterData.csproj" />
+    <ProjectReference Include="..\..\Modules\Ingestion\Ingestion.Domain\FaraTaraz.Modules.Ingestion.Domain.csproj" />
+    <ProjectReference Include="..\..\Modules\AccountingSources\FaraTaraz.Modules.AccountingSources.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

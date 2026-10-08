@@ -1,4 +1,4 @@
-namespace FaraTaraz.Core.Synchronization;
+namespace FaraTaraz.Modules.Ingestion.Domain.Synchronization;
 
 /// <summary>
 /// Injectable system clock. Platform retrieval timestamps must come from this abstraction

@@ -1,9 +1,9 @@
 namespace FaraTaraz.Adapters.Accounting.Mock;
 
 using FaraTaraz.BuildingBlocks.Accounting;
-using FaraTaraz.Core.Accounting;
-using FaraTaraz.Core.SourceModel;
-using FaraTaraz.Core.Synchronization;
+using FaraTaraz.Modules.AccountingSources;
+using FaraTaraz.Modules.Ingestion.Domain.SourceModel;
+using FaraTaraz.Modules.Ingestion.Domain.Synchronization;
 
 /// <summary>
 /// Deterministic Mock accounting provider used to prove the synchronization contract (W1).

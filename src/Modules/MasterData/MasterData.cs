@@ -1,4 +1,4 @@
-namespace FaraTaraz.Core.MasterData;
+namespace FaraTaraz.Modules.MasterData;
 
 using FaraTaraz.BuildingBlocks.Identifiers;
 

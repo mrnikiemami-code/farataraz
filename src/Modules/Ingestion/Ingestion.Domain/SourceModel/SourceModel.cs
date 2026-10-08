@@ -1,8 +1,8 @@
-namespace FaraTaraz.Core.SourceModel;
+namespace FaraTaraz.Modules.Ingestion.Domain.SourceModel;
 
 using FaraTaraz.BuildingBlocks.Identifiers;
-using FaraTaraz.Core.MasterData;
-using FaraTaraz.Core.Synchronization;
+using FaraTaraz.Modules.MasterData;
+using FaraTaraz.Modules.Ingestion.Domain.Synchronization;
 
 /// <summary>
 /// Provider-agnostic representation of a customer as seen from one accounting source.

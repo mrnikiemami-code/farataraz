@@ -1,4 +1,4 @@
-namespace FaraTaraz.Core.Synchronization;
+namespace FaraTaraz.Modules.Ingestion.Domain.Synchronization;
 
 /// <summary>
 /// Optional change signal for a source record.

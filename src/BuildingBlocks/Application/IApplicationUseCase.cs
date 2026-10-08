@@ -1,4 +1,4 @@
-namespace FaraTaraz.Core.Application;
+namespace FaraTaraz.BuildingBlocks.Application;
 
 /// <summary>
 /// Marker for an application use case — the authoritative interface to platform behavior.

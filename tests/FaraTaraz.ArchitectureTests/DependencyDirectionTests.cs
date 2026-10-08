@@ -4,42 +4,66 @@ using System.Linq;
 using System.Reflection;
 using FaraTaraz.Adapters.Accounting.Mock;
 using FaraTaraz.BuildingBlocks.Tenancy;
-using FaraTaraz.Core.Application;
+using FaraTaraz.Modules.AccountingSources;
+using FaraTaraz.Modules.Ingestion.Application.SynchronizeCustomers;
+using FaraTaraz.Modules.Ingestion.Domain.Synchronization;
+using FaraTaraz.Modules.MasterData;
 using Xunit;
 
 /// <summary>
-/// Guards the dependency direction and the recorded project reference graph.
-/// Core/platform must never depend on a concrete provider adapter.
+/// Guards the dependency direction of the platform modules.
+///
+/// No platform module (MasterData / Ingestion.Domain / Ingestion.Application /
+/// AccountingSources) or the foundation (BuildingBlocks) may depend on a concrete
+/// provider adapter. Provider adapters are the OUTERMOST layer and depend inward.
 /// </summary>
 public class DependencyDirectionTests
 {
-    private static readonly Assembly Core = typeof(IApplicationUseCase).Assembly;
-    private static readonly Assembly BuildingBlocks = typeof(Tenant).Assembly;
-
-    [Fact]
-    public void Core_must_not_reference_a_concrete_provider_adapter_assembly()
+    private static readonly Assembly[] PlatformModules =
     {
-        var referenced = Core.GetReferencedAssemblies().Select(a => a.Name);
+        typeof(ExternalCustomerId).Assembly,        // MasterData
+        typeof(SyncRequest).Assembly,              // Ingestion.Domain
+        typeof(SynchronizeCustomersQuery).Assembly, // Ingestion.Application
+        typeof(IAccountingProvider).Assembly       // AccountingSources
+    };
 
-        Assert.DoesNotContain(referenced, n => n!.Contains("Adapters", StringComparison.OrdinalIgnoreCase));
-        Assert.DoesNotContain(referenced, n => n!.Contains("Mock", StringComparison.OrdinalIgnoreCase));
+    private static bool ReferencesAdapter(Assembly assembly)
+    {
+        var referenced = assembly.GetReferencedAssemblies().Select(a => a.Name);
+        return referenced.Any(n => n is not null &&
+            (n.Contains("Adapters", StringComparison.OrdinalIgnoreCase) ||
+             n.Contains("Mock", StringComparison.OrdinalIgnoreCase)));
     }
 
     [Fact]
-    public void Core_must_not_expose_any_provider_adapter_namespace()
+    public void No_platform_module_must_reference_a_concrete_provider_adapter_assembly()
     {
-        var violating = Core.GetTypes()
-            .Where(t => t.Namespace is not null
-                        && (t.Namespace.Contains("Adapters") || t.Namespace.Contains("Mock")))
-            .ToList();
+        foreach (var module in PlatformModules)
+        {
+            Assert.False(ReferencesAdapter(module),
+                $"Platform module '{module.GetName().Name}' must not reference a provider adapter.");
+        }
+    }
 
-        Assert.Empty(violating);
+    [Fact]
+    public void No_platform_module_must_expose_a_provider_adapter_namespace()
+    {
+        foreach (var module in PlatformModules)
+        {
+            var violating = module.GetTypes()
+                .Where(t => t.Namespace is not null
+                            && (t.Namespace.Contains("Adapters") || t.Namespace.Contains("Mock")))
+                .ToList();
+
+            Assert.Empty(violating);
+        }
     }
 
     [Fact]
     public void BuildingBlocks_must_not_reference_any_platform_project()
     {
-        var referencingFaraTaraz = BuildingBlocks.GetReferencedAssemblies()
+        var referencingFaraTaraz = typeof(Tenant).Assembly
+            .GetReferencedAssemblies()
             .Select(a => a.Name)
             .Where(n => n is not null && n.StartsWith("FaraTaraz"));
 

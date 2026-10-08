@@ -2,11 +2,13 @@ namespace FaraTaraz.ArchitectureTests;
 
 using System.Reflection;
 using FaraTaraz.BuildingBlocks.Tenancy;
-using FaraTaraz.Core.Application;
+using FaraTaraz.Modules.AccountingSources;
+using FaraTaraz.Modules.Ingestion.Domain.Synchronization;
+using FaraTaraz.Modules.MasterData;
 using Xunit;
 
 /// <summary>
-/// Provider-specific concepts must never live in Core or BuildingBlocks.
+/// Provider-specific concepts must never live in the platform (modules + BuildingBlocks).
 /// No type name or namespace in those assemblies may contain a provider product name,
 /// nor the word "Adapter"/"Mock" (i.e. no adapter types leak into the platform core).
 /// </summary>
@@ -17,8 +19,10 @@ public class ProviderLeakageTests
 
     private static readonly Assembly[] PlatformAssemblies =
     {
-        typeof(IApplicationUseCase).Assembly,
-        typeof(Tenant).Assembly
+        typeof(Tenant).Assembly,                  // BuildingBlocks
+        typeof(ExternalCustomerId).Assembly,        // MasterData
+        typeof(SyncRequest).Assembly,             // Ingestion
+        typeof(IAccountingProvider).Assembly      // AccountingSources
     };
 
     [Fact]

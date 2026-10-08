@@ -3,8 +3,8 @@ namespace FaraTaraz.SyncContracts.Tests;
 using System.Collections.Generic;
 using System.Linq;
 using FaraTaraz.BuildingBlocks.Accounting;
-using FaraTaraz.Core.Accounting;
-using FaraTaraz.Core.Synchronization;
+using FaraTaraz.Modules.AccountingSources;
+using FaraTaraz.Modules.Ingestion.Domain.Synchronization;
 
 /// <summary>
 /// Reusable, adapter-agnostic conformance assertions for the synchronization contract.

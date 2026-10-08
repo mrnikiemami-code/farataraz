@@ -2,7 +2,7 @@ namespace FaraTaraz.ArchitectureTests;
 
 using System.Linq;
 using FaraTaraz.BuildingBlocks.Identifiers;
-using FaraTaraz.Core.MasterData;
+using FaraTaraz.Modules.MasterData;
 using Xunit;
 
 /// <summary>

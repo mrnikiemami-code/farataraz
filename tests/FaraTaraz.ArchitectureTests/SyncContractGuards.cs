@@ -4,8 +4,8 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Xml.Linq;
-using FaraTaraz.Core.Accounting;
-using FaraTaraz.Core.Synchronization;
+using FaraTaraz.Modules.AccountingSources;
+using FaraTaraz.Modules.Ingestion.Domain.Synchronization;
 using FaraTaraz.BuildingBlocks.Identifiers;
 using Xunit;
 
@@ -103,12 +103,12 @@ public class SyncContractGuards
     }
 
     /// <summary>
-    /// W1 establishes contracts only. Neither Core nor BuildingBlocks may pull in a
-    /// persistence stack (EF Core / Npgsql / PostgreSQL) — that belongs to W2 and must be
+    /// W1 establishes contracts only. The foundation and every platform module may pull in
+    /// a persistence stack (EF Core / Npgsql / PostgreSQL) — that belongs to W2 and must be
     /// gated by an explicit architecture decision.
     /// </summary>
     [Fact]
-    public void Core_and_BuildingBlocks_declare_no_persistence_packages()
+    public void Platform_declares_no_persistence_packages()
     {
         var persistenceTokens = new[]
         {
@@ -123,8 +123,13 @@ public class SyncContractGuards
 
         var projects = new[]
         {
-            ("Core", "FaraTaraz.Core.csproj"),
-            ("BuildingBlocks", "FaraTaraz.BuildingBlocks.csproj")
+            ("BuildingBlocks", "FaraTaraz.BuildingBlocks.csproj"),
+            ("Modules/MasterData", "FaraTaraz.Modules.MasterData.csproj"),
+            ("Modules/Ingestion/Ingestion.Domain",
+                "FaraTaraz.Modules.Ingestion.Domain.csproj"),
+            ("Modules/Ingestion/Ingestion.Application",
+                "FaraTaraz.Modules.Ingestion.Application.csproj"),
+            ("Modules/AccountingSources", "FaraTaraz.Modules.AccountingSources.csproj")
         };
 
         foreach (var (folder, csprojName) in projects)
