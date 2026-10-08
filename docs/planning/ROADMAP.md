@@ -75,6 +75,13 @@ empty valid source; unsupported capability.
 **Status:** `PASS` — acceptance criteria passed. **Not certified:** a reviewer must accept
 the W1 evidence before it becomes the baseline. **W1 does not authorize W2.**
 
+**W1-R1** (Architecture Structure + CQRS Foundation) reorganized W1 into a capability-first
+modular monolith — `BuildingBlocks` foundation plus `MasterData`, `AccountingSources`,
+`Ingestion.Domain`, and `Ingestion.Application` modules — and proved CQRS through MediatR
+(`ISender` delivery boundary). Module ownership, the path-to-namespace map, and the
+structural guards are documented in
+[`../architecture/structure.md`](../architecture/structure.md).
+
 ---
 
 ### W2 — Persistence Foundation
