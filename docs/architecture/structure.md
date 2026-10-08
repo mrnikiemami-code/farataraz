@@ -22,7 +22,7 @@ projects. There is no single `Core` project; the former `Core` domain was decomp
 src/
 ├── BuildingBlocks/          foundation — depends on nothing platform-wide
 ├── Modules/
-│   ├── MasterData/          external + canonical identity
+│   ├── MasterData/          five separate external + canonical identity contracts
 │   ├── AccountingSources/   provider capability ports
 │   └── Ingestion/
 │       ├── Ingestion.Domain/        sync contracts + source models (no MediatR)
@@ -49,7 +49,7 @@ tests/
 | `AccountingSources` | Capability ports (`ICustomerSource`, `IProductSource`, …) and the neutral `IAccountingProvider`. | Concrete providers, sync internals, use cases. |
 | `Accounting.Mock` | A deterministic Mock provider that implements the ports for verification. | Anything outside the adapter boundary. |
 
-**Rule:** each module owns exactly one capability domain. A capability port belongs to the
+**MasterData W1 identity seam:** `ExternalCustomerId.cs`, `ExternalProductId.cs`, `CanonicalId.cs`, `CanonicalCustomer.cs`, and `CanonicalProduct.cs` are separate translation units in the single `MasterData` namespace. There are no empty single-file subfolders. Source-scoped external identities remain distinct from tenant-bound canonical identities. This is a contract-only module at W1; it does not own identity matching, persistence, mapping history, or ID generation. The current record constructors and public equality/deconstruction semantics are intentionally preserved. Default-valued struct IDs and blank inputs remain a pre-W2 validation/design decision and must not be treated as validated IDs at a trust or persistence boundary. The architecture test `MasterDataStructureTests` locks physical cohesion and source/tenant distinctions; it does not claim to prove input validation.\n\n**Rule:** each module owns exactly one capability domain. A capability port belongs to the
 module that declares the contract it synchronizes; the adapter implements that port.
 
 ---
