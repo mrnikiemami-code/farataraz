@@ -36,4 +36,26 @@ public sealed class IngestionSourceIdValidationTests
             new SourceRecordId(new AccountingSourceId("a"), "Customer", "42"),
             new SourceRecordId(new AccountingSourceId("b"), "Customer", "42"));
     }
+
+    [Fact]
+    public void Sync_request_rejects_default_source_id()
+    {
+        // default(AccountingSourceId) has Value == null; IsNullOrWhiteSpace(null) throws.
+        Assert.Throws<InvalidSyncRequestException>(
+            () => new SyncRequest(default(AccountingSourceId), SyncMode.Full));
+    }
+
+    [Fact]
+    public void Source_record_rejects_default_source_id()
+    {
+        Assert.Throws<InvalidSourceRecordIdException>(
+            () => new SourceRecordId(default(AccountingSourceId), "Customer", "42"));
+    }
+
+    [Fact]
+    public void Cursor_scope_rejects_default_source_id()
+    {
+        Assert.Throws<InvalidSyncCursorException>(
+            () => new SyncCursorScope(default(AccountingSourceId), "Customers"));
+    }
 }
