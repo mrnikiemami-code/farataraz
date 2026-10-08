@@ -65,6 +65,7 @@ namespace. Do not split a namespace across folders or place two namespaces in on
 | `BuildingBlocks/Application/` | `FaraTaraz.BuildingBlocks.Application` |
 | `BuildingBlocks/Identifiers/` | `FaraTaraz.BuildingBlocks.Identifiers` |
 | `BuildingBlocks/Tenancy/` | `FaraTaraz.BuildingBlocks.Tenancy` |
+| `BuildingBlocks/Errors/` | `FaraTaraz.BuildingBlocks.Errors` |
 | `Modules/MasterData/` | `FaraTaraz.Modules.MasterData` |
 | `Modules/AccountingSources/` | `FaraTaraz.Modules.AccountingSources` |
 | `Modules/Ingestion/Ingestion.Domain/SourceModel/` | `FaraTaraz.Modules.Ingestion.Domain.SourceModel` |
