@@ -32,6 +32,11 @@ public sealed record SyncRequest
                 $"SyncRequest.BatchSize must be a positive integer when provided, but was '{requested}'.");
         }
 
+        if (string.IsNullOrWhiteSpace(sourceId.Value))
+        {
+            throw new InvalidSyncRequestException("SyncRequest.SourceId must be a non-empty identity.");
+        }
+
         SourceId = sourceId;
         Mode = mode;
         Cursor = cursor;
