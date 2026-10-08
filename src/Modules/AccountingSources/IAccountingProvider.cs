@@ -135,9 +135,15 @@ public static class ProviderCapabilityExtensions
             : typeof(TCapability) == typeof(IInventorySource) ? AccountingCapability.Inventory
             : typeof(TCapability) == typeof(IPurchaseSource) ? AccountingCapability.Purchases
             : typeof(TCapability) == typeof(IPaymentSource) ? AccountingCapability.Payments
+            : typeof(TCapability) == typeof(ISyncablePort<SourceCustomer>) ? AccountingCapability.Customers
+            : typeof(TCapability) == typeof(ISyncablePort<SourceProduct>) ? AccountingCapability.Products
+            : typeof(TCapability) == typeof(ISyncablePort<SourceSalesRecord>) ? AccountingCapability.Sales
+            : typeof(TCapability) == typeof(ISyncablePort<SourceInventoryRecord>) ? AccountingCapability.Inventory
+            : typeof(TCapability) == typeof(ISyncablePort<SourcePurchaseRecord>) ? AccountingCapability.Purchases
+            : typeof(TCapability) == typeof(ISyncablePort<SourcePaymentRecord>) ? AccountingCapability.Payments
             : AccountingCapability.None;
 
-        if ((expected != AccountingCapability.None && capability != expected)
+        if (expected == AccountingCapability.None || capability != expected
             || !provider.Supports(capability) || provider is not TCapability port)
             throw new CapabilityNotSupportedException(capability);
 
