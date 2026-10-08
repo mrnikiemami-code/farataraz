@@ -105,27 +105,48 @@ public interface IAccountingProvider
 /// </summary>
 public static class ProviderCapabilityExtensions
 {
-    /// <summary>True when the provider declares the capability supported.</summary>
+    private const AccountingCapability KnownCapabilities =
+        AccountingCapability.Customers | AccountingCapability.Products |
+        AccountingCapability.Sales | AccountingCapability.Inventory |
+        AccountingCapability.Purchases | AccountingCapability.Payments;
+
+    /// <summary>True only for a non-empty set of declared, known capabilities.</summary>
     public static bool Supports(this IAccountingProvider provider, AccountingCapability capability)
-        => provider.SupportedCapabilities.HasFlag(capability);
+    {
+        ArgumentNullException.ThrowIfNull(provider);
+        return capability != AccountingCapability.None
+            && (capability & ~KnownCapabilities) == AccountingCapability.None
+            && (provider.SupportedCapabilities & capability) == capability;
+    }
 
     /// <summary>
-    /// Returns the capability port only if the provider genuinely supports it.
-    /// Throws <see cref="CapabilityNotSupportedException"/> otherwise.
-    /// Never returns null or an empty collection for an unsupported capability.
+    /// Resolves a matching capability port. A mismatched requested port and capability
+    /// must fail even if the provider happens to implement both interfaces.
     /// </summary>
     public static TCapability RequireCapability<TCapability>(
         this IAccountingProvider provider,
         AccountingCapability capability)
         where TCapability : class, ICapabilityPort
     {
-        if (!provider.SupportedCapabilities.HasFlag(capability))
-        {
-            throw new CapabilityNotSupportedException(capability);
-        }
+        ArgumentNullException.ThrowIfNull(provider);
+        var expected = typeof(TCapability) == typeof(ICustomerSource) ? AccountingCapability.Customers
+            : typeof(TCapability) == typeof(IProductSource) ? AccountingCapability.Products
+            : typeof(TCapability) == typeof(ISalesSource) ? AccountingCapability.Sales
+            : typeof(TCapability) == typeof(IInventorySource) ? AccountingCapability.Inventory
+            : typeof(TCapability) == typeof(IPurchaseSource) ? AccountingCapability.Purchases
+            : typeof(TCapability) == typeof(IPaymentSource) ? AccountingCapability.Payments
+            : typeof(TCapability) == typeof(ISyncablePort<SourceCustomer>) ? AccountingCapability.Customers
+            : typeof(TCapability) == typeof(ISyncablePort<SourceProduct>) ? AccountingCapability.Products
+            : typeof(TCapability) == typeof(ISyncablePort<SourceSalesRecord>) ? AccountingCapability.Sales
+            : typeof(TCapability) == typeof(ISyncablePort<SourceInventoryRecord>) ? AccountingCapability.Inventory
+            : typeof(TCapability) == typeof(ISyncablePort<SourcePurchaseRecord>) ? AccountingCapability.Purchases
+            : typeof(TCapability) == typeof(ISyncablePort<SourcePaymentRecord>) ? AccountingCapability.Payments
+            : AccountingCapability.None;
 
-        return provider is TCapability port
-            ? port
-            : throw new CapabilityNotSupportedException(capability);
+        if (expected == AccountingCapability.None || capability != expected
+            || !provider.Supports(capability) || provider is not TCapability port)
+            throw new CapabilityNotSupportedException(capability);
+
+        return port;
     }
 }
