@@ -6,4 +6,14 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <!--
+      Structured diagnostics (DiagnosticContext + ILogger extension) build on the standard
+      Microsoft logging abstraction. This is not a new logging framework; it only supplies the
+      ILogger/ILoggerProvider types so Diagnostics can emit structured, searchable events.
+      Version pinned to match the existing Microsoft.Extensions.DependencyInjection 8.0.0.
+    -->
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
+  </ItemGroup>
+
 </Project>
