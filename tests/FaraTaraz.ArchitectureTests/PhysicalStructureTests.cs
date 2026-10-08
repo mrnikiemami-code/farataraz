@@ -51,7 +51,7 @@ public class PhysicalStructureTests
         Path.Combine("BuildingBlocks", "Application"),
         Path.Combine("BuildingBlocks", "Identifiers"),
         Path.Combine("Modules", "MasterData"),
-        Path.Combine("Modules", "AccountingSources"),
+        Path.Combine("Modules", "AccountingSources", "Providers"),
         Path.Combine("Modules", "Ingestion", "Ingestion.Domain", "SourceModel"),
     };
 
