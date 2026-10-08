@@ -35,6 +35,11 @@ public sealed record SourceRecordId
                 "Source record external id must be a non-empty string.");
         }
 
+        if (string.IsNullOrWhiteSpace(sourceId.Value))
+        {
+            throw new InvalidSourceRecordIdException("Source record source id must be a non-empty identity.");
+        }
+
         SourceId = sourceId;
         RecordKind = recordKind;
         ExternalId = externalId;
