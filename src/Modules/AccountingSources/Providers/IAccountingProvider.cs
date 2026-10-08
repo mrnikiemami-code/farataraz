@@ -1,4 +1,4 @@
-namespace FaraTaraz.Modules.AccountingSources;
+namespace FaraTaraz.Modules.AccountingSources.Providers;
 
 using FaraTaraz.BuildingBlocks.Accounting;
 

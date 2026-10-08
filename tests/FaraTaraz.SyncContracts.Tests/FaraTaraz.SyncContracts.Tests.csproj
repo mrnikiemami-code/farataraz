@@ -27,4 +27,9 @@
     <ProjectReference Include="..\..\src\Adapters\Accounting.Mock\FaraTaraz.Adapters.Accounting.Mock.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Using Include="FaraTaraz.Modules.AccountingSources.Providers" />
+    <Using Include="FaraTaraz.Modules.AccountingSources.Capabilities" />
+    <Using Include="FaraTaraz.Modules.AccountingSources.Authorization" />
+  </ItemGroup>
 </Project>

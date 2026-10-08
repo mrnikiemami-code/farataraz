@@ -1,4 +1,4 @@
-namespace FaraTaraz.Modules.AccountingSources;
+namespace FaraTaraz.Modules.AccountingSources.Capabilities;
 
 using FaraTaraz.Modules.Ingestion.Domain.SourceModel;
 
