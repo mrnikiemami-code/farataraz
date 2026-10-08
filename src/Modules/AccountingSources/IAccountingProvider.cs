@@ -137,7 +137,7 @@ public static class ProviderCapabilityExtensions
             : typeof(TCapability) == typeof(IPaymentSource) ? AccountingCapability.Payments
             : AccountingCapability.None;
 
-        if (expected == AccountingCapability.None || capability != expected
+        if ((expected != AccountingCapability.None && capability != expected)
             || !provider.Supports(capability) || provider is not TCapability port)
             throw new CapabilityNotSupportedException(capability);
 
