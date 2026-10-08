@@ -47,24 +47,28 @@ public static class SourceContentFingerprint
     /// are emitted in sorted property-name order, arrays keep their order (order is meaningful
     /// for sequences, unlike object members), and scalars are serialized as-is.
     /// </summary>
-    private static string Canonicalize(JsonNode node)
+    private static string Canonicalize(JsonNode? node)
     {
+        // JSON null (an absent object member or a null array element) is emitted as the
+        // literal "null". Without this, JsonNode.ToJsonString would throw on a null node.
+        if (node is null)
+        {
+            return "null";
+        }
+
         if (node is JsonObject obj)
         {
-            var parts = new List<string>();
-            foreach (var kvp in obj.OrderBy(x => x.Key, StringComparer.Ordinal))
-            {
-                parts.Add(JsonSerializer.Serialize(kvp.Key, CanonicalOptions));
-                parts.Add(":");
-                parts.Add(Canonicalize(kvp.Value!));
-            }
+            var entries = obj
+                .OrderBy(x => x.Key, StringComparer.Ordinal)
+                .Select(kvp =>
+                    JsonSerializer.Serialize(kvp.Key, CanonicalOptions) + ":" + Canonicalize(kvp.Value));
 
-            return "{" + string.Join("", parts) + "}";
+            return "{" + string.Join(",", entries) + "}";
         }
 
         if (node is JsonArray arr)
         {
-            var parts = arr.Select(item => Canonicalize(item!)).ToArray();
+            var parts = arr.Select(item => Canonicalize(item)).ToArray();
             return "[" + string.Join(",", parts) + "]";
         }
 
