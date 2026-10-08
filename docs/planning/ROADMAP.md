@@ -82,6 +82,22 @@ modular monolith — `BuildingBlocks` foundation plus `MasterData`, `AccountingS
 structural guards are documented in
 [`../architecture/structure.md`](../architecture/structure.md).
 
+**W1-R2** (Architecture Closure & Certification Readiness) closed the remaining W1
+architectural defects (recorded as `PASS` pending external review, not `CERTIFIED`):
+- bounded-page CQRS — one bounded sync page per request, caller-driven cursor continuation,
+  no unbounded Application accumulation
+- tenant-source ownership — provider-independent
+  `IAccountingSourceOwnership.IsOwnedByAsync` port, fail-closed, enforced before provider
+  work; source IDs alone never grant authorization
+- physical architecture guards — exact path↔namespace, capability-first, single-file leaf,
+  dependency direction, CQRS placement
+- sync contract hardening — `SyncRequest.BatchSize`, `SourceRecordId`, and `SyncCursor`
+  invariants
+
+**W2 — Persistence Foundation is NOT AUTHORIZED.** W1 (including W1-R1 and W1-R2) only
+establishes and proves contracts against the Mock. W2 (PostgreSQL + EF Core) requires a
+separate explicit task and an explicit architecture decision.
+
 ---
 
 ### W2 — Persistence Foundation

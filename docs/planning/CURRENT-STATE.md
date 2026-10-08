@@ -1,6 +1,6 @@
 # CURRENT STATE — FaraTaraz
 
-**Last updated:** W1 — Synchronization Contracts
+**Last updated:** W1-R2 — Architecture Closure & Certification Readiness
 **Certified baseline:** `d499e61730579c2ad9810d306dd2620c986bd9f3` (W0 CERTIFIED)
 
 Operational state. Should be readable in under ~2 minutes.
@@ -65,6 +65,29 @@ part of W1; W1 remains `PASS`, not certified):
 - structural architecture guards (reference graph, dependency direction, CQRS dispatch,
   no persistence packages, one namespace per folder)
 
+**W1-R2 (Architecture Closure & Certification Readiness)** — closes the remaining W1
+architectural defects (still part of W1; W1 remains `PASS`, not certified):
+- **Bounded-page CQRS.** `SynchronizeCustomersQuery` now returns a single
+  `SyncBatch<SourceCustomer>` page per request; the handler drives exactly one provider
+  page and returns it. Pagination is caller-controlled via `SyncBatch.NextCursor`. The
+  handler no longer loops pages or accumulates a full in-memory collection (bounded
+  Application memory). Cancellation propagates; unsupported modes/capabilities still fail
+  explicitly.
+- **Tenant-source ownership enforcement.** Provider-independent
+  `IAccountingSourceOwnership.IsOwnedByAsync(tenantId, sourceId)` port (fail-closed:
+  unknown tenant/source or lookup failure returns `false`, never authorization success).
+  The handler asserts the trusted `TenantContext` first, then verifies ownership before any
+  provider work; no provider adapter is required and no production always-`true` fake exists.
+  Source identity alone never grants authorization (W2/W3 supply the trusted resolution).
+- **Physical architecture guards.** Executable guards for exact path↔namespace mapping
+  (derived from location, not a file list), capability-first organization (reject generic
+  `Commands`/`Queries`/`Handlers`/… top-level folders), single-file leaf allowlist,
+  dependency direction (Domain has no MediatR/Application; adapters own no handlers; no
+  persistence in W1-R2), and CQRS placement (handlers only in valid Application paths).
+- **Sync contract hardening.** `SyncRequest.BatchSize` rejects zero/negative;
+  `SourceRecordId` rejects empty/whitespace record kind or external id; `SyncCursor`
+  rejects unreasonably large tokens and no longer leaks the raw token via `ToString()`.
+
 Critical acceptance: processing the same source record repeatedly is behaviorally
 **idempotent** (stable identity across repeated delivery).
 
@@ -74,7 +97,11 @@ Critical acceptance: processing the same source record repeatedly is behaviorall
   capability) + idempotency (same record twice / ten times / repeated batch / changed
   content / different record kind / different source) + interruption & resume + failure
   classification.
-- `FaraTaraz.ArchitectureTests` — W1 sync guards (see above).
+- `FaraTaraz.ArchitectureTests` — W1 sync guards (see above); W1-R1 CQRS dispatch +
+  untrusted-tenant rejection; W1-R2 bounded-page CQRS (one page per dispatch, cursor
+  continuation, no accumulation), tenant-source ownership (all deny/zero-provider-invocation
+  cases), and physical structure (path↔namespace, capability-first, single-file leaf,
+  dependency direction, CQRS placement).
 
 **Not done in W1 (correctly deferred):** real persistence (W2), ingestion engine (W3),
 any real provider integration. No PostgreSQL.

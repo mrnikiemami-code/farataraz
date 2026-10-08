@@ -158,6 +158,18 @@ automated architecture tests where feasible (see `tests/FaraTaraz.ArchitectureTe
     port and the inbound trusted tenant context — never on a concrete provider, and never on
     <c>ISender</c> itself. The Domain layer does not reference the mediator or the
     Application layer.
+45. **Bounded-page CQRS.** An Application use case drives the synchronization contract to
+    exactly one bounded page per request and returns that page; pagination is
+    caller-controlled via the page's continuation cursor. A handler never loops all pages
+    or accumulates a full in-memory collection (bounded Application memory), and
+    cancellation propagates.
+46. **Source ownership is enforced, not assumed.** Before any tenant-scoped provider work,
+    the Application use case verifies the trusted Tenant owns the requested
+    AccountingSource via a provider-independent authorization port
+    (<c>IAccountingSourceOwnership.IsOwnedByAsync</c>). Enforcement is fail-closed: an
+    unknown tenant/source or a lookup failure is treated as <em>not owned</em>, never as
+    authorization success. Source identity alone never grants authorization; W2/W3 supply
+    the trusted source-ownership resolution.
 
 ---
 

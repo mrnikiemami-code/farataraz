@@ -13,7 +13,43 @@ using FaraTaraz.BuildingBlocks.Identifiers;
 /// Identity is deterministic: it never uses random values, and it never embeds a platform
 /// retrieval timestamp (that belongs to provenance, not identity).
 /// </summary>
-public sealed record SourceRecordId(AccountingSourceId SourceId, string RecordKind, string ExternalId)
+public sealed record SourceRecordId
 {
+    public AccountingSourceId SourceId { get; }
+
+    public string RecordKind { get; }
+
+    public string ExternalId { get; }
+
+    public SourceRecordId(AccountingSourceId sourceId, string recordKind, string externalId)
+    {
+        if (string.IsNullOrWhiteSpace(recordKind))
+        {
+            throw new InvalidSourceRecordIdException(
+                "Source record kind must be a non-empty string.");
+        }
+
+        if (string.IsNullOrWhiteSpace(externalId))
+        {
+            throw new InvalidSourceRecordIdException(
+                "Source record external id must be a non-empty string.");
+        }
+
+        SourceId = sourceId;
+        RecordKind = recordKind;
+        ExternalId = externalId;
+    }
+
     public override string ToString() => $"{SourceId}::{RecordKind}![{ExternalId}]";
+}
+
+/// <summary>
+/// Thrown when a <see cref="SourceRecordId"/> is malformed (empty/whitespace record kind or
+/// external id). This is a caller-input validation error, never a provider failure.
+/// </summary>
+public sealed class InvalidSourceRecordIdException : Exception
+{
+    public InvalidSourceRecordIdException(string message) : base(message)
+    {
+    }
 }

@@ -26,9 +26,26 @@ public sealed record SyncRequest
 
     public SyncRequest(AccountingSourceId sourceId, SyncMode mode, SyncCursor? cursor = null, int? batchSize = null)
     {
+        if (batchSize is { } requested && requested <= 0)
+        {
+            throw new InvalidSyncRequestException(
+                $"SyncRequest.BatchSize must be a positive integer when provided, but was '{requested}'.");
+        }
+
         SourceId = sourceId;
         Mode = mode;
         Cursor = cursor;
         BatchSize = batchSize;
+    }
+}
+
+/// <summary>
+/// Thrown when a <see cref="SyncRequest"/> is malformed (e.g. a non-positive batch size).
+/// This is a caller-input validation error, never a provider failure.
+/// </summary>
+public sealed class InvalidSyncRequestException : Exception
+{
+    public InvalidSyncRequestException(string message) : base(message)
+    {
     }
 }

@@ -89,10 +89,19 @@ A wave is not complete merely because code compiles. Where applicable:
 | P0 — Planning & Source of Truth | CERTIFIED | this planning area |
 | W0 — Architecture Foundation | CERTIFIED | baseline `d499e61730579c2ad9810d306dd2620c986bd9f3` |
 | W1 — Synchronization Contracts | PASS | acceptance criteria passed; **not certified** — reviewer must accept before it becomes the baseline. W1-R1 added the capability-first modular structure (`BuildingBlocks` + `MasterData` + `AccountingSources` + `Ingestion.Domain` + `Ingestion.Application`), CQRS through MediatR (`ISender` boundary), and structural guards. |
+| W1-R1 — Architecture Structure + CQRS Foundation | PASS | still part of W1; **not certified**. Capability-first modular monolith, `ISender` delivery boundary, structural guards. Baseline HEAD: `ae27f28d006614ea6c21cbe504990245ac11342a`. |
+| W1-R2 — Architecture Closure & Certification Readiness | PASS (pending external review) | still part of W1; **not certified**. Bounded-page CQRS (one page per request, caller-driven cursor), tenant-source ownership port (`IAccountingSourceOwnership`, fail-closed), physical structure guards, sync contract hardening. NOT certified — awaiting reviewer acceptance. |
 | W2..W17 | PLANNED | see `ROADMAP.md` |
 
+**Historical certified baselines (do not overwrite):**
+- W0 CERTIFIED: `d499e61730579c2ad9810d306dd2620c986bd9f3`
+- P0: `0f1221adada6e10cdd1802bfea62bc88a9142f62`
+- W1 contracts: `35bbe46dd0cb0c47126028b1123834c69ce45120`
+- W1-R1 HEAD: `ae27f28d006614ea6c21cbe504990245ac11342a`
+
 **W1 does not authorize W2.** W2 (PostgreSQL/EF Core) requires a separate explicit task
-and an explicit architecture decision to introduce a persistence stack.
+and an explicit architecture decision to introduce a persistence stack. W1 (including W1-R1
+and W1-R2) is `PASS` pending external reviewer acceptance, not `CERTIFIED`.
 
 ---
 

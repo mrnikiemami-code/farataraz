@@ -24,6 +24,12 @@ public sealed record SyncCursorScope(AccountingSourceId SourceId, string Capabil
 /// </summary>
 public sealed class SyncCursor
 {
+    /// <summary>
+    /// Hard upper bound on an opaque cursor <see cref="Token"/>. Tokens are opaque by
+    /// contract, but they must remain small bounded metadata — never a full payload.
+    /// </summary>
+    public const int MaxTokenLength = 1024;
+
     public string Token { get; }
 
     public SyncCursorScope Scope { get; }
@@ -35,11 +41,21 @@ public sealed class SyncCursor
             throw new InvalidSyncCursorException("Cursor token must be a non-empty string.");
         }
 
+        if (token.Length > MaxTokenLength)
+        {
+            throw new InvalidSyncCursorException(
+                $"Cursor token exceeds the maximum allowed length of {MaxTokenLength} characters.");
+        }
+
         Scope = scope ?? throw new ArgumentNullException(nameof(scope));
         Token = token;
     }
 
-    public override string ToString() => $"{Scope}!{Token}";
+    /// <summary>
+    /// Renders the platform-managed scope only. The opaque <see cref="Token"/> is deliberately
+    /// NOT included so it never leaks through logging, error messages, or observability.
+    /// </summary>
+    public override string ToString() => $"{Scope}!<redacted>";
 }
 
 /// <summary>

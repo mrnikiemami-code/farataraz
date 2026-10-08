@@ -2,99 +2,210 @@ namespace FaraTaraz.ArchitectureTests;
 
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.DependencyInjection;
 using MediatR;
 using FaraTaraz.Adapters.Accounting.Mock;
+using FaraTaraz.BuildingBlocks.Accounting;
 using FaraTaraz.BuildingBlocks.Identifiers;
 using FaraTaraz.BuildingBlocks.Tenancy;
-using FaraTaraz.Modules.AccountingSources;
 using FaraTaraz.Modules.Ingestion.Application.SynchronizeCustomers;
 using FaraTaraz.Modules.Ingestion.Domain.SourceModel;
 using FaraTaraz.Modules.Ingestion.Domain.Synchronization;
 using Xunit;
 
 /// <summary>
-/// CQRS direction proof (task §27).
+/// Bounded-page CQRS proof (W1-R2).
 ///
-/// Proves the W1-R1 CQRS structure end to end:
-///   delivery boundary (ISender) → Application query → Application handler → capability port.
+/// Proves the W1-R2 bounded-page structure end to end:
+///   ISender → Application query → Application handler → capability port (ONE page).
 ///
-/// The use case is dispatched through <c>ISender</c> (the delivery boundary, never
-/// <c>IMediator</c>), delegates to the provider-independent capability port
-/// (<c>ISyncablePort&lt;SourceCustomer&gt;</c>), and enforces the tenant-authority invariant by
-/// asserting the Tenant context is trusted. The Mock is the ONLY provider wiring; the test
-/// observes only the neutral contract surface.
+/// Pagination is caller-controlled: each dispatch retrieves exactly one bounded page and
+/// returns a <see cref="SyncBatch{TRecord}"/> whose <c>NextCursor</c> drives the next dispatch.
+/// The handler NEVER loops through pages or accumulates a full collection. It also enforces
+/// the trusted-Tenant and source-ownership invariants (see <see cref="TenantSourceOwnershipTests"/>).
 /// </summary>
 public class CQRSProofTests
 {
-    private static readonly AccountingSourceId SourceId = new("src-mock-1");
     private static readonly TenantId TenantId = new("tenant-proof-1");
 
-    /// <summary>A deterministic 5-customer Mock provider (page size 2, full + incremental).</summary>
-    private static MockAccountingProvider ProviderWith5Customers() => new(
-        new MockCapabilitySync<SourceCustomer>(
-            MockAccountingProvider.CustomersCapability,
-            new[]
-            {
-                MockSources.Customer(SourceId, "C1"),
-                MockSources.Customer(SourceId, "C2"),
-                MockSources.Customer(SourceId, "C3"),
-                MockSources.Customer(SourceId, "C4"),
-                MockSources.Customer(SourceId, "C5")
-            },
-            SyncModeSupport.FullAndIncremental),
-        new MockCapabilitySync<SourceProduct>(
-            MockAccountingProvider.ProductsCapability,
-            Array.Empty<SourceProduct>(),
-            SyncModeSupport.FullOnly));
+    private static SynchronizeCustomersQuery Query(bool trusted = true, SyncCursor? cursor = null, int? batchSize = null)
+        => new(
+            trusted ? TenantContext.FromAuthenticatedPrincipal(TenantId)
+                    : new TenantContext(TenantId, TenantContextOrigin.ClientInput),
+            new SyncRequest(CqrsTestSupport.SourceIds.Source, SyncMode.Full, cursor, batchSize));
 
-    private static ISender BuildSender(MockAccountingProvider provider)
+    private static (ISender sender, CqrsTestSupport.CountingCustomerPort port) SenderWithOwnedSource(
+        MockCapabilitySync<SourceCustomer> capability)
     {
-        var services = new ServiceCollection();
+        var port = new CqrsTestSupport.CountingCustomerPort(capability);
+        var ownership = new CqrsTestSupport.InMemoryOwnershipFake();
+        ownership.Owns(TenantId, CqrsTestSupport.SourceIds.Source);
 
-        // Register every Application handler in the Ingestion.Application assembly.
-        // MediatR 12.5.0 exposes only the Action<MediatRServiceConfiguration> surface;
-        // the handler assembly is scanned for IRequestHandler<> implementations.
-        services.AddMediatR(
-            config => config.RegisterServicesFromAssembly(
-                typeof(SynchronizeCustomersHandler).Assembly));
+        var sender = CqrsTestSupport.BuildSender(port, ownership);
+        return (sender, port);
+    }
 
-        // The provider implements the capability port; the use case depends only on it.
-        services.AddScoped<ISyncablePort<SourceCustomer>>(_ => provider);
-
-        var serviceProvider = services.BuildServiceProvider();
-        return serviceProvider.GetRequiredService<ISender>();
+    private static async Task<(SyncBatch<SourceCustomer> batch, int callCount)> DispatchOnce(
+        ISender sender,
+        CqrsTestSupport.CountingCustomerPort port,
+        SyncCursor? cursor = null,
+        int? batchSize = null,
+        CancellationToken cancellationToken = default)
+    {
+        var before = port.CallCount;
+        var batch = await sender.Send(Query(cursor: cursor, batchSize: batchSize), cancellationToken);
+        return (batch, port.CallCount - before);
     }
 
     [Fact]
-    public async Task ISender_dispatches_the_use_case_and_delegates_to_the_capability_port()
+    public async Task One_dispatch_invokes_exactly_one_provider_page()
     {
-        var provider = ProviderWith5Customers();
-        var sender = BuildSender(provider);
+        var (sender, port) = SenderWithOwnedSource(CqrsTestSupport.Customers5());
 
-        var query = new SynchronizeCustomersQuery(
-            TenantContext.FromAuthenticatedPrincipal(TenantId),
-            new SyncRequest(SourceId, SyncMode.Full));
+        var (batch, calls) = await DispatchOnce(sender, port);
 
-        var result = await sender.Send(query);
-
-        // The bounded-page cursor contract is walked to completion by the Application handler.
-        Assert.Equal(
-            new[] { "C1", "C2", "C3", "C4", "C5" },
-            result.Select(c => c.Code));
+        Assert.True(calls == 1, "Exactly one provider page per dispatch.");
+        Assert.True(batch.Records.Count == 2, "Page size 2 for the first page.");
+        Assert.Equal(new[] { "C1", "C2" }, batch.Records.Select(r => r.Code));
     }
 
     [Fact]
-    public async Task Untrusted_Tenant_context_is_rejected_by_the_use_case()
+    public async Task Five_record_source_with_page_size_two_requires_three_dispatches()
     {
-        var provider = ProviderWith5Customers();
-        var sender = BuildSender(provider);
+        var (sender, port) = SenderWithOwnedSource(CqrsTestSupport.Customers5());
 
-        var query = new SynchronizeCustomersQuery(
-            new TenantContext(TenantId, TenantContextOrigin.ClientInput),
-            new SyncRequest(SourceId, SyncMode.Full));
+        var codes = new List<string>();
+        SyncCursor? cursor = null;
 
-        await Assert.ThrowsAsync<UnauthorizedTenantException>(() => sender.Send(query));
+        do
+        {
+            var (batch, _) = await DispatchOnce(sender, port, cursor: cursor);
+            codes.AddRange(batch.Records.Select(r => r.Code));
+            cursor = batch.NextCursor;
+        }
+        while (cursor is not null);
+
+        Assert.True(port.CallCount == 3, "Five records at page size 2 => 3 dispatches (2, 2, 1).");
+        Assert.Equal(new[] { "C1", "C2", "C3", "C4", "C5" }, codes);
+    }
+
+    [Fact]
+    public async Task First_and_second_dispatch_return_expected_continuation_cursor()
+    {
+        var (sender, _) = SenderWithOwnedSource(CqrsTestSupport.Customers5());
+
+        var first = await sender.Send(Query());
+        var second = await sender.Send(Query(cursor: first.NextCursor));
+
+        // First page: 2 records, continuing (cursor present, not complete).
+        Assert.False(first.IsComplete);
+        Assert.NotNull(first.NextCursor);
+        Assert.Equal(2, first.Records.Count);
+
+        // Second page continues from index 2, still continuing.
+        Assert.Equal(2, second.Records.Count);
+        Assert.Equal(new[] { "C3", "C4" }, second.Records.Select(r => r.Code));
+        Assert.False(second.IsComplete);
+        Assert.NotNull(second.NextCursor);
+    }
+
+    [Fact]
+    public async Task Final_dispatch_returns_IsComplete_true_with_no_cursor()
+    {
+        var (sender, _) = SenderWithOwnedSource(CqrsTestSupport.Customers5());
+
+        var first = await sender.Send(Query());
+        var second = await sender.Send(Query(cursor: first.NextCursor));
+        var last = await sender.Send(Query(cursor: second.NextCursor));
+
+        Assert.True(last.IsComplete, "The final page is complete.");
+        Assert.True(last.NextCursor is null, "The final page carries no continuation cursor.");
+        Assert.Single(last.Records);
+        Assert.Equal("C5", last.Records[0].Code);
+    }
+
+    [Fact]
+    public async Task Requested_batch_size_is_enforced_by_the_application_boundary()
+    {
+        var (sender, _) = SenderWithOwnedSource(CqrsTestSupport.Customers5());
+
+        // Request a batch size smaller than the page; the provider is bounded to it, and the
+        // Application boundary accepts that bounded page.
+        var batch = await sender.Send(Query(batchSize: 1));
+
+        Assert.True(batch.Records.Count <= 1, "Page must not exceed the requested batch size.");
+        Assert.Single(batch.Records);
+    }
+
+    [Fact]
+    public async Task Cancellation_propagates_through_the_use_case()
+    {
+        var (sender, _) = SenderWithOwnedSource(CqrsTestSupport.Customers5());
+
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        var ex = await Assert.ThrowsAsync<OperationCanceledException>(() => sender.Send(Query(), cts.Token));
+
+        // Cancellation is a caller action; it is never swallowed or reclassified.
+        Assert.IsNotType<SyncProviderException>(ex);
+    }
+
+    [Fact]
+    public async Task Unsupported_mode_still_fails_explicitly_through_the_handler()
+    {
+        // A Full-only customer capability requesting Incremental must fail explicitly, never
+        // silently fall back. The handler must not suppress the port's explicit failure.
+        var (sender, _) = SenderWithOwnedSource(CqrsTestSupport.CustomersFullOnly());
+
+        await Assert.ThrowsAsync<SyncModeNotSupportedException>(() =>
+            sender.Send(new SynchronizeCustomersQuery(
+                TenantContext.FromAuthenticatedPrincipal(TenantId),
+                new SyncRequest(CqrsTestSupport.SourceIds.Source, SyncMode.Incremental))));
+    }
+
+    [Fact]
+    public async Task Repeated_cursor_does_not_silently_restart()
+    {
+        var (sender, _) = SenderWithOwnedSource(CqrsTestSupport.Customers5());
+
+        var first = await sender.Send(Query());
+        var resumeCursor = first.NextCursor;
+        Assert.NotNull(resumeCursor);
+
+        // Feeding the same cursor again continues from that logical position, not from 0.
+        var again = await sender.Send(Query(cursor: resumeCursor));
+
+        Assert.Equal(new[] { "C3", "C4" }, again.Records.Select(r => r.Code));
+    }
+
+    [Fact]
+    public void Handler_returns_a_single_bounded_page_not_a_full_collection()
+    {
+        // The response type is ONE bounded page, never an accumulated full collection.
+        var handlerType = typeof(SynchronizeCustomersHandler);
+        var responseInterface = handlerType
+            .GetInterfaces()
+            .First(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IRequestHandler<,>));
+
+        var responseArgument = responseInterface.GetGenericArguments()[1];
+
+        Assert.Equal(typeof(SyncBatch<SourceCustomer>), responseArgument);
+    }
+
+    [Fact]
+    public void Handler_accumulates_no_full_source_collection()
+    {
+        // No handler-level collection of all source records: no List<SourceCustomer> field.
+        var handlerType = typeof(SynchronizeCustomersHandler);
+
+        var fields = handlerType
+            .GetFields(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public)
+            .Where(f => f.FieldType == typeof(List<SourceCustomer>))
+            .ToList();
+
+        Assert.Empty(fields);
     }
 }

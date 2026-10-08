@@ -1,0 +1,377 @@
+namespace FaraTaraz.ArchitectureTests;
+
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Reflection;
+using System.Text.RegularExpressions;
+using MediatR;
+using FaraTaraz.Adapters.Accounting.Mock;
+using FaraTaraz.BuildingBlocks.Accounting;
+using FaraTaraz.BuildingBlocks.Tenancy;
+using FaraTaraz.Modules.AccountingSources;
+using FaraTaraz.Modules.Ingestion.Application.SynchronizeCustomers;
+using FaraTaraz.Modules.Ingestion.Domain.Synchronization;
+using FaraTaraz.Modules.MasterData;
+using Xunit;
+
+/// <summary>
+/// Physical architecture guards (W1-R2, task §5).
+///
+/// These enforce the physical layout declared in <c>docs/architecture/structure.md</c>:
+///   A. exact path-to-namespace mapping (derived from the path, not a hard-coded file list);
+///   B. capability-first organization (no generic technical-axis folders);
+///   C. single-file leaf folders (explicit, documented allowlist);
+///   D. dependency direction (Domain has no MediatR/Application; adapters own no handlers;
+///       no persistence in W1-R2);
+///   E. CQRS placement (handlers live only in valid Application capability paths).
+///
+/// The guards identify REAL violations: they walk the actual <c>src/</c> tree and the actual
+/// referenced assemblies, so they keep failing against a drifted repository rather than a
+/// fixed snapshot.
+/// </summary>
+public class PhysicalStructureTests
+{
+    private static readonly string RepoRoot = FindRepoRoot();
+    private static readonly string SrcRoot = Path.Combine(RepoRoot, "src");
+
+    // Generic technical-axis folders that must never host Application requests/handlers.
+    private static readonly string[] GenericTechnicalFolders =
+    {
+        "Commands", "Queries", "Handlers", "Validators",
+        "Services", "Helpers", "Utils", "Misc", "Managers"
+    };
+
+    // Legitimate single-file leaf folders under src/: each is a single capability/domain
+    // boundary that legitimately holds exactly one translation unit. Documented here so a NEW
+    // unjustified one-file leaf fails the guard.
+    private static readonly string[] AllowedSingleFileLeaves =
+    {
+        Path.Combine("BuildingBlocks", "Accounting"),
+        Path.Combine("BuildingBlocks", "Application"),
+        Path.Combine("BuildingBlocks", "Identifiers"),
+        Path.Combine("Modules", "MasterData"),
+        Path.Combine("Modules", "AccountingSources"),
+        Path.Combine("Modules", "Ingestion", "Ingestion.Domain", "SourceModel"),
+    };
+
+    private static readonly Regex NamespaceDeclaration =
+        new(@"^\s*namespace\s+([\w\.]+)\s*(;|\{)", RegexOptions.Multiline);
+
+    // Project/module folder (relative to src/) mapped to its namespace root. The Ingestion/
+    // folder is a physical container for two projects and is NOT a namespace segment; each
+    // project folder is. Remaining sub-directory paths append as namespace segments. This is
+    // the project/module mapping from structure.md, not a per-file hard-coded list.
+    private static readonly Dictionary<string, string> ProjectNamespaceRoots = new()
+    {
+        ["BuildingBlocks"] = "FaraTaraz.BuildingBlocks",
+        ["Modules/MasterData"] = "FaraTaraz.Modules.MasterData",
+        ["Modules/AccountingSources"] = "FaraTaraz.Modules.AccountingSources",
+        ["Modules/Ingestion/Ingestion.Domain"] = "FaraTaraz.Modules.Ingestion.Domain",
+        ["Modules/Ingestion/Ingestion.Application"] =
+            "FaraTaraz.Modules.Ingestion.Application",
+        ["Adapters/Accounting.Mock"] = "FaraTaraz.Adapters.Accounting.Mock",
+    };
+
+    // --- A. Exact path-to-namespace mapping -----------------------------------------------
+
+    [Fact]
+    public void Every_production_file_declares_its_expected_namespace()
+    {
+        foreach (var file in ProductionSourceFiles())
+        {
+            var expected = ExpectedNamespace(file);
+            var namespaces = DeclaredNamespaces(File.ReadAllText(file));
+
+            Assert.NotEmpty(namespaces);
+
+            foreach (var ns in namespaces)
+            {
+                Assert.True(
+                    ns == expected || ns.StartsWith(expected + ".", StringComparison.Ordinal),
+                    $"'{file}' is located where '{expected}' belongs, but declares '{ns}'. " +
+                    "Move the file or rename the namespace to match structure.md.");
+            }
+        }
+    }
+
+    [Fact]
+    public void No_production_file_mixes_unrelated_namespaces()
+    {
+        foreach (var file in ProductionSourceFiles())
+        {
+            var expected = ExpectedNamespace(file);
+            var namespaces = DeclaredNamespaces(File.ReadAllText(file));
+
+            var unrelated = namespaces
+                .Where(ns => ns != expected && !ns.StartsWith(expected + ".", StringComparison.Ordinal))
+                .ToList();
+
+            Assert.Empty(unrelated);
+        }
+    }
+
+    // --- B. Capability-first organization -------------------------------------------------
+
+    [Fact]
+    public void Application_layer_uses_no_generic_technical_axis_folders()
+    {
+        var applicationRoot = Path.Combine(SrcRoot, "Modules", "Ingestion", "Ingestion.Application");
+
+        var violations = Directory
+            .GetDirectories(applicationRoot, "*", SearchOption.AllDirectories)
+            .Select(dir => Path.GetRelativePath(applicationRoot, dir).Replace("\\", "/"))
+            .Where(rel => rel.Split('/', System.StringSplitOptions.RemoveEmptyEntries)
+                             .Any(segment => GenericTechnicalFolders.Contains(segment)))
+            .ToList();
+
+        Assert.Empty(violations);
+    }
+
+    // --- C. Single-file leaf folders ------------------------------------------------------
+
+    [Fact]
+    public void Single_file_leaf_folders_are_documented_and_justified()
+    {
+        foreach (var leaf in SingleFileLeaves())
+        {
+            var rel = Path.GetRelativePath(SrcRoot, leaf).Replace("\\", "/");
+            Assert.True(
+                AllowedSingleFileLeaves.Contains(rel),
+                $"Single-file leaf '{rel}' is not in the documented allowlist. Either merge it into " +
+                "its parent capability or add a justified entry to the allowlist.");
+        }
+    }
+
+    // --- D. Dependency direction ----------------------------------------------------------
+
+    [Fact]
+    public void Ingestion_Domain_does_not_reference_MediatR()
+    {
+        var domain = typeof(SyncRequest).Assembly;
+
+        var referenced = domain.GetReferencedAssemblies().Select(a => a.Name);
+
+        Assert.DoesNotContain(
+            referenced,
+            n => n is not null && n.StartsWith("MediatR", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Ingestion_Domain_does_not_reference_Ingestion_Application()
+    {
+        var domain = typeof(SyncRequest).Assembly;
+        var application = typeof(SynchronizeCustomersQuery).Assembly;
+
+        var referenced = domain.GetReferencedAssemblies().Select(a => a.Name);
+
+        Assert.DoesNotContain(
+            referenced,
+            n => n is not null && n == application.GetName().Name);
+    }
+
+    [Fact]
+    public void No_adapter_owns_an_Application_handler()
+    {
+        var applicationHandler = typeof(SynchronizeCustomersHandler);
+
+        foreach (var adapter in AdapterAssemblies())
+        {
+            var handlers = adapter
+                .GetTypes()
+                .Where(t => t.GetInterfaces()
+                    .Any(i => i.IsGenericType &&
+                               i.GetGenericTypeDefinition() == typeof(IRequestHandler<,>)))
+                .ToList();
+
+            Assert.True(
+                handlers.Count == 0,
+                $"Adapter '{adapter.GetName().Name}' must not own an Application handler.");
+        }
+    }
+
+    [Fact]
+    public void No_persistence_packages_in_W1_R2_platform_modules()
+    {
+        var persistenceTokens = new[]
+        {
+            "Npgsql", "PostgreSQL", "Microsoft.EntityFrameworkCore", "EFCore",
+            "FluentNpgsql", "Dapper", "SQLite"
+        };
+
+        var projects = new[]
+        {
+            "BuildingBlocks",
+            "Modules/MasterData",
+            "Modules/AccountingSources",
+            "Modules/Ingestion/Ingestion.Domain",
+            "Modules/Ingestion/Ingestion.Application",
+        };
+
+        foreach (var folder in projects)
+        {
+            var csproj = Directory
+                .EnumerateFiles(Path.Combine(SrcRoot, folder), "*.csproj", SearchOption.TopDirectoryOnly)
+                .Single();
+            var xml = System.Xml.Linq.XDocument.Parse(File.ReadAllText(csproj));
+
+            var packageIds = xml
+                .Descendants("PackageReference")
+                .Select(e => (string?)e.Attribute("Include"))
+                .Where(t => t is not null)
+                .Select(t => t!);
+
+            var referenced = string.Join(" || ", packageIds);
+
+            foreach (var token in persistenceTokens)
+            {
+                Assert.False(
+                    referenced.Contains(token, StringComparison.OrdinalIgnoreCase),
+                    $"'{folder}' must not reference a persistence package containing '{token}'.");
+            }
+        }
+    }
+
+    // --- E. CQRS placement ----------------------------------------------------------------
+
+    [Fact]
+    public void MediatR_handlers_live_only_in_the_Application_layer()
+    {
+        var application = typeof(SynchronizeCustomersQuery).Assembly;
+        var domain = typeof(SyncRequest).Assembly;
+        var platformModules = new[] { domain, typeof(ExternalCustomerId).Assembly, typeof(IAccountingProvider).Assembly };
+
+        foreach (var module in platformModules)
+        {
+            if (module == application)
+            {
+                continue;
+            }
+
+            var handlers = module
+                .GetTypes()
+                .Where(t => t.GetInterfaces()
+                    .Any(i => i.IsGenericType &&
+                               i.GetGenericTypeDefinition() == typeof(IRequestHandler<,>)));
+
+            Assert.Empty(handlers);
+        }
+    }
+
+    // --- Helpers --------------------------------------------------------------------------
+
+    private static string FindRepoRoot()
+    {
+        var dir = new DirectoryInfo(AppContext.BaseDirectory);
+        while (dir is not null)
+        {
+            if (File.Exists(Path.Combine(dir.FullName, "FaraTaraz.sln")))
+            {
+                return dir.FullName;
+            }
+
+            dir = dir.Parent;
+        }
+
+        throw new FileNotFoundException("Repository root (FaraTaraz.sln) not found.");
+    }
+
+    private static IEnumerable<string> ProductionSourceFiles()
+    {
+        foreach (var dir in Directory.EnumerateDirectories(SrcRoot))
+        {
+            foreach (var file in Directory.EnumerateFiles(dir, "*.cs", SearchOption.AllDirectories))
+            {
+                if (file.Contains("\\bin\\", StringComparison.Ordinal) ||
+                    file.Contains("\\obj\\", StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                yield return file;
+            }
+        }
+    }
+
+    private static string ExpectedNamespace(string fullPath)
+    {
+        var relative = Path.GetRelativePath(SrcRoot, fullPath).Replace("\\", "/");
+        var relativeDir = Path.GetDirectoryName(relative)?.Replace("\\", "/") ?? string.Empty;
+
+        // Longest matching project folder prefix.
+        string? matched = null;
+        foreach (var folder in ProjectNamespaceRoots.Keys)
+        {
+            if (relativeDir == folder ||
+                relativeDir.StartsWith(folder + "/", StringComparison.Ordinal))
+            {
+                if (matched is null || folder.Length > matched!.Length)
+                {
+                    matched = folder;
+                }
+            }
+        }
+
+        if (matched is null)
+        {
+            throw new InvalidOperationException(
+                $"File '{relative}' is not under a known project folder under src/.");
+        }
+
+        var root = ProjectNamespaceRoots[matched!];
+        var remainder = relativeDir.Substring(matched!.Length).TrimStart('/');
+        var segments = remainder.Split('/', System.StringSplitOptions.RemoveEmptyEntries);
+
+        return segments.Length == 0 ? root : root + "." + string.Join(".", segments);
+    }
+
+    private static IEnumerable<string> DeclaredNamespaces(string source)
+    {
+        foreach (Match match in NamespaceDeclaration.Matches(source))
+        {
+            yield return match.Groups[1].Value;
+        }
+    }
+
+    private static IEnumerable<string> SingleFileLeaves()
+    {
+        foreach (var dir in Directory.EnumerateDirectories(SrcRoot))
+        {
+            var files = Directory.EnumerateFiles(dir, "*.cs").ToList();
+
+            var isLeaf = !Directory.EnumerateDirectories(dir).Any();
+            var singleFile = files.Count == 1;
+
+            if (isLeaf && singleFile)
+            {
+                yield return dir;
+            }
+        }
+    }
+
+    private static Assembly[] AdapterAssemblies()
+    {
+        var adaptersDir = Path.Combine(SrcRoot, "Adapters");
+        var result = new List<Assembly>();
+
+        foreach (var adapterDir in Directory.EnumerateDirectories(adaptersDir))
+        {
+            var csproj = Directory.EnumerateFiles(adapterDir, "*.csproj").Single();
+            var asmName = Path.GetFileNameWithoutExtension(csproj);
+
+            var dllPath = Directory
+                .EnumerateFiles(adapterDir, "*.dll", SearchOption.AllDirectories)
+                .FirstOrDefault(p =>
+                    Path.GetFileName(p) == asmName + ".dll" &&
+                    !p.Contains("ref", StringComparison.OrdinalIgnoreCase) &&
+                    !p.Contains("debug", StringComparison.OrdinalIgnoreCase));
+
+            if (dllPath is not null)
+            {
+                result.Add(Assembly.LoadFrom(dllPath));
+            }
+        }
+
+        return result.ToArray();
+    }
+}
