@@ -9,8 +9,8 @@ using FaraTaraz.BuildingBlocks.Identifiers;
 /// </summary>
 public sealed record SyncCursorScope
 {
-    public AccountingSourceId SourceId { get; }
-    public string Capability { get; }
+    public AccountingSourceId SourceId { get; init; }
+    public string Capability { get; init; }
 
     public SyncCursorScope(AccountingSourceId sourceId, string capability)
     {
