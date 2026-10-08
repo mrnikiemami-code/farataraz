@@ -7,8 +7,27 @@ using FaraTaraz.BuildingBlocks.Identifiers;
 /// a lightweight envelope that lets orchestration verify a cursor belongs to the requested
 /// source/capability WITHOUT understanding the opaque <c>Token</c>.
 /// </summary>
-public sealed record SyncCursorScope(AccountingSourceId SourceId, string Capability)
+public sealed record SyncCursorScope
 {
+    public AccountingSourceId SourceId { get; }
+    public string Capability { get; }
+
+    public SyncCursorScope(AccountingSourceId sourceId, string capability)
+    {
+        if (string.IsNullOrWhiteSpace(sourceId.Value))
+            throw new InvalidSyncCursorException("Cursor scope source id must be non-empty.");
+        if (string.IsNullOrWhiteSpace(capability))
+            throw new InvalidSyncCursorException("Cursor scope capability must be non-empty.");
+        SourceId = sourceId;
+        Capability = capability;
+    }
+
+    public void Deconstruct(out AccountingSourceId sourceId, out string capability)
+    {
+        sourceId = SourceId;
+        capability = Capability;
+    }
+
     public override string ToString() => $"src({SourceId})@{Capability}";
 }
 
