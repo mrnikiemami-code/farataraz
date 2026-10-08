@@ -17,4 +17,9 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <Using Include="FaraTaraz.Modules.AccountingSources.Providers" />
+    <Using Include="FaraTaraz.Modules.AccountingSources.Capabilities" />
+    <Using Include="FaraTaraz.Modules.AccountingSources.Authorization" />
+  </ItemGroup>
 </Project>
