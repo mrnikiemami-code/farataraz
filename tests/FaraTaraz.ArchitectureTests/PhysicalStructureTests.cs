@@ -80,18 +80,14 @@ public class PhysicalStructureTests
     {
         foreach (var file in ProductionSourceFiles())
         {
-            var expected = ExpectedNamespace(file);
-            var namespaces = DeclaredNamespaces(File.ReadAllText(file));
+            var relative = Path.GetRelativePath(SrcRoot, file).Replace("\\", "/");
+            var source = File.ReadAllText(file);
 
-            Assert.NotEmpty(namespaces);
-
-            foreach (var ns in namespaces)
-            {
-                Assert.True(
-                    ns == expected || ns.StartsWith(expected + ".", StringComparison.Ordinal),
-                    $"'{file}' is located where '{expected}' belongs, but declares '{ns}'. " +
-                    "Move the file or rename the namespace to match structure.md.");
-            }
+            Assert.True(
+                FileNamespaceMatchesDirectory(relative, source),
+                $"'{file}' declares '{string.Join(", ", DeclaredNamespaces(source))}' " +
+                $"but is located where '{ExpectedNamespace(file)}' belongs. " +
+                "Move the file or rename the namespace to match structure.md.");
         }
     }
 
@@ -136,8 +132,14 @@ public class PhysicalStructureTests
         foreach (var leaf in SingleFileLeaves())
         {
             var rel = Path.GetRelativePath(SrcRoot, leaf).Replace("\\", "/");
+
+            // Allowlist entries are built with Path.Combine (OS separators); rel is portable
+            // forward-slash. Normalize the comparison so documented leaves match across platforms
+            // without weakening the guard.
+            var justified = AllowedSingleFileLeaves.Any(entry => entry.Replace("\\", "/") == rel);
+
             Assert.True(
-                AllowedSingleFileLeaves.Contains(rel),
+                justified,
                 $"Single-file leaf '{rel}' is not in the documented allowlist. Either merge it into " +
                 "its parent capability or add a justified entry to the allowlist.");
         }
@@ -258,6 +260,49 @@ public class PhysicalStructureTests
         }
     }
 
+    // --- Regression: guards catch real violations -------------------------------
+
+    /// <summary>
+    /// The recursive leaf scan must detect a single-file leaf nested below a project folder, not
+    /// just the immediate children of <c>src/</c>. A nested leaf that is not in the documented
+    /// allowlist is then rejected by the guard.
+    /// </summary>
+    [Fact]
+    public void Nested_unjustified_single_file_leaf_is_detected_and_rejected()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "ft-structure-guard", Guid.NewGuid().ToString("N"));
+        var leafDir = Path.Combine(root, "Capability", "Deep");
+        Directory.CreateDirectory(leafDir);
+        File.WriteAllText(Path.Combine(leafDir, "Only.cs"), "namespace Demo;\nclass Only;\n");
+
+        try
+        {
+            var detected = EnumerateSingleFileLeaves(new[] { root }).ToList();
+            Assert.Contains(leafDir, detected);
+
+            var rel = Path.GetRelativePath(root, leafDir).Replace("\\", "/");
+            Assert.DoesNotContain(rel, AllowedSingleFileLeaves);
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    /// <summary>
+    /// A file physically located where a directory belongs, but declaring a deeper namespace (an
+    /// extra segment beyond its directory), must be rejected by the exact namespace guard.
+    /// </summary>
+    [Fact]
+    public void File_declaring_extra_namespace_segment_is_rejected()
+    {
+        const string relativePath = "BuildingBlocks/Identifiers/ExtraSegment.cs";
+        const string source =
+            "namespace FaraTaraz.BuildingBlocks.Identifiers.Sub;\nclass ExtraSegment;\n";
+
+        Assert.False(FileNamespaceMatchesDirectory(relativePath, source));
+    }
+
     // --- Helpers --------------------------------------------------------------------------
 
     private static string FindRepoRoot()
@@ -294,9 +339,11 @@ public class PhysicalStructureTests
     }
 
     private static string ExpectedNamespace(string fullPath)
+        => ExpectedNamespaceFromRelative(Path.GetRelativePath(SrcRoot, fullPath).Replace("\\", "/"));
+
+    private static string ExpectedNamespaceFromRelative(string relativePath)
     {
-        var relative = Path.GetRelativePath(SrcRoot, fullPath).Replace("\\", "/");
-        var relativeDir = Path.GetDirectoryName(relative)?.Replace("\\", "/") ?? string.Empty;
+        var relativeDir = Path.GetDirectoryName(relativePath)?.Replace("\\", "/") ?? string.Empty;
 
         // Longest matching project folder prefix.
         string? matched = null;
@@ -315,7 +362,7 @@ public class PhysicalStructureTests
         if (matched is null)
         {
             throw new InvalidOperationException(
-                $"File '{relative}' is not under a known project folder under src/.");
+                $"File '{relativePath}' is not under a known project folder under src/.");
         }
 
         var root = ProjectNamespaceRoots[matched!];
@@ -333,18 +380,48 @@ public class PhysicalStructureTests
         }
     }
 
-    private static IEnumerable<string> SingleFileLeaves()
+    /// <summary>
+    /// Exact path-to-namespace enforcement: a file may declare only the namespace derived from
+    /// its directory. A sub-namespace (an extra segment beyond the directory) is rejected, as is
+    /// any unrelated namespace. This is the tightened form of the guard in
+    /// <see cref="Every_production_file_declares_its_expected_namespace"/>.
+    /// </summary>
+    private static bool FileNamespaceMatchesDirectory(string relativePath, string source)
     {
-        foreach (var dir in Directory.EnumerateDirectories(SrcRoot))
+        var expected = ExpectedNamespaceFromRelative(relativePath);
+        var namespaces = DeclaredNamespaces(source).ToList();
+
+        return namespaces.Count > 0 && namespaces.All(ns => ns == expected);
+    }
+
+    private static IEnumerable<string> SingleFileLeaves()
+        => EnumerateSingleFileLeaves(new[] { SrcRoot });
+
+    /// <summary>
+    /// Recursively scans nested production directories for single-file leaves. <c>bin</c> and
+    /// <c>obj</c> build-output directories are excluded. A directory is a single-file leaf when it
+    /// holds exactly one <c>.cs</c> file and no sub-directories. Scanning recursively (rather than
+    /// only the immediate children of <c>src/</c>) catches leaves nested under project folders.
+    /// </summary>
+    private static IEnumerable<string> EnumerateSingleFileLeaves(IEnumerable<string> roots)
+    {
+        foreach (var root in roots)
         {
-            var files = Directory.EnumerateFiles(dir, "*.cs").ToList();
-
-            var isLeaf = !Directory.EnumerateDirectories(dir).Any();
-            var singleFile = files.Count == 1;
-
-            if (isLeaf && singleFile)
+            foreach (var dir in Directory.EnumerateDirectories(root, "*", SearchOption.AllDirectories))
             {
-                yield return dir;
+                var segments = dir.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                if (segments.Any(s => s == "bin" || s == "obj"))
+                {
+                    continue;
+                }
+
+                var files = Directory.EnumerateFiles(dir, "*.cs").ToList();
+                var subdirectories = Directory.EnumerateDirectories(dir).ToList();
+
+                if (files.Count == 1 && subdirectories.Count == 0)
+                {
+                    yield return dir;
+                }
             }
         }
     }
