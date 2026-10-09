@@ -16,4 +16,17 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
   </ItemGroup>
 
+  <!--
+    TenantContext trust-minting (internal constructor + FromAuthenticatedPrincipal) is restricted
+    to this trusted-foundation assembly. The test assemblies below are explicitly trusted callers
+    (they exercise the trusted boundary and its fail-closed negative paths), so they are granted
+    internal visibility. No production assembly other than this foundation can mint a trusted
+    TenantContext, which closes the FT-SEC-004 untrusted-minting gap.
+  -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="FaraTaraz.BuildingBlocks.Tests" />
+    <InternalsVisibleTo Include="FaraTaraz.ArchitectureTests" />
+    <InternalsVisibleTo Include="FaraTaraz.Infrastructure.IntegrationTests" />
+  </ItemGroup>
+
 </Project>
