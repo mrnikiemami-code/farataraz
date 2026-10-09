@@ -1,6 +1,7 @@
 namespace FaraTaraz.Modules.Ingestion.Infrastructure.Composition;
 
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using FaraTaraz.BuildingBlocks.Tenancy;
 using FaraTaraz.Modules.Ingestion.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -36,10 +37,10 @@ public static class IngestionInfrastructureComposition
             options.UseNpgsql(cs));
 
         // Trusted tenant scope for the current unit of work. Resolves from a trusted execution
-        // context (TenantContext) when one is bound; otherwise fails closed to "None". This is the
-        // single registration of the scope, so it is never overwritten by a competing default, and
+        // context (TenantContext) when one is bound; otherwise fails closed to "None". This is a
+        // TryAdd registration shared across module composition, so a second module cannot overwrite it, and
         // a missing scope never silently becomes authorized (ADR-010 decision 5).
-        services.AddScoped<DatabaseTenantScope>(provider =>
+        services.TryAddScoped<DatabaseTenantScope>(provider =>
         {
             var context = provider.GetService<TenantContext>();
             return context is not null && context.IsTrusted
