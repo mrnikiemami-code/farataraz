@@ -18,7 +18,7 @@ permissions:
 jobs:
   architecture-lock:
     name: FMCA invariants (build + tests)
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     timeout-minutes: 20
 
     # W2 Persistence Foundation: the integration suite exercises real PostgreSQL behaviour
