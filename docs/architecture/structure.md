@@ -189,3 +189,67 @@ verified with full regression tests before merge.
 ## 9. AccountingSources responsibility folders
 
 `Providers/` owns only `IAccountingProvider`; `Capabilities/` owns the syncable capability abstraction, six typed source ports, and capability resolution; `Authorization/` owns the trusted source ownership oracle and unauthorized-source exception. These are physical disk folders visible inside the SDK-style project in Visual Studio. Every moved type's namespace matches its physical folder. Project-level `Using` items in consumers preserve existing unqualified references without changing the authorization, cancellation, or capability semantics. `Providers/` is a justified single-file leaf because the provider declaration has one responsibility; the architecture allowlist documents this exception.
+
+---
+
+## 10. Target module architecture — Tooba Settlement reference (mandatory for migration)
+
+**Decision (2026-10-09):** FaraTaraz adopts the Tooba Settlement modular architecture as the **target** for all business modules. This section is normative for future implementation and migration; sections 1–9 describe the **current verified baseline** and must not be mistaken for proof that the target already exists. Existing project names and boundaries must be inventoried and migrated deliberately, without breaking behavior.
+
+### 10.1 Physical projects per business module
+
+```text
+src/Modules/<Capability>/
+  <Capability>.Application/       # use cases and feature-owned Commands/Queries/Models/Ports
+  <Capability>.Contracts/         # explicit cross-module and delivery contracts
+  <Capability>.Domain/            # business entities, value objects, domain rules
+  <Capability>.Endpoints/         # HTTP/MCP delivery, authorization, dispatch only
+  <Capability>.Infrastructure/    # persistence, external services, port implementations
+
+tests/<Capability>.Tests/          # module verification (test projects remain under tests/)
+
+src/Host/                         # composition root and wiring ONLY
+```
+
+Use consistent FaraTaraz project prefixes, namespaces and solution-folder names; do not blindly copy Tooba assembly names. A module may omit a layer only with an explicit, documented reason. No empty placeholder projects/folders.
+
+### 10.2 Application: capability first, responsibility second
+
+```text
+<Capability>.Application/
+  Composition/                    # module-local DI registration (no business rules)
+  <Feature>/
+    Commands/                     # write/side-effect use cases
+    Queries/                      # read-only use cases
+    Models/                       # feature-owned application models
+    Ports/                        # application-owned abstractions
+  Validation/                     # genuinely shared module validation
+```
+
+Feature-local validation belongs with its feature when not shared. Create only folders with actual contents. Command/query contracts and handlers live under the corresponding feature and operation category. Synchronization that mutates state/cursors is a Command, not a Query, unless a documented behavior audit proves read-only semantics; preserve existing public contracts during migration and use explicit compatibility steps.
+
+### 10.3 Layer authority and dependency direction
+
+- **Domain:** business authority; no dependency on Application, Endpoints, Infrastructure, Host, EF, HTTP or MediatR.
+- **Application:** use cases, handlers, validation and inward-facing ports; never references concrete adapters, EF or Host.
+- **Contracts:** transport-neutral cross-module/public contracts; no business implementation or infrastructure references.
+- **Endpoints:** delivery adapters grouped by audience/capability (e.g. Admin/, Seller/); authenticate/authorize, validate delivery input, translate response, dispatch through `ISender`; no business decisions or persistence.
+- **Infrastructure:** implements application/domain ports and owns technical integrations; dependencies point inward.
+- **Tests:** validate each layer, module contract and integration boundary.
+- **Host:** **ZERO business authority**. May compose module registrations, configure middleware, route endpoints and start the process. Must not contain business handlers, domain rules, repository/provider implementations, business validation or direct tenant-scoped business operations.
+
+A dependency graph must be derived from actual assembly references, then enforced by architecture tests. Do not silently reverse the dependency rule or allow cross-module Application/Infrastructure coupling. Cross-module access uses explicit Contracts/ports. Preserve tenant isolation, source ownership, fail-closed authorization, CQRS and idempotency.
+
+### 10.4 MediatR decision and precision
+
+The currently verified baseline uses MediatR `IRequest<T>`/`IRequestHandler<,>` in Application and `ISender` at delivery. `ISender` is itself a MediatR interface; it is **not** evidence of library independence. Do not silently relocate MediatR to Infrastructure or replace public contracts. Any move to MediatR-independent Application contracts requires a separate ADR, adapter design and tests. Endpoint/Host dispatch must not be confused with handler business logic.
+
+### 10.5 Disk, Visual Studio and migration acceptance
+
+- Real physical directories must match the intended Solution Explorer hierarchy; solution-only virtual folders do not count.
+- Use `git mv` for physical moves, update namespaces, project references, solution entries, registrations and tests atomically per module.
+- Exact path-to-namespace mapping and dependency-graph guards must be updated to the **actual final** layout, not weakened to hide failures.
+- Inventory all `src/` and `tests/` projects and migrate one module at a time with independently reviewable commits.
+- Verify solution load, Debug/Release builds (zero warnings/errors), all existing tests and new architecture/Host-authority guards after each wave and at the end.
+- Keep `master` unchanged until the migration branch is verified and explicitly approved for merge.
+- **Acceptance is not achieved by this documentation commit alone**; physical disk/Visual Studio refactor, regression evidence and module-level migration are required.
