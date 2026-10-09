@@ -26,7 +26,8 @@ src/
 │   ├── AccountingSources/   provider contracts, capability ports, authorization
 │   └── Ingestion/
 │       ├── Ingestion.Domain/        sync contracts + source models (no MediatR)
-│       └── Ingestion.Application/   CQRS use cases (MediatR)
+│       └── Ingestion.Application/   CQRS use cases (MediatR) + module Composition
+├── Host/                    composition root — wires modules, zero business authority
 └── Adapters/
     └── Accounting.Mock/     deterministic Mock provider (test/verification only)
 
@@ -48,6 +49,7 @@ tests/
 | `Ingestion.Application` | Application use cases (CQRS commands/queries) that drive the sync contract to completion over a capability port. | Provider adapters, persistence, tenant authority (takes it in, does not create it). |
 | `AccountingSources` | Capability ports (`ICustomerSource`, `IProductSource`, …) and the neutral `IAccountingProvider`. | Concrete providers, sync internals, use cases. |
 | `Accounting.Mock` | A deterministic Mock provider that implements the ports for verification. | Anything outside the adapter boundary. |
+| `Host` | Composition root: wires modules together through their module-local `Composition` extensions. | Business logic, use cases, domain rules, provider adapters, persistence. |
 
 **Rule:** each module owns exactly one capability domain. A capability port belongs to the
 module that declares the contract it synchronizes; the adapter implements that port.
@@ -75,6 +77,8 @@ namespace. Do not split a namespace across folders or place two namespaces in on
 | `Modules/Ingestion/Ingestion.Domain/Synchronization/` | `FaraTaraz.Modules.Ingestion.Domain.Synchronization` |
 | `Modules/Ingestion/Ingestion.Application/SynchronizeCustomers/` | `FaraTaraz.Modules.Ingestion.Application.SynchronizeCustomers` |
 | `Adapters/Accounting.Mock/` | `FaraTaraz.Adapters.Accounting.Mock` |
+| `Host/FaraTaraz.Host/` | `FaraTaraz.Host` |
+| `Host/FaraTaraz.Host/Composition/` | `FaraTaraz.Host.Composition` |
 
 Test namespaces follow the same convention: `FaraTaraz.BuildingBlocks.Tests`,
 `FaraTaraz.SyncContracts.Tests`, `FaraTaraz.ArchitectureTests`.
@@ -94,10 +98,13 @@ Ingestion.Domain         -> BuildingBlocks, MasterData
 AccountingSources        -> BuildingBlocks, Ingestion.Domain
 Ingestion.Application    -> BuildingBlocks, Ingestion.Domain, AccountingSources
 Accounting.Mock (adapter)-> BuildingBlocks, MasterData, Ingestion.Domain, AccountingSources
+Host                     -> BuildingBlocks, MasterData, AccountingSources, Ingestion.Domain, Ingestion.Application
 ```
 
 Enforced by `ReferenceGraphTests` (exact per-assembly reference set) and
-`DependencyDirectionTests` (no platform module references an adapter).
+`DependencyDirectionTests` (no platform module references an adapter). The Host depends
+inward on the modules and is never referenced by them; it composes modules, never owns
+behavior.
 
 **Why `Ingestion.Application` depends on `AccountingSources`:** a use case must delegate to
 the provider-independent capability port (`ISyncablePort<TRecord>`), which the
@@ -195,6 +202,8 @@ verified with full regression tests before merge.
 ## 10. Target module architecture — Tooba Settlement reference (mandatory for migration)
 
 **Decision (2026-10-09):** FaraTaraz adopts the Tooba Settlement modular architecture as the **target** for all business modules. This section is normative for future implementation and migration; sections 1–9 describe the **current verified baseline** and must not be mistaken for proof that the target already exists. Existing project names and boundaries must be inventoried and migrated deliberately, without breaking behavior.
+
+**Baseline layer mapping (justified, current).** At the current baseline the justified per-module layers are: **Domain** (`MasterData`, `AccountingSources`, `Ingestion.Domain`) and **Application** (`Ingestion.Application`, now with its module-local `Composition`). The cross-module contracts (the sync contract types, the capability ports, and the canonical/external identities) are declared in Domain and are not yet extracted into a separate `Contracts` layer; extracting them is a documented future step. `Endpoints` (delivery) and `Infrastructure` (persistence / external services) are **deferred** to later waves (W2 persistence, W3 ingestion, delivery surfaces) because the baseline contains no such responsibilities; no empty placeholder projects are created (`structure.md` §10.1). The composition-only `Host` is the first Tooba layer realized, and it has zero business authority.
 
 ### 10.1 Physical projects per business module
 

@@ -27,6 +27,7 @@
     <ProjectReference Include="..\..\src\Modules\Ingestion\Ingestion.Application\FaraTaraz.Modules.Ingestion.Application.csproj" />
     <ProjectReference Include="..\..\src\Modules\AccountingSources\FaraTaraz.Modules.AccountingSources.csproj" />
     <ProjectReference Include="..\..\src\Adapters\Accounting.Mock\FaraTaraz.Adapters.Accounting.Mock.csproj" />
+    <ProjectReference Include="..\..\src\Host\FaraTaraz.Host\FaraTaraz.Host.csproj" />
   </ItemGroup>
 
   <ItemGroup>

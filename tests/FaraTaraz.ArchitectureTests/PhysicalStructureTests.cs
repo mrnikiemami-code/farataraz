@@ -53,6 +53,10 @@ public class PhysicalStructureTests
         Path.Combine("Modules", "MasterData"),
         Path.Combine("Modules", "AccountingSources", "Providers"),
         Path.Combine("Modules", "Ingestion", "Ingestion.Domain", "SourceModel"),
+        // Module-local DI registration (no business rules) is a justified single-file leaf.
+        Path.Combine("Modules", "Ingestion", "Ingestion.Application", "Composition"),
+        // Composition root (zero business authority) is a justified single-file leaf.
+        Path.Combine("Host", "FaraTaraz.Host", "Composition"),
     };
 
     private static readonly Regex NamespaceDeclaration =
@@ -71,6 +75,8 @@ public class PhysicalStructureTests
         ["Modules/Ingestion/Ingestion.Application"] =
             "FaraTaraz.Modules.Ingestion.Application",
         ["Adapters/Accounting.Mock"] = "FaraTaraz.Adapters.Accounting.Mock",
+        // Host project folder (relative to src/): the composition root assembly.
+        ["Host/FaraTaraz.Host"] = "FaraTaraz.Host",
     };
 
     // --- A. Exact path-to-namespace mapping -----------------------------------------------

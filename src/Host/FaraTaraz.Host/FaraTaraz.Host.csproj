@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Composition root for the FaraTaraz modular monolith (Tooba target, structure.md §10.1).
+
+    This project has ZERO business authority. It only wires modules together through their
+    module-local Composition extensions. It contains no use cases, no domain rules, no
+    persistence, and no provider adapters. Business authority stays in the Application layer
+    (ADR-009, structure.md §10.3).
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\BuildingBlocks\FaraTaraz.BuildingBlocks.csproj" />
+    <ProjectReference Include="..\..\Modules\MasterData\FaraTaraz.Modules.MasterData.csproj" />
+    <ProjectReference Include="..\..\Modules\AccountingSources\FaraTaraz.Modules.AccountingSources.csproj" />
+    <ProjectReference Include="..\..\Modules\Ingestion\Ingestion.Domain\FaraTaraz.Modules.Ingestion.Domain.csproj" />
+    <ProjectReference Include="..\..\Modules\Ingestion\Ingestion.Application\FaraTaraz.Modules.Ingestion.Application.csproj" />
+  </ItemGroup>
+
+</Project>

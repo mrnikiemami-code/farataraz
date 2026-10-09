@@ -9,6 +9,12 @@
   <ItemGroup>
     <PackageReference Include="MediatR" Version="12.5.0" />
     <PackageReference Include="MediatR.Contracts" Version="2.0.1" />
+    <!--
+      Only the DI abstraction the module-local Composition needs to register use cases.
+      Not a persistence stack: this is the IServiceCollection boundary the Composition root
+      uses. Version pinned to match BuildingBlocks (Microsoft.Extensions.* 8.0.0).
+    -->
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.0" />
   </ItemGroup>
 
   <PropertyGroup>
