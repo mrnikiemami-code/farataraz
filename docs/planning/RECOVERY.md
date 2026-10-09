@@ -1,10 +1,12 @@
 # RECOVERY — FaraTaraz / FMCA
 
 **Checkpoint recorded:** 2026-10-09
-**Current task:** W2 `FT-W2-PERSISTENCE-FOUNDATION-001` complete, committed, **not certified** (awaiting reviewer acceptance). FT-W3-PREFLIGHT-001 composition preflight **verified**. FT-W2-R1-TENANT-ISOLATION security repair **verified** (see below); next planned task W3 Ingestion Engine.
+**Current task (architect override, 2026-10-09):** FT-RECOVERY-REMOTE-RECONCILE-002 is the next recovery-only task. FT-W2-R2-BOUNDARY-GUARDS was interrupted/unaccepted; W2 is NOT CERTIFIED, W3 NOT AUTHORIZED. Historical implementation reports below are not independent certification. See ARCHITECT-JOURNAL.md and OPEN-DEFECTS.md.
 **Last reported W2 implementation commit:** `10eb8c9435f9958c3ce3b38bfcec82719827995e` (master; W2 PASS, not certified). Prior FMCA lock baseline: `2dd5e0dac5fcd978a074dfedc9954b3d4e0e1167`.
-**Current verified HEAD:** `53a66c5a196d2b51e5ffe72e5f2d0f8afe882d9a` (master; fast-forwarded from W2 `10eb8c9`, includes documentation commits `88af092` and `53a66c5`).
+**Last architect-observed remote HEAD (historical checkpoint):** `5de5e63e2c931c2c6f9526b9ce984d04d3e47132` before ARCHITECT-JOURNAL.md creation; always fetch latest master. This is not a claim of verified implementation acceptance.
 **Note:** Documentation-only commits may follow the implementation baseline. Always fetch and compare current `origin/master` before executing. Do not assume the recovery SHA equals current HEAD.
+
+**Architect continuity journal:** [`docs/planning/ARCHITECT-JOURNAL.md`](ARCHITECT-JOURNAL.md) — ChatGPT-owned durable log of reports received, independent source/CI checks, architectural decisions, exact GitHub commits, blockers and next steps. On every new chat or context recovery, ChatGPT must read this journal together with RECOVERY and OPEN-DEFECTS, independently reconcile GitHub state, and update the journal itself after each substantive review. Implementers do not own or certify this journal.
 
 **Open defects / acceptance ledger:** [`docs/planning/OPEN-DEFECTS.md`](OPEN-DEFECTS.md) — mandatory read before any W2/W3 task. All unresolved security, DI, transaction, CI, guard, and documentation defects remain tracked there; W2 is NOT CERTIFIED and W3 implementation is not authorized until explicit acceptance. Do not interpret older PASS or 'safe foundation' reports below as current architectural acceptance.
 
