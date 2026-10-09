@@ -2,7 +2,7 @@
 
 **Checkpoint recorded:** 2026-10-09
 **Current task:** FT-W2-PERSISTENCE-FOUNDATION-001 — implementation complete, committed, **not certified** (awaiting reviewer acceptance); next planned task W3 Ingestion Engine.
-**Last verified implementation baseline:** `2dd5e0dac5fcd978a074dfedc9954b3d4e0e1167` (master, architecture lock).
+**Last reported W2 implementation commit:** `10eb8c9435f9958c3ce3b38bfcec82719827995e` (master; W2 PASS, not certified). Prior FMCA lock baseline: `2dd5e0dac5fcd978a074dfedc9954b3d4e0e1167`.
 **Note:** Documentation-only commits may follow this baseline. Always fetch and compare current `origin/master` before executing. Do not assume this checkpoint SHA is current HEAD.
 
 ## Read first (in order)
@@ -37,7 +37,7 @@
 
 ## Current next action
 
-Execute a separately authorized W3 Ingestion Engine task. First audit the W2 persistence
+First execute a bounded W3 preflight/composition-boundary audit (maximum 45 minutes) and update recovery. Then authorize one small W3 slice at a time. Do not launch the entire W3 engine in one task. First audit the W2 persistence
 schema and the W1 sync contract; then implement durable synchronization execution (run
 orchestration, retries, failure states, resumability) over the persisted state. Do not add
 new provider integrations, dashboards, REST/MCP endpoints, or AI.
@@ -103,3 +103,9 @@ Update this file in the same task's final verified commit, including:
 - exact next task and the first executable action
 
 Keep `CURRENT-STATE.md`, `ROADMAP.md`, and `DELIVERY-PLAN.md` consistent. No false or future-dated PASS claims. Preserve history and unrelated files, including untracked `tree.ps1`.
+
+## Agent execution limit and open review item (2026-10-09)
+
+- Owner policy: 20–30 minute target, 45-minute hard cap per task. At the cap, checkpoint and report PARTIAL; do not keep working for hours or exhaust context.
+- **Review before W3 feature code:** W2 reports that Application → its own Infrastructure is allowed for module Composition. Confirm the accepted ADR and source-level guards restrict this to composition wiring only, never handlers or domain/application feature logic. Do not weaken existing FMCA guards. Any required fix must be a small separate task.
+- W2 test count (152) is reported by the implementing agent; verify fresh CI for the W2 SHA before promoting to an independently verified baseline.
