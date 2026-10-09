@@ -199,11 +199,11 @@ verified with full regression tests before merge.
 
 ---
 
-## 10. Target module architecture — Tooba Settlement reference (mandatory for migration)
+## 10. Target module architecture — FaraTaraz Modular Clean Architecture standard (mandatory for migration)
 
-**Decision (2026-10-09):** FaraTaraz adopts the Tooba Settlement modular architecture as the **target** for all business modules. This section is normative for future implementation and migration; sections 1–9 describe the **current verified baseline** and must not be mistaken for proof that the target already exists. Existing project names and boundaries must be inventoried and migrated deliberately, without breaking behavior.
+**Decision (2026-10-09):** FaraTaraz adopts the FaraTaraz Modular Clean Architecture (FMCA) as the **target** for all business modules. This section is normative for future implementation and migration; sections 1–9 describe the **current verified baseline** and must not be mistaken for proof that the target already exists. Existing project names and boundaries must be inventoried and migrated deliberately, without breaking behavior.
 
-**Baseline layer mapping (justified, current).** At the current baseline the justified per-module layers are: **Domain** (`MasterData`, `AccountingSources`, `Ingestion.Domain`) and **Application** (`Ingestion.Application`, now with its module-local `Composition`). The cross-module contracts (the sync contract types, the capability ports, and the canonical/external identities) are declared in Domain and are not yet extracted into a separate `Contracts` layer; extracting them is a documented future step. `Endpoints` (delivery) and `Infrastructure` (persistence / external services) are **deferred** to later waves (W2 persistence, W3 ingestion, delivery surfaces) because the baseline contains no such responsibilities; no empty placeholder projects are created (`structure.md` §10.1). The composition-only `Host` is the first Tooba layer realized, and it has zero business authority.
+**Baseline layer mapping (justified, current).** At the current baseline the justified per-module layers are: **Domain** (`MasterData`, `AccountingSources`, `Ingestion.Domain`) and **Application** (`Ingestion.Application`, now with its module-local `Composition`). The cross-module contracts (the sync contract types, the capability ports, and the canonical/external identities) are declared in Domain and are not yet extracted into a separate `Contracts` layer; extracting them is a documented future step. `Endpoints` (delivery) and `Infrastructure` (persistence / external services) are **deferred** to later waves (W2 persistence, W3 ingestion, delivery surfaces) because the baseline contains no such responsibilities; no empty placeholder projects are created (`structure.md` §10.1). The composition-only `Host` is the first FMCA layer realized, and it has zero business authority.
 
 ### 10.1 Physical projects per business module
 
@@ -220,7 +220,7 @@ tests/<Capability>.Tests/          # module verification (test projects remain u
 src/Host/                         # composition root and wiring ONLY
 ```
 
-Use consistent FaraTaraz project prefixes, namespaces and solution-folder names; do not blindly copy Tooba assembly names. A module may omit a layer only with an explicit, documented reason. No empty placeholder projects/folders.
+Use consistent FaraTaraz project prefixes, namespaces and solution-folder names; do not blindly copy external project assembly names. A module may omit a layer only with an explicit, documented reason. No empty placeholder projects/folders.
 
 ### 10.2 Application: capability first, responsibility second
 
