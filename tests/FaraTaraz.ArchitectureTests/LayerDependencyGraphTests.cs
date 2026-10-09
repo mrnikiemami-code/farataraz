@@ -60,14 +60,39 @@ public class LayerDependencyGraphTests
     public void Application_infrastructure_project_reference_is_detected()
     {
         // A declared reference to an Infrastructure project (even one the code does not use) must
-        // be rejected by the ownership classification. The live Application.csproj has none, so a
-        // representative Infrastructure path exercises this classifier.
-        var fakeInfrastructure =
-            Path.Combine(RepoRoot, "src", "Infrastructure", "FaraTaraz.Infrastructure.csproj");
+        // be rejected by the ownership classification. The live Application.csproj has none, so the
+        // real module-scoped Infrastructure projects (the W2 Infrastructure projects) exercise this
+        // classifier, alongside the flat FaraTaraz.Infrastructure representative path. Each module
+        // Infrastructure assembly name ends with ".Infrastructure" even though its path segment is
+        // "Ingestion.Infrastructure" / "AccountingSources.Infrastructure".
+        var infrastructurePaths = new[]
+        {
+            Path.Combine(RepoRoot, "src", "Infrastructure", "FaraTaraz.Infrastructure.csproj"),
+            Path.Combine(
+                RepoRoot,
+                "src",
+                "Modules",
+                "Ingestion",
+                "Ingestion.Infrastructure",
+                "FaraTaraz.Modules.Ingestion.Infrastructure.csproj"),
+            Path.Combine(
+                RepoRoot,
+                "src",
+                "Modules",
+                "AccountingSources",
+                "AccountingSources.Infrastructure",
+                "FaraTaraz.Modules.AccountingSources.Infrastructure.csproj"),
+        };
 
-        Assert.True(
-            IsForbiddenLayer(fakeInfrastructure),
-            "The guard must classify a declared Infrastructure ProjectReference as forbidden.");
+        foreach (var path in infrastructurePaths)
+        {
+            Assert.True(
+                IsForbiddenLayer(path),
+                "The guard must classify an Infrastructure ProjectReference as forbidden, " +
+                "including module-scoped Infrastructure (FaraTaraz.Modules.<X>.Infrastructure), " +
+                "so the Application layer cannot depend on a concrete implementation " +
+                "(ADR-009 decision 4, ADR-010 decision 14).");
+        }
     }
 
     private static bool IsForbiddenLayer(string projectFile)
@@ -78,7 +103,8 @@ public class LayerDependencyGraphTests
 
         var isAdapter = name.StartsWith("FaraTaraz.Adapters", StringComparison.Ordinal)
             || segments.Any(s => s.Equals("Adapters", StringComparison.OrdinalIgnoreCase));
-        var isInfrastructure = name.StartsWith("FaraTaraz.Infrastructure", StringComparison.Ordinal)
+        var isInfrastructure = name.EndsWith(".Infrastructure", StringComparison.Ordinal)
+            || name.StartsWith("FaraTaraz.Infrastructure", StringComparison.Ordinal)
             || segments.Any(s => s.Equals("Infrastructure", StringComparison.OrdinalIgnoreCase));
 
         return isAdapter || isInfrastructure;

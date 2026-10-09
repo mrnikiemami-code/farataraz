@@ -147,7 +147,8 @@ public class HostAuthorityTests
 
         var isAdapter = name.StartsWith("FaraTaraz.Adapters", StringComparison.Ordinal)
             || segments.Any(s => s.Equals("Adapters", StringComparison.OrdinalIgnoreCase));
-        var isInfrastructure = name.StartsWith("FaraTaraz.Infrastructure", StringComparison.Ordinal)
+        var isInfrastructure = name.EndsWith(".Infrastructure", StringComparison.Ordinal)
+            || name.StartsWith("FaraTaraz.Infrastructure", StringComparison.Ordinal)
             || segments.Any(s => s.Equals("Infrastructure", StringComparison.OrdinalIgnoreCase));
 
         return isAdapter || isInfrastructure;

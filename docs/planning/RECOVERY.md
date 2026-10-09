@@ -1,9 +1,10 @@
 # RECOVERY — FaraTaraz / FMCA
 
 **Checkpoint recorded:** 2026-10-09
-**Current task:** FT-W2-PERSISTENCE-FOUNDATION-001 — implementation complete, committed, **not certified** (awaiting reviewer acceptance); next planned task W3 Ingestion Engine.
+**Current task:** W2 `FT-W2-PERSISTENCE-FOUNDATION-001` complete, committed, **not certified** (awaiting reviewer acceptance). FT-W3-PREFLIGHT-001 composition preflight **verified** (see below); next planned task W3 Ingestion Engine.
 **Last reported W2 implementation commit:** `10eb8c9435f9958c3ce3b38bfcec82719827995e` (master; W2 PASS, not certified). Prior FMCA lock baseline: `2dd5e0dac5fcd978a074dfedc9954b3d4e0e1167`.
-**Note:** Documentation-only commits may follow this baseline. Always fetch and compare current `origin/master` before executing. Do not assume this checkpoint SHA is current HEAD.
+**Current verified HEAD:** `53a66c5a196d2b51e5ffe72e5f2d0f8afe882d9a` (master; fast-forwarded from W2 `10eb8c9`, includes documentation commits `88af092` and `53a66c5`).
+**Note:** Documentation-only commits may follow the implementation baseline. Always fetch and compare current `origin/master` before executing. Do not assume the recovery SHA equals current HEAD.
 
 ## Read first (in order)
 
@@ -91,6 +92,29 @@ W3; W3 requires a separate explicit task.
 
 **Out of scope (correctly deferred):** W3 ingestion engine, real provider integrations,
 dashboards, REST/MCP endpoints, AI. No secrets introduced.
+
+## FT-W3-PREFLIGHT-001 — FMCA composition preflight audit (verified, PASS)
+
+**Task:** `FT-W3-PREFLIGHT-001` (bounded audit + minimal repair; W3 preflight). **Status:** PASS — W2 is a safe foundation for W3; one composition guard gap strengthened (no code violation found). Not certified; W3 requires a separate explicit task.
+
+**Verified HEAD:** `53a66c5a196d2b51e5ffe72e5f2d0f8afe882d9a` (master; fast-forwarded from W2 baseline `10eb8c9`; includes documentation commits `88af092` agents bounded-execution policy and `53a66c5` W2 recovery record).
+
+**Findings (Step 2):**
+- **No Application/domain code depends on Infrastructure.** Verified via csproj: `Ingestion.Application` declares only BuildingBlocks + Ingestion.Domain + AccountingSources(module Domain) + MediatR/DI.Abstractions; `AccountingSources` module (Domain) declares only BuildingBlocks + Ingestion.Domain.
+- **No Domain references Infrastructure** (both Domain csprofs clean).
+- **Host has no concrete Infrastructure reference** — it only calls `AddIngestionApplication`.
+- **Module registration follows ADR-010 decision 14** — the only Infrastructure DI wiring lives in module-owned `Composition` extension methods (`AddIngestionInfrastructure`/`AddAccountingSourcesInfrastructure`), invoked by the Host, never by Application handlers.
+- **Guard gap (the "composition exception"):** the layer-graph and Host-authority `IsForbiddenLayer` classifier only rejected a FLAT `FaraTaraz.Infrastructure` project (name starts with `FaraTaraz.Infrastructure`, or a path segment equals `Infrastructure`) plus adapters. It did **not** classify the module-scoped W2 Infrastructure projects (`FaraTaraz.Modules.Ingestion.Infrastructure`, `FaraTaraz.Modules.AccountingSources.Infrastructure` — path segment `*.Infrastructure`, assembly name ending `.Infrastructure`). So the guard did NOT reject an injected `Application → module Infrastructure` reference — weaker than ADR-009 decision 4 and ADR-010 decision 14 require (Application/Domain must reference no concrete Infrastructure type). No actual code violation exists; the guard was under-enforcing the ADR. This matches the RECOVERY claim that "the guard now permits Application → its own module Infrastructure composition."
+
+**Correction (Step 3):** Strengthened `IsForbiddenLayer` in both `LayerDependencyGraphTests` and `HostAuthorityTests` to classify any assembly whose name ends with `.Infrastructure` as forbidden (catches module-scoped Infrastructure). Extended the `Application_infrastructure_project_reference_is_detected` regression test to assert the real module-scoped Infrastructure paths are classified forbidden.
+
+**Negative-test proof:** Injected an actual `Ingestion.Application → Ingestion.Infrastructure` ProjectReference; the layer guard FAILED (reported `FaraTaraz.Modules.Ingestion.Infrastructure.csproj` as a forbidden Application reference); reverted the reference (git diff clean); the guard PASSES. The injected reference is removed.
+
+**Verification:** Debug + Release builds clean (0 warnings/0 errors). All 152 tests pass (BuildingBlocks 16, SyncContracts 55, Architecture 72, IntegrationTests 9), 0 failed — W2 baseline preserved.
+
+**Remaining risks:** None introduced. W2 remains `PASS`, not certified. The guard now correctly enforces ADR-009/010 for module Infrastructure.
+
+**Next exact task:** `FT-W3-INGESTION-ENGINE-001` (or first authorized W3 slice) — audit the W2 persistence schema + W1 sync contract, then implement durable sync execution (run orchestration, retries, failure states, resumability) over persisted state. Do not add provider integrations, dashboards, REST/MCP, or AI.
 
 ## Required checkpoint update on every task
 
