@@ -93,3 +93,11 @@ Both must pass before committing.
 ## Git
 One coherent change per commit. Do not force push. If `origin` is not
 `https://github.com/mrnikiemami-code/farataraz`, stop and report before pushing.
+
+## Bounded agent execution (owner policy, 2026-10-09)
+- Each implementation task targets 20–30 minutes and has a **hard 45-minute budget**. Do not begin another phase if the budget is nearly exhausted. Report PARTIAL with an exact handoff rather than claiming completion.
+- One task = one narrow, testable responsibility. W3 must be decomposed into independently authorized slices; no monolithic W3 implementation.
+- At 30 minutes or when context becomes constrained, stop feature expansion, run focused tests, save a truthful recovery checkpoint and report the next exact action. Never wait for context exhaustion.
+- At task end update `docs/planning/RECOVERY.md` with last verified commit, local/remote status, changed files, tests, unfinished work and next task. Do not mark unverified work PASS.
+- Full Debug/Release verification is mandatory for accepted code, but avoid repeatedly running full suites after every small edit; run focused tests during development.
+- **Composition exception review:** an Application project reference to its own Infrastructure for DI composition must not permit business handlers, domain services or Application feature code to use Infrastructure types. Add precise source-level and graph guards; do not broadly relax dependency rules. If the accepted ADR prohibits the reference itself, reconcile by a separate ADR/structural repair before feature development.
