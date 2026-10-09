@@ -1,0 +1,57 @@
+name: Architecture Lock
+
+# Enforces the FaraTaraz Modular Clean Architecture (FMCA) invariants on every push and
+# pull request. The architecture tests are the guardrail: they assert the layering, CQRS,
+# tenant-source ownership, provider independence and physical-structure invariants, so any
+# drift FAILS the build rather than being silently accepted.
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+# No network secrets are required; no deployment. The workflow only builds and tests.
+permissions:
+  contents: read
+
+jobs:
+  architecture-lock:
+    name: FMCA invariants (build + tests)
+    runs-on: windows-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Configure .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          version: 10.x
+
+      # Debug build — zero warnings, zero errors.
+      - name: Debug build
+        run: dotnet build FaraTaraz.sln -c Debug
+        shell: pwsh
+
+      # Debug: all suites. The architecture suite fails on any invariant breach.
+      - name: Debug tests
+        run: dotnet test FaraTaraz.sln -c Debug --no-build
+        shell: pwsh
+
+      # Release build — zero warnings, zero errors.
+      - name: Release build
+        run: dotnet build FaraTaraz.sln -c Release
+        shell: pwsh
+
+      # Release: all suites.
+      - name: Release tests
+        run: dotnet test FaraTaraz.sln -c Release --no-build
+        shell: pwsh
+
+      # Guard: `git diff --check` must report no whitespace/line-ending errors.
+      - name: Whitespace guard (git diff --check)
+        run: |
+          git diff --check
+        shell: pwsh

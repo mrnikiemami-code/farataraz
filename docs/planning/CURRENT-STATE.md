@@ -148,9 +148,70 @@ projects are created (`structure.md` §10.1).
   also serve as the cross-module contract, see Contracts note). No use cases, delivery, or
   persistence live in either Domain or Application project.
 
-**Verified:** Debug + Release builds zero warnings/errors; 130 tests pass (16
-`BuildingBlocks` + 55 `SyncContracts` + 59 `ArchitectureTests`, the latter including the new
-Host-zero-authority, feature-first/Command-Query placement, and path↔namespace guards).
+**Verified:** Debug + Release builds zero warnings/errors; **143 tests pass** (16
+`BuildingBlocks` + 55 `SyncContracts` + 72 `ArchitectureTests`, the latter including the
+Host-zero-authority, feature-first/Command-Query placement, path↔namespace, and — added by
+`FT-FMCA-ARCHITECTURE-LOCK-001` — project-graph and layer-boundary guards).
+
+## Architecture lock (FT-FMCA-ARCHITECTURE-LOCK-001)
+
+`master` now enforces the FMCA invariants through **executable guards, CI, and contribution
+rules** — so drift fails the build rather than being silently accepted.
+
+### Defense-in-depth guards (`tests/FaraTaraz.ArchitectureTests/`)
+
+Guards assert invariants at **project-reference** *and* **source-code** levels; neither view
+alone is sufficient.
+
+- **Host zero authority** — `HostAuthorityTests`. Reflection walks the loaded Host assembly
+  and rejects any use-case handler or Application feature type; **project-file guards** read
+  the actual `FaraTaraz.Host.csproj` and reject any provider-adapter or infrastructure
+  `ProjectReference` and any non-composition `PackageReference`. The declared-project-file
+  view is required: the C# compiler emits no metadata reference for an unused-but-declared
+  adapter `ProjectReference`, so `Assembly.GetReferencedAssemblies()` cannot see it.
+- **Effective dependency graph** — `ProjectDependencyGraph` parses every `.csproj` and builds
+  the transitive `ProjectReference` closure; `HostAuthorityTests` and
+  `LayerDependencyGraphTests` assert that closure reaches no adapter/infrastructure project
+  (Host) or no Application layer (Application).
+- **Domain → Application boundary** — `DomainApplicationBoundaryTests`: the Domain declares no
+  Application `ProjectReference` and its transitive closure reaches no Application project.
+- **CQRS leaves** — `CQRSHandlerGuardTests`: every `IRequestHandler` avoids `ISender` and a
+  concrete provider adapter.
+- **Physical structure** — `PhysicalStructureTests`, `OrphanSourceFileTests`,
+  `SourceFileSizeGuardTests`: path↔namespace, capability-first, single-file-leaf allowlist,
+  orphan-file, and 300/500-line budgets (with a regression test that injects an oversized
+  file).
+
+**Negative-test evidence** (inject → guard fails for the intended reason → revert):
+
+| Violation | Guard that fires | Result |
+| --- | --- | --- |
+| Host → concrete adapter | `Host_declares_no_adapter_or_infrastructure_project_reference`, `Host_effective_dependency_graph_has_no_adapter_or_infrastructure` | **DETECTED** (reverted) |
+| Host → persistence package | `Host_declares_no_persistence_package` | **DETECTED** (reverted) |
+| Domain → Application | `Domain_declares_no_application_project_reference`, `Domain_effective_dependency_graph_has_no_application_project` | **DETECTED** (reverted) |
+| Application → concrete Infrastructure | `Application_declares_no_adapter_or_infrastructure_project_reference`, `Application_effective_dependency_graph_has_no_adapter_or_infrastructure` | **DETECTED** (reverted) |
+| CQRS handler → ISender | `Application_request_handlers_must_not_receive_ISender` | **DETECTED** (reverted) |
+| CQRS handler → concrete adapter | `Application_request_handlers_must_not_depend_on_concrete_providers` | **DETECTED** (reverted) |
+| Namespace/path mismatch | `File_declaring_extra_namespace_segment_is_rejected` | **DETECTED** (regression) |
+| Oversized source file | `Oversized_source_file_is_detected` | **DETECTED** (regression) |
+| Unjustified single-file leaf | `Nested_unjustified_single_file_leaf_is_detected_and_rejected` | **DETECTED** (regression) |
+| Orphan production source file | `Orphan_source_file_directly_under_src_is_detected` | **DETECTED** (regression) |
+
+Every listed invariant has a guard that fails on injection; none is weakened to hide
+failures.
+
+### CI
+
+[`.github/workflows/architecture.yml`](../.github/workflows/architecture.yml) builds Debug +
+Release (zero warnings/errors) and runs all suites on every push/PR to `master`. The
+architecture suite **fails the build on any invariant breach**, plus a `git diff --check`
+whitespace guard. No force-push; history preserved.
+
+### Contribution rules
+
+[`CONTRIBUTING.md`](../CONTRIBUTING.md) codifies the SoT hierarchy, the invariants to
+preserve, the "add a guard when you touch an invariant" rule, the Debug+Release build/test
+bar, and the W1 certification governance (`PASS` ≠ `CERTIFIED`; no force-push).
 
 ## What is next?
 
