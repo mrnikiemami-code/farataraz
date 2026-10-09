@@ -1,8 +1,8 @@
-# ADR-009: Tooba Settlement Modular Architecture (Target)
+# ADR-009: FaraTaraz Modular Clean Architecture (FMCA) (Target)
 
 **Status:** Accepted — target is normative; physical migration wave is *pending explicit wave authorization*
 **Date:** 2026-10-09
-**Derives from:** `docs/architecture/structure.md` §10 — *"Target module architecture — Tooba Settlement reference (mandatory for migration)"* (adopted on master at `19dab6fc4b877181d0cd0ad385dba9e196f5c886`)
+**Derives from:** `docs/architecture/structure.md` §10 — *"Target module architecture — FaraTaraz Modular Clean Architecture standard (mandatory for migration)"* (adopted on master at `19dab6fc4b877181d0cd0ad385dba9e196f5c886`)
 **Depends on:** ADR-001 (Modular Monolith), ADR-007 (Shared Application Authority), ADR-008 (MediatR License Baseline)
 **Amends:** ADR-001 (see *Conflicts, compatibility and amendments*)
 
@@ -11,7 +11,7 @@
 FaraTaraz is a multi-tenant, provider-agnostic platform whose code grew into a
 capability-first modular monolith (`BuildingBlocks` + capability modules). Section 10 of
 `structure.md` makes the **target** explicit: every business module will be organized as a
-set of justified, independently owned physical projects following the Tooba Settlement
+set of justified, independently owned physical projects following the FaraTaraz modular clean architecture
 pattern:
 
 ```text
@@ -33,9 +33,9 @@ behind an explicit, phased wave. **This ADR does not perform the physical migrat
 
 ## Decision
 
-1. **Adopt the Tooba Settlement modular architecture as the target** for all business
+1. **Adopt the FaraTaraz Modular Clean Architecture (FMCA) as the target** for all business
    modules, realized as physical projects with the layout above. Project/namespace/
-   solution-folder names use consistent FaraTaraz prefixes; Tooba assembly names are not
+   solution-folder names use consistent FaraTaraz prefixes; external project assembly names are not
    copied verbatim (`structure.md` §10.1).
 2. **A module may omit a layer only with an explicit, documented reason.** No empty
    placeholder projects or folders are created (`structure.md` §10.1).
@@ -81,14 +81,14 @@ behind an explicit, phased wave. **This ADR does not perform the physical migrat
   projects. `Core` was decomposed into `BuildingBlocks` + capability modules
   (`structure.md` §41, on master). This ADR updates the project list to reflect that
   decomposition and the new target.
-- **Compatibility (explicit).** The Tooba 5-layer decomposition is compatible with the
+- **Compatibility (explicit).** The FMCA five-layer decomposition is compatible with the
   monolith **provided the whole solution still ships as a single process/deployable unit**.
   This ADR does not change the deployment model; it refines the physical project layout.
   Microservices remain rejected (Constitution K.38).
 - **Amended text** is applied directly to ADR-001 with a cross-reference to this ADR.
 
 ### ADR-007 (Shared Application Authority) — **compatible, cross-reference only**
-- No conflict. Tooba `<Capability>.Endpoints/` **is** ADR-007's "thin adapter": it
+- No conflict. FMCA `<Capability>.Endpoints/` **is** ADR-007's "thin adapter": it
   delegates to the same Application capabilities, contains no business calculation, and
   REST/MCP/sync continue to share Application authority. This ADR cross-references ADR-007;
   no text change is required.
