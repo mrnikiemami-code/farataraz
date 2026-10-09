@@ -23,7 +23,7 @@ src/
 ├── BuildingBlocks/          foundation — depends on nothing platform-wide
 ├── Modules/
 │   ├── MasterData/          external + canonical identity
-│   ├── AccountingSources/   provider capability ports
+│   ├── AccountingSources/   provider contracts, capability ports, authorization
 │   └── Ingestion/
 │       ├── Ingestion.Domain/        sync contracts + source models (no MediatR)
 │       └── Ingestion.Application/   CQRS use cases (MediatR)
@@ -68,7 +68,9 @@ namespace. Do not split a namespace across folders or place two namespaces in on
 | `BuildingBlocks/Errors/` | `FaraTaraz.BuildingBlocks.Errors` |
 | `BuildingBlocks/Diagnostics/` | `FaraTaraz.BuildingBlocks.Diagnostics` |
 | `Modules/MasterData/` | `FaraTaraz.Modules.MasterData` |
-| `Modules/AccountingSources/` | `FaraTaraz.Modules.AccountingSources` |
+| `Modules/AccountingSources/Providers/` | `FaraTaraz.Modules.AccountingSources.Providers` |
+| `Modules/AccountingSources/Capabilities/` | `FaraTaraz.Modules.AccountingSources.Capabilities` |
+| `Modules/AccountingSources/Authorization/` | `FaraTaraz.Modules.AccountingSources.Authorization` |
 | `Modules/Ingestion/Ingestion.Domain/SourceModel/` | `FaraTaraz.Modules.Ingestion.Domain.SourceModel` |
 | `Modules/Ingestion/Ingestion.Domain/Synchronization/` | `FaraTaraz.Modules.Ingestion.Domain.Synchronization` |
 | `Modules/Ingestion/Ingestion.Application/SynchronizeCustomers/` | `FaraTaraz.Modules.Ingestion.Application.SynchronizeCustomers` |
@@ -183,3 +185,7 @@ below the limit can still mix unrelated contracts or responsibilities. Reviews
 must separately enforce single responsibility, capability cohesion and
 path-to-namespace ownership. Splits must preserve public API behavior and be
 verified with full regression tests before merge.
+
+## 9. AccountingSources responsibility folders
+
+`Providers/` owns only `IAccountingProvider`; `Capabilities/` owns the syncable capability abstraction, six typed source ports, and capability resolution; `Authorization/` owns the trusted source ownership oracle and unauthorized-source exception. These are physical disk folders visible inside the SDK-style project in Visual Studio. Every moved type's namespace matches its physical folder. Project-level `Using` items in consumers preserve existing unqualified references without changing the authorization, cancellation, or capability semantics. `Providers/` is a justified single-file leaf because the provider declaration has one responsibility; the architecture allowlist documents this exception.

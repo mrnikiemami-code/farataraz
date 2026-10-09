@@ -1,4 +1,4 @@
-namespace FaraTaraz.Modules.AccountingSources;
+namespace FaraTaraz.Modules.AccountingSources.Authorization;
 
 using FaraTaraz.BuildingBlocks.Identifiers;
 
