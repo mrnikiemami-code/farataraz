@@ -27,7 +27,7 @@ composition-only `src/Host/` and per-module test projects under `tests/`. This i
 **physical/project-level reorganization only**: the solution remains a **single deployable
 monolith** (one process). It is not a deployment re-architecture, and no microservices or
 messaging complexity are introduced without demonstrated need. Governed by
-[ADR-009](./ADR-009-Tooba-Settlement-Modular-Architecture.md) and
+[ADR-009](./ADR-009-FaraTaraz-Modular-Clean-Architecture.md) and
 `docs/architecture/structure.md` §10.
 
 ## Consequences
