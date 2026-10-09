@@ -10,7 +10,7 @@ using FaraTaraz.Adapters.Accounting.Mock;
 using FaraTaraz.BuildingBlocks.Accounting;
 using FaraTaraz.BuildingBlocks.Tenancy;
 using FaraTaraz.Modules.AccountingSources;
-using FaraTaraz.Modules.Ingestion.Application.SynchronizeCustomers;
+using FaraTaraz.Modules.Ingestion.Application.SynchronizeCustomers.Queries;
 using FaraTaraz.Modules.Ingestion.Domain.Synchronization;
 using FaraTaraz.Modules.MasterData;
 using Xunit;
@@ -114,6 +114,12 @@ public class PhysicalStructureTests
     }
 
     // --- B. Capability-first organization -------------------------------------------------
+    // FMCA <Capability>.Application/ is organized by FEATURE, then by
+    // Commands/Queries/Models/Ports (structure.md §10.2). Only FLAT, application-root-level
+    // generic folders (e.g. `Ingestion.Application/Queries/`) are rejected; per-feature
+    // subfolders (e.g. `.../SynchronizeCustomers/Queries/`) are allowed. This corrects the
+    // guard toward the FMCA target without weakening it: flat global folders are still
+    // rejected.
 
     [Fact]
     public void Application_layer_uses_no_generic_technical_axis_folders()
@@ -123,11 +129,42 @@ public class PhysicalStructureTests
         var violations = Directory
             .GetDirectories(applicationRoot, "*", SearchOption.AllDirectories)
             .Select(dir => Path.GetRelativePath(applicationRoot, dir).Replace("\\", "/"))
-            .Where(rel => rel.Split('/', System.StringSplitOptions.RemoveEmptyEntries)
-                             .Any(segment => GenericTechnicalFolders.Contains(segment)))
+            .Where(rel => {
+                var segments = rel.Split('/', System.StringSplitOptions.RemoveEmptyEntries);
+                // Reject only a flat generic folder directly under the Application root (one
+                // segment). Per-feature subfolders keep the generic segment as a deeper segment.
+                return segments.Length == 1 && GenericTechnicalFolders.Contains(segments[0]);
+            })
             .ToList();
 
         Assert.Empty(violations);
+    }
+
+    /// <summary>
+    /// FMCA structure.md §10.2 feature-first placement: every Application handler must live
+    /// under its feature's Commands/ or Queries/ folder (one folder = one namespace).
+    /// </summary>
+    [Fact]
+    public void Every_application_handler_lives_in_a_commands_or_queries_namespace()
+    {
+        var application = typeof(SynchronizeCustomersQuery).Assembly;
+
+        var handlers = application
+            .GetTypes()
+            .Where(t => t.GetInterfaces()
+                .Any(i => i.IsGenericType &&
+                           i.GetGenericTypeDefinition() == typeof(IRequestHandler<,>)));
+
+        foreach (var handler in handlers)
+        {
+            var ns = handler.Namespace;
+
+            Assert.True(
+                ns is not null &&
+                (ns.EndsWith(".Commands", StringComparison.Ordinal) ||
+                 ns.EndsWith(".Queries", StringComparison.Ordinal)),
+                $"Application handler '{handler.FullName}' must live under a feature Commands/ or Queries/ folder (FMCA structure.md §10.2).");
+        }
     }
 
     // --- C. Single-file leaf folders ------------------------------------------------------

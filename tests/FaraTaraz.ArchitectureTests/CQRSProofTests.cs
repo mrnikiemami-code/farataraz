@@ -10,7 +10,7 @@ using FaraTaraz.Adapters.Accounting.Mock;
 using FaraTaraz.BuildingBlocks.Accounting;
 using FaraTaraz.BuildingBlocks.Identifiers;
 using FaraTaraz.BuildingBlocks.Tenancy;
-using FaraTaraz.Modules.Ingestion.Application.SynchronizeCustomers;
+using FaraTaraz.Modules.Ingestion.Application.SynchronizeCustomers.Queries;
 using FaraTaraz.Modules.Ingestion.Domain.SourceModel;
 using FaraTaraz.Modules.Ingestion.Domain.Synchronization;
 using Xunit;

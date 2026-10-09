@@ -1,4 +1,4 @@
-namespace FaraTaraz.Modules.Ingestion.Application.SynchronizeCustomers;
+namespace FaraTaraz.Modules.Ingestion.Application.SynchronizeCustomers.Queries;
 
 using System.Collections.Generic;
 using System.Threading;

@@ -1,6 +1,6 @@
 namespace FaraTaraz.Modules.Ingestion.Application.Composition;
 
-using FaraTaraz.Modules.Ingestion.Application.SynchronizeCustomers;
+using FaraTaraz.Modules.Ingestion.Application.SynchronizeCustomers.Queries;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 
