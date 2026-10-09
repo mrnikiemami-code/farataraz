@@ -35,8 +35,17 @@ public static class IngestionInfrastructureComposition
         services.AddDbContext<IngestionDbContext>(options =>
             options.UseNpgsql(cs));
 
-        // Trusted tenant scope for the current unit of work. Defaults to "None" (fail-closed).
-        services.AddScoped<DatabaseTenantScope>(_ => DatabaseTenantScope.None);
+        // Trusted tenant scope for the current unit of work. Resolves from a trusted execution
+        // context (TenantContext) when one is bound; otherwise fails closed to "None". This is the
+        // single registration of the scope, so it is never overwritten by a competing default, and
+        // a missing scope never silently becomes authorized (ADR-010 decision 5).
+        services.AddScoped<DatabaseTenantScope>(provider =>
+        {
+            var context = provider.GetService<TenantContext>();
+            return context is not null && context.IsTrusted
+                ? DatabaseTenantScope.FromTrusted(context)
+                : DatabaseTenantScope.None;
+        });
 
         services.AddScoped<SourceRecordRepository>();
         services.AddScoped<SyncCheckpointRepository>();

@@ -12,6 +12,14 @@ using Microsoft.Extensions.Logging;
 /// <summary>
 /// Tenant-scoped write access to source records (identity + provenance).
 ///
+/// <b>Trusted tenant only.</b> Tenant authority comes only from the trusted execution context
+/// (Constitution A.4/A.5). Every method resolves the trusted tenant from the
+/// <see cref="DatabaseTenantScope"/> bound to the current unit of work, rejects any
+/// caller-supplied <c>TenantId</c> that does not match it, and scopes all reads and writes to
+/// that trusted tenant. A missing trusted scope fails closed (throws
+/// <c>UnauthorizedTenantException</c>). The caller-supplied <c>TenantId</c> is therefore never
+/// an authorization basis.
+///
 /// The insert is idempotent via PostgreSQL <c>ON CONFLICT ... DO NOTHING</c> against the unique
 /// idempotency key <c>(TenantId, SourceId, RecordKind, ExternalId)</c>: a duplicate delivery is
 /// rejected (never creates a second row) and the first delivery's provenance is preserved
@@ -21,20 +29,27 @@ using Microsoft.Extensions.Logging;
 ///
 /// The statement is parameterised through EF Core's <c>ExecuteSqlInterpolatedAsync</c>: every
 /// interpolated value is bound as a parameter, and optional columns bind SQL NULL when their
-/// value is <c>null</c> (the provider maps a null parameter to SQL NULL).
+/// value is <c>null</c> (the provider maps a null parameter to SQL NULL). The <c>ON CONFLICT</c>
+/// policy (ADR-010 decision 7) is unchanged by this repair.
 /// </summary>
 public sealed class SourceRecordRepository
 {
     private readonly IngestionDbContext _db;
     private readonly ILogger _logger;
+    private readonly DatabaseTenantScope _scope;
 
     /// <summary>
-    /// Wraps the module unit of work for source-record identity and provenance writes.
+    /// Wraps the module unit of work, the trusted tenant scope, and logging for source-record
+    /// identity and provenance writes.
     /// </summary>
-    public SourceRecordRepository(IngestionDbContext db, ILogger<SourceRecordRepository> logger)
+    public SourceRecordRepository(
+        IngestionDbContext db,
+        ILogger<SourceRecordRepository> logger,
+        DatabaseTenantScope scope)
     {
         _db = db ?? throw new ArgumentNullException(nameof(db));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _scope = scope ?? throw new ArgumentNullException(nameof(scope));
     }
 
     /// <summary>
@@ -48,9 +63,12 @@ public sealed class SourceRecordRepository
         string externalId,
         CancellationToken cancellationToken = default)
     {
+        var tenant = RequireTrustedTenant();
+        AssertCallerTenant(tenantId, tenant);
+
         return await _db.SourceRecords
             .AnyAsync(
-                e => e.TenantId == tenantId.Value &&
+                e => e.TenantId == tenant.Value &&
                      e.SourceId == sourceId.Value &&
                      e.RecordKind == recordKind &&
                      e.ExternalId == externalId,
@@ -70,6 +88,9 @@ public sealed class SourceRecordRepository
         SourceProvenance provenance,
         CancellationToken cancellationToken = default)
     {
+        var tenant = RequireTrustedTenant();
+        AssertCallerTenant(tenantId, tenant);
+
         var affected = await _db.Database
             .ExecuteSqlInterpolatedAsync(
                 $@"INSERT INTO ""SourceRecords""
@@ -77,7 +98,7 @@ public sealed class SourceRecordRepository
                         ""ContentFingerprint"", ""ProviderRevision"", ""ProviderModifiedAtUtc"",
                         ""RetrievedAtUtc"", ""Provider"", ""Checkpoint""
                        )
-                       VALUES ({tenantId.Value}, {recordId.SourceId.Value}, {recordId.RecordKind}, {recordId.ExternalId},
+                       VALUES ({tenant.Value}, {recordId.SourceId.Value}, {recordId.RecordKind}, {recordId.ExternalId},
                                {version?.ContentFingerprint}, {version?.ProviderRevision}, {version?.ProviderModifiedAtUtc},
                                {provenance.RetrievedAtUtc}, {provenance.Provider.Value}, {provenance.Checkpoint})
                        ON CONFLICT (""TenantId"", ""SourceId"", ""RecordKind"", ""ExternalId""
@@ -87,10 +108,38 @@ public sealed class SourceRecordRepository
 
         _logger.LogDebug(
             "Idempotently inserted source record {SourceId}/{Kind}/{External} for tenant {Tenant} (created={Created})",
-            recordId.SourceId, recordId.RecordKind, recordId.ExternalId, tenantId, affected > 0);
+            recordId.SourceId, recordId.RecordKind, recordId.ExternalId, tenant, affected > 0);
 
         // ON CONFLICT DO NOTHING affects 1 row on a new row and 0 on a duplicate, so the row count
         // is the created-flag (ADR-010 decision 7).
         return affected > 0;
+    }
+
+    /// <summary>
+    /// Resolves the trusted tenant for this unit of work, failing closed when no trusted scope
+    /// is bound.
+    /// </summary>
+    private TenantId RequireTrustedTenant()
+    {
+        if (_scope.TenantId is { } trustedTenantId)
+        {
+            return trustedTenantId;
+        }
+
+        throw new UnauthorizedTenantException(
+            "No trusted tenant scope is bound for this unit of work.");
+    }
+
+    /// <summary>
+    /// Rejects a caller-supplied tenant that does not match the trusted tenant. The trusted
+    /// scope is the only basis of tenant authority; the caller tenant is validated, never trusted.
+    /// </summary>
+    private static void AssertCallerTenant(TenantId callerTenantId, TenantId trustedTenantId)
+    {
+        if (callerTenantId.Value != trustedTenantId.Value)
+        {
+            throw new UnauthorizedTenantException(
+                "Caller tenant does not match the trusted tenant scope.");
+        }
     }
 }

@@ -23,6 +23,15 @@ public sealed class IngestionPersistenceTests
     private static TenantId Tenant(string value) => new(value);
     private static AccountingSourceId Source(string value) => new(value);
 
+    /// <summary>
+    /// Builds a trusted <see cref="DatabaseTenantScope"/> for the given tenant (established by the
+    /// trusted authentication boundary). Used by tests to authorize tenant-scoped repository
+    /// operations against a real trusted tenant.
+    /// </summary>
+    private static DatabaseTenantScope Scope(string tenant)
+        => DatabaseTenantScope.FromTrusted(
+            TenantContext.FromAuthenticatedPrincipal(Tenant(tenant)));
+
     private static SourceRecordId Record(AccountingSourceId sourceId, string kind, string external)
         => new(sourceId, kind, external);
 
@@ -50,7 +59,10 @@ public sealed class IngestionPersistenceTests
         var id = Record(Source(source), "Customer", Guid.NewGuid().ToString("N"));
 
         await using var ctx = db.Ingestion();
-        var repo = new SourceRecordRepository(ctx, Microsoft.Extensions.Logging.Abstractions.NullLogger<SourceRecordRepository>.Instance);
+        var repo = new SourceRecordRepository(
+            ctx,
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<SourceRecordRepository>.Instance,
+            Scope(tenant));
 
         var first = await repo.InsertOrUpdateAsync(Tenant(tenant), id, null, Provenance(id, DateTime.UtcNow));
         var second = await repo.InsertOrUpdateAsync(Tenant(tenant), id, null, Provenance(id, DateTime.UtcNow));
@@ -89,7 +101,10 @@ public sealed class IngestionPersistenceTests
     private static async Task<bool> DeliverAsync(IntegrationTestDb db, string tenant, SourceRecordId id)
     {
         await using var ctx = db.Ingestion();
-        var repo = new SourceRecordRepository(ctx, Microsoft.Extensions.Logging.Abstractions.NullLogger<SourceRecordRepository>.Instance);
+        var repo = new SourceRecordRepository(
+            ctx,
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<SourceRecordRepository>.Instance,
+            Scope(tenant));
         return await repo.InsertOrUpdateAsync(Tenant(tenant), id, null, Provenance(id, DateTime.UtcNow));
     }
 
@@ -133,7 +148,7 @@ public sealed class IngestionPersistenceTests
 
         var tenant = Guid.NewGuid().ToString("N");
         var source = Guid.NewGuid().ToString("N");
-        var checkpoint = new SyncCheckpointRepository(db.Ingestion());
+        var checkpoint = new SyncCheckpointRepository(db.Ingestion(), Scope(tenant));
 
         // Same scope -> upserts to one row.
         await checkpoint.SaveAsync(Tenant(tenant), Source(source), "Customers", "cursor-a", DateTime.UtcNow);

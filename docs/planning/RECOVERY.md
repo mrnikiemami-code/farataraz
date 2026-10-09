@@ -1,7 +1,7 @@
 # RECOVERY — FaraTaraz / FMCA
 
 **Checkpoint recorded:** 2026-10-09
-**Current task:** W2 `FT-W2-PERSISTENCE-FOUNDATION-001` complete, committed, **not certified** (awaiting reviewer acceptance). FT-W3-PREFLIGHT-001 composition preflight **verified** (see below); next planned task W3 Ingestion Engine.
+**Current task:** W2 `FT-W2-PERSISTENCE-FOUNDATION-001` complete, committed, **not certified** (awaiting reviewer acceptance). FT-W3-PREFLIGHT-001 composition preflight **verified**. FT-W2-R1-TENANT-ISOLATION security repair **verified** (see below); next planned task W3 Ingestion Engine.
 **Last reported W2 implementation commit:** `10eb8c9435f9958c3ce3b38bfcec82719827995e` (master; W2 PASS, not certified). Prior FMCA lock baseline: `2dd5e0dac5fcd978a074dfedc9954b3d4e0e1167`.
 **Current verified HEAD:** `53a66c5a196d2b51e5ffe72e5f2d0f8afe882d9a` (master; fast-forwarded from W2 `10eb8c9`, includes documentation commits `88af092` and `53a66c5`).
 **Note:** Documentation-only commits may follow the implementation baseline. Always fetch and compare current `origin/master` before executing. Do not assume the recovery SHA equals current HEAD.
@@ -116,7 +116,34 @@ dashboards, REST/MCP endpoints, AI. No secrets introduced.
 
 **Next exact task:** `FT-W3-INGESTION-ENGINE-001` (or first authorized W3 slice) — audit the W2 persistence schema + W1 sync contract, then implement durable sync execution (run orchestration, retries, failure states, resumability) over persisted state. Do not add provider integrations, dashboards, REST/MCP, or AI.
 
-## Required checkpoint update on every task
+## FT-W2-R1-TENANT-ISOLATION — security repair (verified, PASS)
+
+**Task:** `FT-W2-R1-TENANT-ISOLATION` (CRITICAL security repair; W2 DB-security acceptance was SUSPENDED). **Status:** PASS — the three Ingestion repositories now derive tenant authority only from the trusted <c>DatabaseTenantScope</c>, not a caller-supplied <c>TenantId</c>. Not certified; W2 remains not-certified pending external acceptance. **Did not implement W3 or any business feature.**
+
+**Verified HEAD (base):** `53a66c5a196d2b51e5ffe72e5f2d0f8afe882d9a` (master; W2 + W3 preflight).
+
+**Defects repaired (each was trusting a caller-supplied <c>TenantId</c> as authorization):**
+- **SyncRunRepository** — <c>StartAsync</c> wrote a run using the caller tenant; <c>FinishAsync</c> located a run by <c>runId</c> alone (no tenant scope). Now: resolves the trusted tenant, requires a valid trusted scope, scopes the run lookup/modification to that tenant, and rejects cross-tenant finishes (a run owned by another tenant is never modified).
+- **SourceRecordRepository** — <c>ExistsAsync</c>/<c>InsertOrUpdateAsync</c> used the caller tenant directly. Now: requires the trusted scope, rejects a caller tenant that does not match the trusted tenant, and scopes all SQL to the trusted tenant. The <c>ON CONFLICT DO NOTHING</c> idempotency policy (ADR-010 decision 7) is **unchanged**.
+- **SyncCheckpointRepository** — <c>GetAsync</c>/<c>SaveAsync</c> trusted the caller tenant. Now: requires the trusted scope, rejects cross-tenant requests, and fails closed when the scope is absent. Concurrency/cursor progression unchanged.
+- **DI (both module Composition files)** — the trusted scope was a hardcoded default that could silently hide a missing context. Replaced with a single context-aware registration: resolves a <c>TenantContext</c> when one is bound (trusted), otherwise fails closed to <c>DatabaseTenantScope.None</c>. No duplicate default registration; a missing scope never becomes authorized. FMCA boundaries preserved.
+
+**Reference:** the repair mirrors the already-correct <c>EfAccountingSourceOwnership</c> oracle (injects <c>DatabaseTenantScope</c>, ignores the caller tenant, scopes to the trusted tenant, fails closed).
+
+**Architecture restrictions honored:** no Host→Infrastructure, no Application→Infrastructure, no EF Core in Domain/Application, no guard removed/weakened, no new endpoints/providers/dashboards/W3 features.
+
+**Mandatory PostgreSQL negative tests** (`tests/.../TenantIsolationNegativeTests.cs`, 6 tests, real PostgreSQL): (1) Tenant A cannot finish Tenant B's run (run stays <c>Running</c>); (2) Tenant A cannot read Tenant B's checkpoint (denied + scoped read returns null); (3) Tenant A cannot overwrite Tenant B's checkpoint (cursor unchanged); (4) Tenant A cannot read/insert source records as Tenant B (no row created); (5) missing trusted scope denies every operation (all six repository operations throw); (6) correct same-tenant operations still succeed. These fail against the original vulnerable code and pass after the repair.
+
+**Verification:**
+- Debug build: zero warnings, zero errors.
+- Release build: zero warnings, zero errors.
+- Full suite: 158 tests pass (BuildingBlocks 16, SyncContracts 55, Architecture 72, Infrastructure.IntegrationTests 15), 0 failed. Baseline 152 preserved; +6 negative tests.
+- `git diff --check`: clean (no whitespace errors).
+- Architecture guards unchanged and passing (72).
+
+**Files changed:** `SyncRunRepository.cs`, `SourceRecordRepository.cs`, `SyncCheckpointRepository.cs` (trusted-tenant guard + caller-tenant validation), `IngestionInfrastructureComposition.cs` + `AccountingSourcesInfrastructureComposition.cs` (context-aware trusted scope), `IngestionPersistenceTests.cs` (construct repositories with a trusted scope), `TenantIsolationNegativeTests.cs` (new).
+
+**Next exact task:** `FT-W3-INGESTION-ENGINE-001` (or first authorized W3 slice) — audit the W2 persistence schema + W1 sync contract, then implement durable sync execution over persisted state. Do not add provider integrations, dashboards, REST/MCP, or AI.
 
 Update this file in the same task's final verified commit, including:
 - task ID / status / authorized scope
