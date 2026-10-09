@@ -5,11 +5,17 @@
 **Scope:** W2 persistence foundation, W2-R1 tenant-isolation repair, W3 preflight, FMCA guards and CI.  
 **Status:** W2 **NOT CERTIFIED**; W3 implementation **NOT AUTHORIZED** until blocking issues are resolved and independently reviewed.
 
+## Ownership and acceptance authority (mandatory)
+
+**Accountable reviewer and ledger maintainer: ChatGPT acting as FaraTaraz architecture reviewer in the user's conversation.** OpenCode/Cursor/implementation agents are implementers, **not** independent approvers. The reviewer must personally inspect changed GitHub source, diffs, relevant negative guards/tests and CI evidence; decide whether each issue is VERIFIED, still OPEN, or BLOCKED; and **personally update this file on `master`** with the decision, SHA, evidence and date. An implementer report of PASS, local tests, or a self-declared “verified” status cannot close an issue.
+
+Implementation agents may propose new findings and provide evidence, but **must not mark defects VERIFIED or silently remove them**. If the reviewer is unavailable, leave the item OPEN or FIXED — UNVERIFIED and record that independent review is pending. The reviewer must reconcile this ledger at each architectural review and before any W2 acceptance/W3 authorization. A new chat should read `RECOVERY.md` and this ledger, fetch latest GitHub state, and continue ownership; no claim of autonomous background monitoring or automatic updates between conversations is implied.
+
 ## Operating rules (mandatory)
 
 1. Read this ledger together with `AGENTS.md`, `docs/planning/RECOVERY.md`, `docs/planning/CURRENT-STATE.md`, the architecture constitution, accepted ADRs and existing ROADMAP/DELIVERY-PLAN **before every task**. This is a defect tracker, **not a replacement for the approved plan**.
 2. Never delete or silently close an item. Change its status to **FIXED — UNVERIFIED** when code is committed; change to **VERIFIED** only after independent source inspection, relevant negative regression tests, and required CI evidence. Record commit SHA, exact file paths, tests, and reviewer evidence. If a fix regresses, reopen the same ID.
-3. Every task that touches a listed defect must update this ledger and `RECOVERY.md` in the same commit. Preserve historical findings and links; add new findings immediately. Never assert “no unresolved risks” while OPEN or BLOCKED items exist.
+3. Implementers must report defect IDs and evidence in their task output and may update `RECOVERY.md`; the **ChatGPT architecture reviewer owns the authoritative updates to this ledger** on `master`, including status transitions and new findings. Preserve historical findings and links; never assert “no unresolved risks” while OPEN or BLOCKED items exist.
 4. **No green-test-only acceptance.** Inspect implementation, callers, trust boundaries, migrations, transaction paths, guard coverage, and tests. A passing local suite does not override failing GitHub CI.
 5. Tasks target 20–30 minutes, **HARD STOP 45 minutes**; report PARTIAL with a checkpoint when unfinished. No automatic W3 or next task.
 6. Guard regressions must be repaired with a negative test proving the guard catches the prohibited change; never weaken or remove guards to achieve PASS.
