@@ -8,6 +8,10 @@
 
 **Open defects / acceptance ledger:** [`docs/planning/OPEN-DEFECTS.md`](OPEN-DEFECTS.md) — mandatory read before any W2/W3 task. All unresolved security, DI, transaction, CI, guard, and documentation defects remain tracked there; W2 is NOT CERTIFIED and W3 implementation is not authorized until explicit acceptance. Do not interpret older PASS or 'safe foundation' reports below as current architectural acceptance.
 
+**ARCHITECT RECOVERY / OWNERSHIP LOCK:** ChatGPT, acting as the FaraTaraz independent architecture reviewer, is the **accountable owner and maintainer** of `docs/planning/OPEN-DEFECTS.md`. OpenCode/Cursor are implementers and **cannot certify fixes**. For each reported fix, ChatGPT must fetch and inspect actual GitHub files/diffs, relevant negative guard/test evidence and GitHub CI; **ChatGPT itself must update the defect ledger on `master`**, preserving historical findings and marking VERIFIED only with independent evidence. Missing evidence means OPEN or FIXED — UNVERIFIED. Before any W2 acceptance or W3 authorization, review and reconcile every blocking item. On chat recovery, first read this section and the ledger and resume the same responsibility. Updates occur when a review is requested/performed; no autonomous background GitHub monitoring is implied.
+
+**Current acceptance override:** W2 NOT CERTIFIED; W3 NOT AUTHORIZED. Earlier statements in this file describing W2-R1 as “verified”, database-enforced isolation through uniqueness, or W2 as a “safe foundation” are historical implementation reports, **not current independent architectural approval**. Current statuses live in `OPEN-DEFECTS.md`.
+
 ## Read first (in order)
 
 1. `AGENTS.md`
