@@ -70,3 +70,16 @@ Consult `OPEN-DEFECTS.md` for all canonical IDs. Highest-risk unresolved: `FT-SE
 **Decision:** Recovery report accepted as a truthful read-only handoff, **not** as architectural defect closure. All ledger defect statuses unchanged; W2 NOT CERTIFIED and W3 NOT AUTHORIZED. Do not repeat broad recovery/audit. Next microtask should diagnose the CI Debug-test failure with only relevant log excerpts and a minimal proposed fix. Before any write, fetch and fast-forward the latest master (including journal). The architect owns ledger/journal updates; implementation agents must not certify issues.
 
 **Next task:** `FT-W2-CI-DIAG-001` (10–15 minutes, read-only). Inspect newest failing GitHub Actions job and exact failing test names/exception. No full local suite, no production edits. Report the smallest evidence-backed repair. Stop. Then ChatGPT reviews and issues a separate narrowly scoped fix task.
+
+## Architect CI evidence — 2026-10-09 — FT-W2-CI-DIAG-001
+
+**OpenCode report received:** PARTIAL; claimed exact GitHub Actions job logs unavailable due to 403, reported Docker pull failure and hypothesized test-host abort/fixture issue. No implementation performed. **The test-host hypothesis is refuted by independently obtained full GitHub job logs.**
+
+**Independently fetched authoritative logs via connected GitHub job-log API:**
+
+- Run 37991074354, job 114025072351 (head `4efc2c0`): `docker pull postgres:16` fails three times with **`toomanyrequests: You have reached your unauthenticated pull rate limit`**. Container initialization failed; no code checkout/build/test attempted. This is an observed Docker Hub anonymous pull quota, not proof of generic runner egress failure. Log URL: https://github.com/mrnikiemami-code/farataraz/actions/runs/37991074354
+- Run 37986593473, job 114010000534 (head `01b93c4`): containers initialized, Debug build succeeded, **15/15 PostgreSQL integration tests failed**, error `Npgsql.NpgsqlException: Failed to connect to 127.0.0.1:5432`, inner `SocketException: Connection refused`. This was not an unknown test-host abort. The workflow then used dynamic container port `5432/tcp` but fixed `localhost:5432` in the test connection string; later `5ce2b75` switched service mapping to `5432:5432`. The fixed port has **not** been validated by a completed subsequent CI test run. Log URL: https://github.com/mrnikiemami-code/farataraz/actions/runs/37986593473
+
+**Architecture decision:** FT-CI-002 stays OPEN, FT-CI-001 stays FIXED — UNVERIFIED. Do not alter Production code or database fixture based on speculative crash claims. Do not pin the same Docker Hub image by digest as a purported fix for unauthenticated pull quota (digest pinning does not establish quota avoidance). Use a proven/verified image registry or authenticated pull strategy, then obtain full all-green Debug and Release evidence. Do not introduce an unverified third-party container image. W2 NOT CERTIFIED; W3 NOT AUTHORIZED.
+
+**Next narrow task:** Investigate supported official PostgreSQL image distribution or auth approach for GitHub Actions; one workflow-only change after source verification, then inspect fresh CI logs. Reviewer will update defect ledger on evidence, not agent PASS.
