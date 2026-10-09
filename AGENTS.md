@@ -11,28 +11,30 @@ an AI dashboard for Asan Accounting. Accounting systems are replaceable adapters
 ## Repository map
 - `src/BuildingBlocks/` — foundation: strong ids, `Tenant`, `AccountingSource`,
   `TenantContext`, provider capability primitives. Depends on nothing platform-wide.
-- `src/Core/` — platform domain: capability ports, source model, master data
-  (external + canonical identities), application authority marker. Depends only on
-  `BuildingBlocks`.
-- `src/Adapters/*` — concrete providers (e.g. `Accounting.Mock`). Depend on `Core`.
+- `src/Modules/*` — platform domain, decomposed from the former `Core` into capability
+  modules: `MasterData` (external + canonical identities), `AccountingSources`
+  (capability ports, provider declaration, ownership oracle), and `Ingestion`
+  (`Ingestion.Domain` sync contract + source models; `Ingestion.Application` CQRS use
+  cases). Module Domain/Application depend only on `BuildingBlocks`.
+- `src/Adapters/*` — concrete providers (e.g. `Accounting.Mock`). Depend on the modules and `BuildingBlocks`.
 - `tests/FaraTaraz.ArchitectureTests/` — durable automated guards (see below).
 - `docs/architecture/` — constitution + ADRs.
 
 ## Allowed dependency direction (enforced by tests)
 ```
 BuildingBlocks  →  (nothing platform-wide)
-Core            →  BuildingBlocks
-Adapters/*      →  Core, BuildingBlocks
-Hosts/*         →  Core, Adapters/*  (added later, when needed)
+Modules/*       →  BuildingBlocks (+ sibling Domain modules where needed)
+Adapters/*      →  Modules, BuildingBlocks
+Hosts/*         →  Modules, BuildingBlocks, Adapters/*  (added later, when needed)
 Tests           →  whatever they assert
 ```
-Never reverse these. `Core` must never reference a concrete adapter.
+Never reverse these. The platform (`BuildingBlocks` + modules) must never reference a concrete adapter.
 
 ## Highest-risk invariants (break these and tests fail)
 - **Tenant boundary** — every tenant-owned artifact is tenant-bound; tenant authority
   comes only from a trusted execution context, never from client/LLM/MCP input.
 - **Provider independence** — no `Asan*`/`Sepidar*`/`Holoo*`/`Mahak*` types, DTOs, or
-  field names in `Core` or `BuildingBlocks`. Adding a provider = a new adapter.
+  field names in the platform modules or `BuildingBlocks`. Adding a provider = a new adapter.
 - **Source-scoped external identity** — `AccountingSourceId + ExternalCode`. Equal codes
   across sources do NOT prove equal canonical entities.
 - **Canonical identity** — FaraTaraz-owned and tenant-bound.
