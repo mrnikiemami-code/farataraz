@@ -25,9 +25,13 @@ jobs:
     # (tenant isolation, unique-constraint idempotency, transactional rollback) — never the
     # EF Core InMemory provider (ADR-010 decision 12). CI provisions a disposable PostgreSQL
     # service and points the integration fixture at it via the connection-string override.
+    # The image is pulled from AWS ECR Public (a verified registry that mirrors the official
+    # postgres image and allows anonymous pulls without Docker Hub throttle) so the service
+    # container pull is not blocked by Docker Hub unauthenticated pull-rate limits. No secret
+    # is required, keeping this workflow secret-free.
     services:
       postgres:
-        image: postgres:16
+        image: public.ecr.amazonaws.com/libraries/postgres:16
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: ftpw
