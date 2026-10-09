@@ -1,9 +1,9 @@
 # RECOVERY — FaraTaraz / FMCA
 
-**Checkpoint recorded:** 2026-10-09
-**Current task (architect override, 2026-10-09):** FT-RECOVERY-REMOTE-RECONCILE-002 is the next recovery-only task. FT-W2-R2-BOUNDARY-GUARDS was interrupted/unaccepted; W2 is NOT CERTIFIED, W3 NOT AUTHORIZED. Historical implementation reports below are not independent certification. See ARCHITECT-JOURNAL.md and OPEN-DEFECTS.md.
+**Checkpoint recorded:** 2026-10-10
+**Current task (architect override, 2026-10-10):** FT-W2-R2-B1-OWNERSHIP-PATH-AUDIT — READ-ONLY production ownership/DI/persistence-caller audit; target 10–15 minutes, stop by 20. FT-W2-R2-B-SOURCE-OWNERSHIP produced no implementation; prior handler inspection is recorded in ARCHITECT-JOURNAL.md and must not be repeated. W2 NOT CERTIFIED; W3 NOT AUTHORIZED.
 **Last reported W2 implementation commit:** `10eb8c9435f9958c3ce3b38bfcec82719827995e` (master; W2 PASS, not certified). Prior FMCA lock baseline: `2dd5e0dac5fcd978a074dfedc9954b3d4e0e1167`.
-**Last architect-observed remote HEAD (historical checkpoint):** `5de5e63e2c931c2c6f9526b9ce984d04d3e47132` before ARCHITECT-JOURNAL.md creation; always fetch latest master. This is not a claim of verified implementation acceptance.
+**Last architect-observed remote HEAD (before this recovery documentation update):** `bfa4c8c89085bdbb9525b28a5dc499bb3c59a206`; only journal/ledger commits followed implementer HEAD `a31aa254`. Always fetch latest master; this is not implementation acceptance.
 **Note:** Documentation-only commits may follow the implementation baseline. Always fetch and compare current `origin/master` before executing. Do not assume the recovery SHA equals current HEAD.
 
 **Architect continuity journal:** [`docs/planning/ARCHITECT-JOURNAL.md`](ARCHITECT-JOURNAL.md) — ChatGPT-owned durable log of reports received, independent source/CI checks, architectural decisions, exact GitHub commits, blockers and next steps. On every new chat or context recovery, ChatGPT must read this journal together with RECOVERY and OPEN-DEFECTS, independently reconcile GitHub state, and update the journal itself after each substantive review. Implementers do not own or certify this journal.
@@ -45,6 +45,10 @@
 - Never force-push, rewrite history, or claim CERTIFIED without accepted evidence.
 
 ## Current next action
+
+Execute `FT-W2-R2-B1-OWNERSHIP-PATH-AUDIT` as specified in the latest ARCHITECT-JOURNAL.md entry: production ownership implementation/DI and all run-start/record-write callers, read-only, no repeated handler audit. CI remains red (run 38001093552: container initialization failed, build/tests skipped). All open defects remain; no W3 authorization.
+
+## Historical next-action report — superseded, NOT authorization
 
 First execute a bounded W3 preflight/composition-boundary audit (maximum 45 minutes) and update recovery. Then authorize one small W3 slice at a time. Do not launch the entire W3 engine in one task. First audit the W2 persistence
 schema and the W1 sync contract; then implement durable synchronization execution (run
