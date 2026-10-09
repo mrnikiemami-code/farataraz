@@ -31,9 +31,10 @@ Before modifying code, every agent must read, in order:
 
 1. `AGENTS.md`
 2. `docs/architecture/architecture-constitution.md`
-3. `docs/planning/CURRENT-STATE.md`
-4. relevant ADRs
-5. relevant roadmap wave
+3. `docs/planning/RECOVERY.md` (latest operational handoff)
+4. `docs/planning/CURRENT-STATE.md`
+5. relevant ADRs
+6. relevant roadmap wave
 
 ---
 
@@ -92,7 +93,7 @@ A wave is not complete merely because code compiles. Where applicable:
 | W1-R1 — Architecture Structure + CQRS Foundation | PASS | still part of W1; **not certified**. Capability-first modular monolith, `ISender` delivery boundary, structural guards. Baseline HEAD: `ae27f28d006614ea6c21cbe504990245ac11342a`. |
 | W1-R2 — Architecture Closure & Certification Readiness | PASS (pending external review) | still part of W1; **not certified**. Bounded-page CQRS (one page per request, caller-driven cursor), tenant-source ownership port (`IAccountingSourceOwnership`, fail-closed), physical structure guards, sync contract hardening. NOT certified — awaiting reviewer acceptance. |
 | W2..W17 | PLANNED | see `ROADMAP.md` |
-| FMCA-ARCH — Modular Architecture Migration | IN PROGRESS (wave 1 completed) | Target in [ADR-009](../architecture/adr/ADR-009-FaraTaraz-Modular-Clean-Architecture.md) + `structure.md` §10; phased plan above; baseline `19dab6fc4b877181d0cd0ad385dba9e196f5c886`. Wave 1 (composition-only `Host` + `Ingestion.Application` feature structure) completed on `master` under task `FT-FMCA-COMPLETE-ARCHITECTURE-001`; `Contracts` / `Endpoints` / `Infrastructure` waves pending explicit authorization. |
+| FMCA-ARCH — Existing-responsibility migration and architecture lock | PASS (baseline scope) | FMCA completed for existing responsibilities (`1119b08`); architecture lock and CI completed (`2dd5e0d`, GitHub Actions run 37920796253 success). Missing layers remain NOT_APPLICABLE until justified by real responsibilities. See `RECOVERY.md`. |
 
 **Historical certified baselines (do not overwrite):**
 - W0 CERTIFIED: `d499e61730579c2ad9810d306dd2620c986bd9f3`
@@ -108,7 +109,7 @@ and W1-R2) is `PASS` pending external reviewer acceptance, not `CERTIFIED`.
 
 ## Architecture migration wave (FaraTaraz Modular Clean Architecture)
 
-**Status:** IN PROGRESS — wave 1 completed on `master` under task
+**Historical migration plan (completed for baseline responsibilities; remaining layers deferred until justified).** Wave 1 completed on `master` under task
 `FT-FMCA-COMPLETE-ARCHITECTURE-001` (decision prepared by task
 `FT-ARCHITECTURE-BASELINE-RECOVERY-001`; recorded in
 [ADR-009](../architecture/adr/ADR-009-FaraTaraz-Modular-Clean-Architecture.md) and
@@ -165,3 +166,7 @@ dotnet test FaraTaraz.sln
 ```
 
 Both must pass before committing a wave.
+
+## Recovery and execution handoff (mandatory)
+
+Every task must read and update [`RECOVERY.md`](RECOVERY.md) at its verified completion, reconcile [`CURRENT-STATE.md`](CURRENT-STATE.md), and report the actual remote HEAD and CI status. The recovery file records the last verified implementation baseline, not necessarily the current HEAD after documentation commits. New layers require actual responsibilities and architecture guard negative tests. A future task may explicitly authorize a wave, but cannot override the Constitution or accepted ADRs without a formal decision. Historical per-wave review governance remains in force unless the owner explicitly grants a scoped exception.
