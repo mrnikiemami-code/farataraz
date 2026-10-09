@@ -108,6 +108,50 @@ any real provider integration. No PostgreSQL.
 
 ---
 
+## FMCA architecture completion audit (this baseline)
+
+`master` has migrated the FMCA target (`ADR-009-FaraTaraz-Modular-Clean-Architecture.md`,
+`structure.md` §10) as far as the baseline responsibilities permit. The table audits every
+assembly against the FMCA five-layer target (`Application` / `Contracts` / `Domain` /
+`Endpoints` / `Infrastructure`) plus the composition-only `Host`. `COMPLETE` means the layer
+owns a real responsibility here; `NOT_APPLICABLE` means no responsibility exists at this
+baseline and the layer is deferred **with evidence** — never marked `COMPLETE`. No empty
+projects are created (`structure.md` §10.1).
+
+| Module / assembly | Application | Contracts | Domain | Endpoints | Infrastructure |
+| --- | --- | --- | --- | --- | --- |
+| `BuildingBlocks` (foundation) | — | — | Foundation ids / `Tenant` / `AccountingSource` / `TenantContext` / `AccountingCapability` / `IApplicationUseCase` marker (not a capability module). | — | — |
+| `MasterData` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | **COMPLETE** — external (`AccountingSourceId+ExternalCode`) and canonical identity value objects. | — | — |
+| `AccountingSources` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | **COMPLETE** — capability ports (`ISyncablePort<T>`), neutral `IAccountingProvider` declaration, ownership oracle. | — | — |
+| `Ingestion.Domain` | — | `NOT_APPLICABLE` | **COMPLETE** — sync contract (`SyncRequest`/`SyncBatch`/`SyncCursor`/`SyncMode`), source-record identity/version/fingerprint, source models. | — | — |
+| `Ingestion.Application` | **COMPLETE** — `SynchronizeCustomers` in `SynchronizeCustomers/Queries/` (read-only bounded-page sync) + module `Composition`. | `NOT_APPLICABLE` | — | — | — |
+| `Accounting.Mock` (adapter) | — | — | — | — | **COMPLETE** — deterministic in-memory provider implementing the capability ports (test/verification only). |
+| `Host` | — | — | — | — | Composition root (zero business authority); not an infrastructure layer. |
+
+**Evidence for the `NOT_APPLICABLE` (deferred) entries:**
+
+- **Contracts (separate project) — deferred.** The cross-module contracts (sync contract
+  types, capability ports, canonical/external identities) are declared in Domain and are the
+  cross-module boundary. No Application request/response contracts or Infrastructure DTOs
+  exist to warrant a separate `Contracts` project; extraction is a documented future step.
+- **Endpoints — deferred.** No HTTP/MCP delivery surface exists in the baseline; no
+  endpoints exist. Implemented when a delivery responsibility is demonstrated.
+- **Infrastructure — deferred.** No persistence, external API, or message bus exists in the
+  baseline. The only Infrastructure-type assembly is `Accounting.Mock` (a test adapter).
+  Persistence is deferred to W2.
+- **`MasterData` / `AccountingSources` Application/Endpoints/Infrastructure — deferred.**
+  These modules own only Domain-level responsibilities (identity value objects; capability
+  ports, provider declaration, ownership oracle). No use cases live here (the one sync use
+  case lives in `Ingestion.Application`); there is no delivery or persistence.
+- **`Ingestion.Domain` / `Ingestion.Application` Contracts/Endpoints/Infrastructure —
+  deferred.** The Domain owns the sync contract and source models (the sync contract types
+  also serve as the cross-module contract, see Contracts note). No use cases, delivery, or
+  persistence live in either Domain or Application project.
+
+**Verified:** Debug + Release builds zero warnings/errors; 130 tests pass (16
+`BuildingBlocks` + 55 `SyncContracts` + 59 `ArchitectureTests`, the latter including the new
+Host-zero-authority, feature-first/Command-Query placement, and path↔namespace guards).
+
 ## What is next?
 
 **W2 — Persistence Foundation is NOT authorized by W1.** W1 only establishes contracts and

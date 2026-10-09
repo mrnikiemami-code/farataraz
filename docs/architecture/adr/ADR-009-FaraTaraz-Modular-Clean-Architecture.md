@@ -1,6 +1,6 @@
 # ADR-009: FaraTaraz Modular Clean Architecture (FMCA) (Target)
 
-**Status:** Accepted — target is normative; physical migration wave is *pending explicit wave authorization*
+**Status:** Accepted — target is normative. The composition-only `Host` + `Ingestion.Application` feature-structure migration wave was completed on `master` under task `FT-FMCA-COMPLETE-ARCHITECTURE-001`; the `Contracts` / `Endpoints` / `Infrastructure` waves remain *pending explicit wave authorization*.
 **Date:** 2026-10-09
 **Derives from:** `docs/architecture/structure.md` §10 — *"Target module architecture — FaraTaraz Modular Clean Architecture standard (mandatory for migration)"* (adopted on master at `19dab6fc4b877181d0cd0ad385dba9e196f5c886`)
 **Depends on:** ADR-001 (Modular Monolith), ADR-007 (Shared Application Authority), ADR-008 (MediatR License Baseline)
@@ -126,9 +126,11 @@ extended architecture guards (below) must keep enforcing them after each migrati
 ## Migration gating
 
 Per `DELIVERY-PLAN.md`, no agent may automatically start a wave; every wave is reviewed
-before continuation. The physical migration is therefore **PLANNED and pending explicit
-authorization**, and is described as a phased plan in `DELIVERY-PLAN.md`. It does not begin
-until a reviewer authorizes the first wave against baseline `19dab6fc4b877181d0cd0ad385dba9e196f5c886`.
+before continuation. The composition-only `Host` + `Ingestion.Application` feature-structure
+wave was completed on `master` under task `FT-FMCA-COMPLETE-ARCHITECTURE-001` (the explicit
+wave authorization for that wave). The `Contracts` / `Endpoints` / `Infrastructure` waves
+remain **PLANNED and pending explicit authorization**, to be reviewed before continuation
+against the post-completion baseline.
 
 ## Rejected Alternatives
 
