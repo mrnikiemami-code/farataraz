@@ -16,16 +16,19 @@ an AI dashboard for Asan Accounting. Accounting systems are replaceable adapters
   (capability ports, provider declaration, ownership oracle), and `Ingestion`
   (`Ingestion.Domain` sync contract + source models; `Ingestion.Application` CQRS use
   cases). Module Domain/Application depend only on `BuildingBlocks`.
-- `src/Adapters/*` — concrete providers (e.g. `Accounting.Mock`). Depend on the modules and `BuildingBlocks`.
+- `src/Adapters/*` — concrete providers (e.g. `Accounting.Mock`). Depend on modules and `BuildingBlocks`; never referenced by Host, Domain, or Application.
+- `src/Host/FaraTaraz.Host/` — composition-only Host; ZERO business authority, concrete adapter references, or persistence ownership.
 - `tests/FaraTaraz.ArchitectureTests/` — durable automated guards (see below).
 - `docs/architecture/` — constitution + ADRs.
+- `docs/planning/RECOVERY.md` — mandatory fast-resume checkpoint, task handoff, and latest verified evidence.
 
 ## Allowed dependency direction (enforced by tests)
 ```
 BuildingBlocks  →  (nothing platform-wide)
 Modules/*       →  BuildingBlocks (+ sibling Domain modules where needed)
 Adapters/*      →  Modules, BuildingBlocks
-Hosts/*         →  Modules, BuildingBlocks, Adapters/*  (added later, when needed)
+Host            →  Modules, BuildingBlocks (composition only; NO Adapters or persistence)
+Module Infrastructure / Adapters →  Module contracts/ports, BuildingBlocks
 Tests           →  whatever they assert
 ```
 Never reverse these. The platform (`BuildingBlocks` + modules) must never reference a concrete adapter.
@@ -63,15 +66,22 @@ The repository is the source of truth for execution. Before starting any work, r
 
 1. `AGENTS.md`
 2. `docs/architecture/architecture-constitution.md` (authoritative)
-3. `docs/planning/CURRENT-STATE.md`
-4. relevant ADRs (`docs/architecture/adr/`)
-5. relevant roadmap wave (`docs/planning/ROADMAP.md`)
+3. `docs/planning/RECOVERY.md` (latest task checkpoint; update on every task handoff)
+4. `docs/planning/CURRENT-STATE.md`
+5. relevant ADRs (`docs/architecture/adr/`)
+6. relevant roadmap wave (`docs/planning/ROADMAP.md`)
 
 SoT hierarchy (highest first): Constitution → accepted ADRs → Current State → Roadmap /
 Delivery Plan → current authorized task → implementation. If a task conflicts with the
 Constitution or an accepted ADR, STOP; do not silently follow the lower-level instruction.
 
 Waves are not auto-started. P0 does NOT authorize W1; a separate explicit task is required.
+
+## Mandatory recovery discipline
+- At task start: fetch origin/master, read `docs/planning/RECOVERY.md`, validate its SHA against Git history, then reconcile it with `CURRENT-STATE.md` and the roadmap. Never assume the recovery SHA equals current HEAD: documentation commits may follow it.
+- At every meaningful wave boundary and before the final push: update `RECOVERY.md` with task ID, last verified commit/baseline, completed/pending work, affected files, test evidence, next exact step, blockers, and handoff instructions.
+- Recovery is a checkpoint, not a substitute for builds, tests, architecture guards, or accepted ADRs. Never mark an unreviewed wave CERTIFIED.
+- New modules/layers must extend architecture guards and demonstrate a failing negative test before acceptance. Do not weaken the existing Host zero-authority rule to wire persistence; use module-owned composition and inward-facing ports.
 
 ## Build & test
 ```bash
