@@ -6,11 +6,13 @@
 **Current verified HEAD:** `53a66c5a196d2b51e5ffe72e5f2d0f8afe882d9a` (master; fast-forwarded from W2 `10eb8c9`, includes documentation commits `88af092` and `53a66c5`).
 **Note:** Documentation-only commits may follow the implementation baseline. Always fetch and compare current `origin/master` before executing. Do not assume the recovery SHA equals current HEAD.
 
+**Open defects / acceptance ledger:** [`docs/planning/OPEN-DEFECTS.md`](OPEN-DEFECTS.md) — mandatory read before any W2/W3 task. All unresolved security, DI, transaction, CI, guard, and documentation defects remain tracked there; W2 is NOT CERTIFIED and W3 implementation is not authorized until explicit acceptance. Do not interpret older PASS or 'safe foundation' reports below as current architectural acceptance.
+
 ## Read first (in order)
 
 1. `AGENTS.md`
 2. `docs/architecture/architecture-constitution.md`
-3. `docs/planning/RECOVERY.md` (this file)
+3. `docs/planning/RECOVERY.md` (this file) and `docs/planning/OPEN-DEFECTS.md`
 4. `docs/planning/CURRENT-STATE.md`
 5. `docs/planning/ROADMAP.md` and `DELIVERY-PLAN.md`
 6. Relevant accepted ADRs, especially ADR-008 and ADR-009, plus `CONTRIBUTING.md`.
