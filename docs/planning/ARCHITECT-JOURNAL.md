@@ -60,3 +60,13 @@ Consult `OPEN-DEFECTS.md` for all canonical IDs. Highest-risk unresolved: `FT-SE
 2. Diagnose the **actual** failing GitHub CI test/log, in one short bounded task; don't assume PostgreSQL port is the only problem.
 3. Split `FT-W2-R2-BOUNDARY-GUARDS` into microtasks, each 10–20 min, ≤25 min, one concern and focused tests; separate final full-suite/CI gate.
 4. ChatGPT independently reviews source and updates `OPEN-DEFECTS.md` plus this journal after each substantive result. No W3 until explicit architectural acceptance.
+
+## Architect review — 2026-10-09 — FT-RECOVERY-REMOTE-RECONCILE-002
+
+**Implementer report received:** RECOVERED; Windows `D:\\FaraTaraz` master clean, fast-forwarded `5ce2b75` → `5de5e63`; `OPEN-DEFECTS.md` and recovery governance present. No implementation/build/test/commit/push. OpenCode enumerated ten OPEN and six FIXED — UNVERIFIED items, and correctly did not authorize W3.
+
+**Independent evidence:** GitHub master observed at `4fa33c0f3e3288c174e86899f858d30f044777a9` before this journal update; architect journal was created at `9689d95` and linked in `RECOVERY.md` at `4fa33c0`, after the implementer's `5de5e63` checkpoint. Thus the implementer's remote SHA was valid for its observation window but is **now behind** current master. Windows working-tree cleanliness/fast-forward is **implementer-reported**, not remotely verifiable. No source changes or tests were claimed.
+
+**Decision:** Recovery report accepted as a truthful read-only handoff, **not** as architectural defect closure. All ledger defect statuses unchanged; W2 NOT CERTIFIED and W3 NOT AUTHORIZED. Do not repeat broad recovery/audit. Next microtask should diagnose the CI Debug-test failure with only relevant log excerpts and a minimal proposed fix. Before any write, fetch and fast-forward the latest master (including journal). The architect owns ledger/journal updates; implementation agents must not certify issues.
+
+**Next task:** `FT-W2-CI-DIAG-001` (10–15 minutes, read-only). Inspect newest failing GitHub Actions job and exact failing test names/exception. No full local suite, no production edits. Report the smallest evidence-backed repair. Stop. Then ChatGPT reviews and issues a separate narrowly scoped fix task.
