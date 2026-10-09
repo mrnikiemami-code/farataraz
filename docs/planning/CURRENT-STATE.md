@@ -1,6 +1,7 @@
 # CURRENT STATE — FaraTaraz
 
-**Last updated:** W1-R2 — Architecture Closure & Certification Readiness
+**Last updated:** 2026-10-09 — FMCA architecture lock (FT-FMCA-ARCHITECTURE-LOCK-001)
+**Operational handoff:** [RECOVERY.md](RECOVERY.md) — mandatory fast-resume checkpoint; implementation baseline `2dd5e0d`
 **Certified baseline:** `d499e61730579c2ad9810d306dd2620c986bd9f3` (W0 CERTIFIED)
 
 Operational state. Should be readable in under ~2 minutes.
