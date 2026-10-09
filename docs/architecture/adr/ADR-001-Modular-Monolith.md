@@ -11,10 +11,24 @@ microservices upfront would add operational complexity with no demonstrated need
 
 ## Decision
 Build a **modular monolith** organized into clearly separated projects:
-`BuildingBlocks`, `Core`, `Adapters/*`, `Hosts/*`, plus test projects. Modules communicate
-through well-defined boundaries (interfaces, application use cases). Each module has an
-explicit dependency direction. The first deployable host can be a single process; future
-modularity enables extraction only when justified.
+`BuildingBlocks` (foundation), capability modules (e.g. `MasterData`, `AccountingSources`,
+`Ingestion.Domain`, `Ingestion.Application`), `Adapters/*`, `Hosts/*`, plus test
+projects. The former `Core` project was decomposed into `BuildingBlocks` + capability
+modules and nothing references it (`docs/architecture/structure.md` §41). Modules
+communicate through well-defined boundaries (interfaces, application use cases). Each
+module has an explicit dependency direction. The first deployable host can be a single
+process; future modularity enables extraction only when justified.
+
+**Target physical layout (accepted target, migration pending explicit wave
+authorization).** All business modules will be migrated to a justified, independently owned
+5-layer physical decomposition — `<Capability>.Application`, `<Capability>.Contracts`,
+`<Capability>.Domain`, `<Capability>.Endpoints`, `<Capability>.Infrastructure` — with a
+composition-only `src/Host/` and per-module test projects under `tests/`. This is a
+**physical/project-level reorganization only**: the solution remains a **single deployable
+monolith** (one process). It is not a deployment re-architecture, and no microservices or
+messaging complexity are introduced without demonstrated need. Governed by
+[ADR-009](./ADR-009-Tooba-Settlement-Modular-Architecture.md) and
+`docs/architecture/structure.md` §10.
 
 ## Consequences
 - Low operational complexity; one deployable unit.

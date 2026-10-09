@@ -92,6 +92,7 @@ A wave is not complete merely because code compiles. Where applicable:
 | W1-R1 — Architecture Structure + CQRS Foundation | PASS | still part of W1; **not certified**. Capability-first modular monolith, `ISender` delivery boundary, structural guards. Baseline HEAD: `ae27f28d006614ea6c21cbe504990245ac11342a`. |
 | W1-R2 — Architecture Closure & Certification Readiness | PASS (pending external review) | still part of W1; **not certified**. Bounded-page CQRS (one page per request, caller-driven cursor), tenant-source ownership port (`IAccountingSourceOwnership`, fail-closed), physical structure guards, sync contract hardening. NOT certified — awaiting reviewer acceptance. |
 | W2..W17 | PLANNED | see `ROADMAP.md` |
+| TOOBA-ARCH — Modular Architecture Migration | PLANNED (pending authorization) | Target in [ADR-009](../architecture/adr/ADR-009-Tooba-Settlement-Modular-Architecture.md) + `structure.md` §10; phased plan above; baseline `19dab6fc4b877181d0cd0ad385dba9e196f5c886`. Physical migration gated behind explicit wave authorization. |
 
 **Historical certified baselines (do not overwrite):**
 - W0 CERTIFIED: `d499e61730579c2ad9810d306dd2620c986bd9f3`
@@ -102,6 +103,55 @@ A wave is not complete merely because code compiles. Where applicable:
 **W1 does not authorize W2.** W2 (PostgreSQL/EF Core) requires a separate explicit task
 and an explicit architecture decision to introduce a persistence stack. W1 (including W1-R1
 and W1-R2) is `PASS` pending external reviewer acceptance, not `CERTIFIED`.
+
+---
+
+## Architecture migration wave (Tooba Settlement modular layout)
+
+**Status:** PLANNED — *pending explicit wave authorization* (decision prepared by task
+`FT-ARCHITECTURE-BASELINE-RECOVERY-001`; recorded in
+[ADR-009](../architecture/adr/ADR-009-Tooba-Settlement-Modular-Architecture.md) and
+`docs/architecture/structure.md` §10). **No agent may start this wave until a reviewer
+authorizes it.** `master` stays at `19dab6fc4b877181d0cd0ad385dba9e196f5c886` until the
+migration branch is verified and approved for merge.
+
+- **Baseline for the migration:** `19dab6fc4b877181d0cd0ad385dba9e196f5c886` (adds
+  `structure.md` §10 target; sections 1–9 remain the verified baseline).
+- **Target:** per-business-module `<Capability>.Application/.Contracts/.Domain/.Endpoints/.Infrastructure`,
+  composition-only `src/Host/`, per-module tests under `tests/` (see ADR-009 / `structure.md`
+  §10.1).
+- **Invariant preserved:** the solution remains a single deployable monolith (ADR-001,
+  Constitution K.38). This is a physical reorganization, not a deployment re-architecture.
+- **MediatR:** stays in Application at `12.5.0` / `Contracts 2.0.1` (ADR-008). Moving off
+  MediatR needs a separate ADR (`structure.md` §10.4).
+
+### Phases (each its own authorized, reviewable wave)
+
+1. **Inventory & guards baseline.** Inventory every `src/` + `tests/` project, source file,
+   namespace, assembly reference and solution entry; capture Debug/Release build + test
+   baseline; extend `FaraTaraz.ArchitectureTests` with the post-migration guards *against the
+   current layout* so they fail until the migration is done (see guards below).
+2. **Host → composition root.** Move all business decisions, application handlers, domain
+   rules, business validation and persistence out of the Host; leave registration, routing,
+   middleware and startup only. Add **Host-zero-business-authority** guard.
+3. **Module waves (one module per wave, independently reviewable).** For each business
+   module: separate Domain/Application/Contracts/Endpoints/Infrastructure; organize
+   Application by feature then Commands/Queries/Models/Ports (+ shared Validation); update
+   namespaces, project references, solution entries, DI/dispatch and tests atomically via
+   `git mv`; preserve public contracts, tenant/source authorization, idempotency and
+   fail-closed rules; prevent cross-module infrastructure coupling.
+4. **Final verification.** Solution load; Debug + Release builds (zero warnings/errors); all
+   existing and new tests; architecture/Host-authority guards; Visual Studio hierarchy
+   fidelity. Keep `master` untouched until approved for merge.
+
+### Extended architecture guards (added in wave 1, enforced through wave 4)
+
+Correct project/layer ownership; inward dependency direction; **Host ZERO business
+authority**; **no business logic in Endpoints**; no infrastructure leakage into Application/
+Domain; exact path↔namespace correspondence; feature-first Application folders; valid
+Command/Query placement; source-file size limits; and the **preserved** tenant, CQRS,
+idempotency and provider-independence invariants. Guards must not be weakened to hide
+failures.
 
 ---
 
