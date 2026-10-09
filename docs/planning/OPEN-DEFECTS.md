@@ -66,3 +66,7 @@ Implementation agents may propose new findings and provide evidence, but **must 
 3. Close **FT-SEC-006**, **FT-SEC-007**, **FT-CONFIG-001** and correct misleading architectural claims.
 4. Address **FT-DATA-001/002/003** with explicit accepted persistence semantics and crash/concurrency tests.
 5. Independently inspect final source and tests, verify CI, then separately decide W2 architectural acceptance. Only after acceptance authorize a bounded W3 slice.
+
+## Architect recovery reconciliation — 2026-10-10
+
+Remote source checkpoint `bfa4c8c89085bdbb9525b28a5dc499bb3c59a206` differs from implementer `a31aa254` only in journal/ledger documentation (two commits). No defect closed or removed. Latest CI run [38001093552](https://github.com/mrnikiemami-code/farataraz/actions/runs/38001093552), job `114059059330`, failed Initialize containers; checkout/build/tests skipped. Latest root cause not independently read from logs. FT-CI-002 remains OPEN, FT-CI-001 FIXED — UNVERIFIED. Next task `FT-W2-R2-B1-OWNERSHIP-PATH-AUDIT` targets FT-SEC-007 production oracle/DI/caller evidence with links to FT-SEC-006/FT-GUARD-002; all statuses unchanged. FT-DOC-001 remains OPEN despite operational RECOVERY top-line reconciliation; historical/ADR/planning claims still require correction. See latest ARCHITECT-JOURNAL entry for ordered priorities and limits. W2 NOT CERTIFIED; W3 NOT AUTHORIZED.
