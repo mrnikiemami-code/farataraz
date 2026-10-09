@@ -55,6 +55,10 @@ public class PhysicalStructureTests
         Path.Combine("Modules", "Ingestion", "Ingestion.Domain", "SourceModel"),
         // Module-local DI registration (no business rules) is a justified single-file leaf.
         Path.Combine("Modules", "Ingestion", "Ingestion.Application", "Composition"),
+        // Module Infrastructure composition (DI wiring) + fail-closed ownership oracle (one impl each).
+        Path.Combine("Modules", "AccountingSources", "AccountingSources.Infrastructure", "Composition"),
+        Path.Combine("Modules", "AccountingSources", "AccountingSources.Infrastructure", "Authorization"),
+        Path.Combine("Modules", "Ingestion", "Ingestion.Infrastructure", "Composition"),
         // Composition root (zero business authority) is a justified single-file leaf.
         Path.Combine("Host", "FaraTaraz.Host", "Composition"),
     };
@@ -74,6 +78,9 @@ public class PhysicalStructureTests
         ["Modules/Ingestion/Ingestion.Domain"] = "FaraTaraz.Modules.Ingestion.Domain",
         ["Modules/Ingestion/Ingestion.Application"] =
             "FaraTaraz.Modules.Ingestion.Application",
+        // Module-owned Infrastructure (persistence) projects (ADR-010, structure.md §10.3).
+        ["Modules/AccountingSources/AccountingSources.Infrastructure"] = "FaraTaraz.Modules.AccountingSources.Infrastructure",
+        ["Modules/Ingestion/Ingestion.Infrastructure"] = "FaraTaraz.Modules.Ingestion.Infrastructure",
         ["Adapters/Accounting.Mock"] = "FaraTaraz.Adapters.Accounting.Mock",
         // Host project folder (relative to src/): the composition root assembly.
         ["Host/FaraTaraz.Host"] = "FaraTaraz.Host",

@@ -21,6 +21,31 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 20
 
+    # W2 Persistence Foundation: the integration suite exercises real PostgreSQL behaviour
+    # (tenant isolation, unique-constraint idempotency, transactional rollback) — never the
+    # EF Core InMemory provider (ADR-010 decision 12). CI provisions a disposable PostgreSQL
+    # service and points the integration fixture at it via the connection-string override.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ftpw
+          POSTGRES_DB: farataraz
+        ports:
+          - 5432/tcp
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    # Integration fixture override so the fixture connects to the provisioned service
+    # (published on localhost:5432) regardless of the local default (port 54320).
+    env:
+      FATARAZ_INTEGRATION_TEST_CONNECTION_STRING: >-
+        Host=localhost;Port=5432;Username=postgres;Password=ftpw;Database=farataraz
+
     steps:
       - name: Check out source
         uses: actions/checkout@v4

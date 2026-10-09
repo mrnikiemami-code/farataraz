@@ -92,6 +92,7 @@ A wave is not complete merely because code compiles. Where applicable:
 | W1 — Synchronization Contracts | PASS | acceptance criteria passed; **not certified** — reviewer must accept before it becomes the baseline. W1-R1 added the capability-first modular structure (`BuildingBlocks` + `MasterData` + `AccountingSources` + `Ingestion.Domain` + `Ingestion.Application`), CQRS through MediatR (`ISender` boundary), and structural guards. |
 | W1-R1 — Architecture Structure + CQRS Foundation | PASS | still part of W1; **not certified**. Capability-first modular monolith, `ISender` delivery boundary, structural guards. Baseline HEAD: `ae27f28d006614ea6c21cbe504990245ac11342a`. |
 | W1-R2 — Architecture Closure & Certification Readiness | PASS (pending external review) | still part of W1; **not certified**. Bounded-page CQRS (one page per request, caller-driven cursor), tenant-source ownership port (`IAccountingSourceOwnership`, fail-closed), physical structure guards, sync contract hardening. NOT certified — awaiting reviewer acceptance. |
+| W2 — Persistence Foundation | PASS | **implemented** (ADR-010 Accepted): two module-owned Infrastructure projects (`AccountingSources.Infrastructure`, `Ingestion.Infrastructure`) with EF Core, `FTW2-InitialSchema` migrations, database-enforced tenant isolation + idempotency/uniqueness constraints, trusted tenant resolution, and real PostgreSQL integration tests (152 tests pass, Debug+Release clean; CI provisions PostgreSQL). **Not certified** — awaiting reviewer acceptance as the new baseline. W2 does not authorize W3. |
 | W2..W17 | PLANNED | see `ROADMAP.md` |
 | FMCA-ARCH — Existing-responsibility migration and architecture lock | PASS (baseline scope) | FMCA completed for existing responsibilities (`1119b08`); architecture lock and CI completed (`2dd5e0d`, GitHub Actions run 37920796253 success). Missing layers remain NOT_APPLICABLE until justified by real responsibilities. See `RECOVERY.md`. |
 
@@ -101,9 +102,11 @@ A wave is not complete merely because code compiles. Where applicable:
 - W1 contracts: `35bbe46dd0cb0c47126028b1123834c69ce45120`
 - W1-R1 HEAD: `ae27f28d006614ea6c21cbe504990245ac11342a`
 
-**W1 does not authorize W2.** W2 (PostgreSQL/EF Core) requires a separate explicit task
-and an explicit architecture decision to introduce a persistence stack. W1 (including W1-R1
-and W1-R2) is `PASS` pending external reviewer acceptance, not `CERTIFIED`.
+**W1 does not authorize W2.** W2 (PostgreSQL/EF Core) required a separate explicit task
+and an explicit architecture decision (ADR-010, Accepted) to introduce a persistence stack;
+W2 is now implemented (`PASS`, not certified). W1 (including W1-R1 and W1-R2) is `PASS`
+pending external reviewer acceptance, not `CERTIFIED`. **W2 does not authorize W3** — W3
+requires a separate explicit task.
 
 ---
 

@@ -1,6 +1,6 @@
 # CURRENT STATE — FaraTaraz
 
-**Last updated:** 2026-10-09 — FMCA architecture lock (FT-FMCA-ARCHITECTURE-LOCK-001)
+**Last updated:** 2026-10-09 — FMCA architecture lock (FT-FMCA-ARCHITECTURE-LOCK-001) + W2 Persistence Foundation (FT-W2-PERSISTENCE-FOUNDATION-001, `PASS`, not certified)
 **Operational handoff:** [RECOVERY.md](RECOVERY.md) — mandatory fast-resume checkpoint; implementation baseline `2dd5e0d`
 **Certified baseline:** `d499e61730579c2ad9810d306dd2620c986bd9f3` (W0 CERTIFIED)
 
@@ -12,7 +12,9 @@ Operational state. Should be readable in under ~2 minutes.
 
 Implementation has continued past W0. **W1 — Synchronization Contracts is `PASS`**
 (acceptance criteria passed; not yet certified — no reviewer has accepted it as the new
-baseline).
+baseline). **W2 — Persistence Foundation is implemented (`PASS`, not certified)** —
+PostgreSQL + EF Core in two module-owned Infrastructure projects, migrations, tenant
+isolation and idempotency constraints, and real PostgreSQL integration tests.
 
 ## What is certified?
 
@@ -104,8 +106,39 @@ Critical acceptance: processing the same source record repeatedly is behaviorall
   cases), and physical structure (path↔namespace, capability-first, single-file leaf,
   dependency direction, CQRS placement).
 
-**Not done in W1 (correctly deferred):** real persistence (W2), ingestion engine (W3),
-any real provider integration. No PostgreSQL.
+**Not done in W1 (correctly deferred):** ingestion engine (W3), any real provider
+integration. Real persistence (W2) was implemented and is documented below.
+
+---
+
+**W2 — Persistence Foundation.**
+
+Status: `PASS` — acceptance criteria passed. **Not certified**: a reviewer must accept the
+W2 evidence before it becomes the baseline. **W2 does not authorize W3** — W3 requires a
+separate explicit task.
+
+W2 deliverables (ADR-010, Accepted):
+- Two module-owned `Infrastructure` projects with EF Core (Infrastructure-only; never in
+  Domain/Application/BuildingBlocks/Host):
+  - `AccountingSources.Infrastructure` — persists `Tenant` + `AccountingSource` and the
+    fail-closed, provider-independent `IAccountingSourceOwnership` oracle.
+  - `Ingestion.Infrastructure` — persists sync run state, checkpoints/cursors,
+    source-record identity, and provenance.
+- Migrations `FTW2-InitialSchema` for both modules (reviewed manually; applied by
+  operator/CI step — never silently at runtime).
+- Database-enforced tenant isolation (`(TenantId, …)` UNIQUE) and idempotency/uniqueness
+  (source-record `(TenantId, SourceId, RecordKind, ExternalId)` via `ON CONFLICT DO
+  NOTHING`; checkpoint `(TenantId, SourceId, Capability)` unique per scope).
+- Trusted tenant resolution (`DatabaseTenantScope.FromTrusted(TenantContext)`).
+- Layer authority preserved: Application resolves inward ports only; only the module-owned
+  `Composition` references Infrastructure; the Host composes modules through their
+  `Composition` entry points and references no adapter/persistence assembly.
+
+**Test evidence:** Debug + Release builds zero warnings/errors; **152 tests pass**
+(16 `BuildingBlocks` + 55 `SyncContracts` + 72 `ArchitectureTests` + 9
+`Infrastructure.IntegrationTests`); integration tests exercise real PostgreSQL (tenant
+isolation, fail-closed ownership, idempotency, concurrent duplicate insertion, transaction
+rollback, invalid checkpoint), never EF Core InMemory. CI provisions PostgreSQL.
 
 ---
 
@@ -123,9 +156,9 @@ projects are created (`structure.md` §10.1).
 | --- | --- | --- | --- | --- | --- |
 | `BuildingBlocks` (foundation) | — | — | Foundation ids / `Tenant` / `AccountingSource` / `TenantContext` / `AccountingCapability` / `IApplicationUseCase` marker (not a capability module). | — | — |
 | `MasterData` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | **COMPLETE** — external (`AccountingSourceId+ExternalCode`) and canonical identity value objects. | — | — |
-| `AccountingSources` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | **COMPLETE** — capability ports (`ISyncablePort<T>`), neutral `IAccountingProvider` declaration, ownership oracle. | — | — |
-| `Ingestion.Domain` | — | `NOT_APPLICABLE` | **COMPLETE** — sync contract (`SyncRequest`/`SyncBatch`/`SyncCursor`/`SyncMode`), source-record identity/version/fingerprint, source models. | — | — |
-| `Ingestion.Application` | **COMPLETE** — `SynchronizeCustomers` in `SynchronizeCustomers/Queries/` (read-only bounded-page sync) + module `Composition`. | `NOT_APPLICABLE` | — | — | — |
+| `AccountingSources` | `NOT_APPLICABLE` | `NOT_APPLICABLE` | **COMPLETE** — capability ports (`ISyncablePort<T>`), neutral `IAccountingProvider` declaration, ownership oracle. | — | **COMPLETE** — `Tenant` + `AccountingSource` persistence and the fail-closed ownership oracle (W2). |
+| `Ingestion.Domain` | — | `NOT_APPLICABLE` | **COMPLETE** — sync contract (`SyncRequest`/`SyncBatch`/`SyncCursor`/`SyncMode`), source-record identity/version/fingerprint, source models. | — | **COMPLETE** — sync run / checkpoint / provenance persistence (W2). |
+| `Ingestion.Application` | **COMPLETE** — `SynchronizeCustomers` in `SynchronizeCustomers/Queries/` (read-only bounded-page sync) + module `Composition`. | `NOT_APPLICABLE` | — | — | **COMPLETE** — sync run / checkpoint / provenance persistence (W2). |
 | `Accounting.Mock` (adapter) | — | — | — | — | **COMPLETE** — deterministic in-memory provider implementing the capability ports (test/verification only). |
 | `Host` | — | — | — | — | Composition root (zero business authority); not an infrastructure layer. |
 
@@ -137,22 +170,27 @@ projects are created (`structure.md` §10.1).
   exist to warrant a separate `Contracts` project; extraction is a documented future step.
 - **Endpoints — deferred.** No HTTP/MCP delivery surface exists in the baseline; no
   endpoints exist. Implemented when a delivery responsibility is demonstrated.
-- **Infrastructure — deferred.** No persistence, external API, or message bus exists in the
-  baseline. The only Infrastructure-type assembly is `Accounting.Mock` (a test adapter).
-  Persistence is deferred to W2.
-- **`MasterData` / `AccountingSources` Application/Endpoints/Infrastructure — deferred.**
-  These modules own only Domain-level responsibilities (identity value objects; capability
-  ports, provider declaration, ownership oracle). No use cases live here (the one sync use
-  case lives in `Ingestion.Application`); there is no delivery or persistence.
+- **Infrastructure — realized for `AccountingSources` and `Ingestion` (W2), deferred elsewhere.** Two module-owned Infrastructure projects now own persistence
+  (`AccountingSources.Infrastructure`: `Tenant` + `AccountingSource` + ownership oracle;
+  `Ingestion.Infrastructure`: sync run / checkpoint / provenance). `Accounting.Mock`
+  remains the only *adapter* Infrastructure (a test adapter). `MasterData` Infrastructure is
+  deferred (no responsibility yet).
+- **`MasterData` Application/Endpoints/Infrastructure — deferred; `AccountingSources` Infrastructure — realized (W2).**
+  `AccountingSources` owns Domain responsibilities (capability ports, provider declaration,
+  ownership oracle) plus its W2 Infrastructure persistence. `MasterData` owns only
+  Domain-level responsibilities (identity value objects); no use cases, delivery, or
+  persistence live there. The one sync use case lives in `Ingestion.Application`.
 - **`Ingestion.Domain` / `Ingestion.Application` Contracts/Endpoints/Infrastructure —
   deferred.** The Domain owns the sync contract and source models (the sync contract types
   also serve as the cross-module contract, see Contracts note). No use cases, delivery, or
   persistence live in either Domain or Application project.
 
-**Verified:** Debug + Release builds zero warnings/errors; **143 tests pass** (16
-`BuildingBlocks` + 55 `SyncContracts` + 72 `ArchitectureTests`, the latter including the
-Host-zero-authority, feature-first/Command-Query placement, path↔namespace, and — added by
-`FT-FMCA-ARCHITECTURE-LOCK-001` — project-graph and layer-boundary guards).
+**Verified:** Debug + Release builds zero warnings/errors; **152 tests pass** (16
+`BuildingBlocks` + 55 `SyncContracts` + 72 `ArchitectureTests` + 9
+`Infrastructure.IntegrationTests`, the latter exercising real PostgreSQL; the Architecture
+tests including the Host-zero-authority, feature-first/Command-Query placement, path↔
+namespace, and — added by `FT-FMCA-ARCHITECTURE-LOCK-001` — project-graph and
+layer-boundary guards).
 
 ## Architecture lock (FT-FMCA-ARCHITECTURE-LOCK-001)
 
@@ -216,9 +254,9 @@ bar, and the W1 certification governance (`PASS` ≠ `CERTIFIED`; no force-push)
 
 ## What is next?
 
-**W2 — Persistence Foundation is NOT authorized by W1.** W1 only establishes contracts and
-proves them against the Mock. W2 (PostgreSQL + EF Core) requires a separate explicit task
-and an explicit architecture decision to introduce a persistence stack.
+**W3 — Ingestion Engine** is the next planned wave. W2 (PostgreSQL + EF Core) is
+**implemented** and now `PASS` (not certified). W3 requires a separate explicit task and
+builds durable synchronization execution over the persisted W2 state.
 
 ## What is blocked?
 
@@ -228,8 +266,7 @@ and an explicit architecture decision to introduce a persistence stack.
 
 ## What must NOT be started?
 
-- W2 persistence (PostgreSQL) until W1 contracts are accepted AND a separate task
-  authorizes it.
+- W3 until W2 is accepted AND a separate task authorizes it.
 - Any real Asan integration until the provider contract is verified.
 - AI auto-merge of canonical identities (W4) — deterministic matching only.
 - LLM-generated forecasts (W9) — deterministic only.

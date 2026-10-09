@@ -5,6 +5,17 @@
     <ProjectReference Include="..\Ingestion\Ingestion.Domain\FaraTaraz.Modules.Ingestion.Domain.csproj" />
   </ItemGroup>
 
+  <!--
+    The module-owned Infrastructure subfolder (persistence) is a SEPARATE assembly. Exclude
+    it from this Domain project so the SDK does not compile the Infrastructure sources into
+    the Domain assembly (the Domain project directory physically contains the Infrastructure
+    subfolder). Infrastructure is built and referenced only through its own assembly.
+  -->
+  <ItemGroup>
+    <Compile Remove="AccountingSources.Infrastructure\**" />
+    <None Remove="AccountingSources.Infrastructure\**" />
+  </ItemGroup>
+
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>

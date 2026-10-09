@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Infrastructure for the AccountingSources module (FMCA ADR-010, structure.md §10.3).
+
+    This project owns the tenant-aware persistence of Tenant + AccountingSource and implements
+    the provider-independent ownership oracle (IAccountingSourceOwnership). It depends INWARD
+    on the module's ports and the foundation, and on EF Core / Npgsql (persistence only). It
+    never leaks a provider concept into the platform, and it is never referenced by Domain,
+    Application, BuildingBlocks, or the Host: only the module-owned Composition wires it.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.1" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.1">
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\BuildingBlocks\FaraTaraz.BuildingBlocks.csproj" />
+    <ProjectReference Include="..\FaraTaraz.Modules.AccountingSources.csproj" />
+  </ItemGroup>
+
+</Project>

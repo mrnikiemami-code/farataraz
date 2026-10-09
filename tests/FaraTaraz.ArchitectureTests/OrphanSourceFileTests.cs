@@ -26,6 +26,8 @@ public class OrphanSourceFileTests
         "Modules/AccountingSources",
         "Modules/Ingestion/Ingestion.Domain",
         "Modules/Ingestion/Ingestion.Application",
+        "Modules/AccountingSources/AccountingSources.Infrastructure",
+        "Modules/Ingestion/Ingestion.Infrastructure",
         "Adapters/Accounting.Mock",
         "Host/FaraTaraz.Host",
     };

@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Infrastructure for the Ingestion module (FMCA ADR-010, structure.md §10.3).
+
+    This project owns the tenant-aware persistence of synchronization run state, checkpoints /
+    cursors, source-record identity, and provenance, with durable idempotency keys and
+    uniqueness constraints (ADR-010 decisions 7–9). It depends INWARD on the module's Domain
+    contract and the foundation, and on EF Core / Npgsql (persistence only). It never leaks a
+    provider concept into the platform, and it is never referenced by Domain, Application,
+    BuildingBlocks, or the Host: only the module-owned Composition wires it.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.1" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.1">
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\BuildingBlocks\FaraTaraz.BuildingBlocks.csproj" />
+    <ProjectReference Include="..\Ingestion.Domain\FaraTaraz.Modules.Ingestion.Domain.csproj" />
+  </ItemGroup>
+
+</Project>

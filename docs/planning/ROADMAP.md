@@ -94,9 +94,11 @@ architectural defects (recorded as `PASS` pending external review, not `CERTIFIE
 - sync contract hardening — `SyncRequest.BatchSize`, `SourceRecordId`, and `SyncCursor`
   invariants
 
-**W2 — Persistence Foundation is NOT AUTHORIZED.** W1 (including W1-R1 and W1-R2) only
-establishes and proves contracts against the Mock. W2 (PostgreSQL + EF Core) requires a
-separate explicit task and an explicit architecture decision.
+**W2 is implemented (`PASS`, not certified).** W1 (including W1-R1 and W1-R2) only
+establishes and proves contracts against the Mock. W2 (PostgreSQL + EF Core) required a
+separate explicit task and an explicit architecture decision (ADR-010, Accepted) and is now
+realized. **W3 (the ingestion engine) requires a separate explicit task** and builds durable
+synchronization execution over the persisted W2 state.
 
 ---
 
@@ -113,9 +115,14 @@ migrations; transaction boundaries.
 **Critical acceptance:** database constraints participate in tenant isolation and
 duplicate prevention.
 
-**Status:** `PLANNED`.
+**Status:** `PASS` — implemented and acceptance criteria passed (ADR-010 Accepted); **not
+certified** — awaiting reviewer acceptance as the new baseline. **W2 does not authorize W3.**
 
----
+Delivered: two module-owned Infrastructure projects (`AccountingSources.Infrastructure`,
+`Ingestion.Infrastructure`) with EF Core (Infrastructure-only), `FTW2-InitialSchema`
+migrations (reviewed manually), database-enforced tenant isolation and idempotency/uniqueness
+constraints, trusted tenant resolution, and real PostgreSQL integration tests (152 tests
+pass, Debug+Release clean). CI provisions PostgreSQL.
 
 ### W3 — Ingestion Engine
 

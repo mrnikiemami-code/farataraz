@@ -1,7 +1,7 @@
 # RECOVERY — FaraTaraz / FMCA
 
 **Checkpoint recorded:** 2026-10-09
-**Current task:** FT-FMCA-ARCHITECTURE-LOCK-001 — completed; next planned task W2 Persistence Foundation.
+**Current task:** FT-W2-PERSISTENCE-FOUNDATION-001 — implementation complete, committed, **not certified** (awaiting reviewer acceptance); next planned task W3 Ingestion Engine.
 **Last verified implementation baseline:** `2dd5e0dac5fcd978a074dfedc9954b3d4e0e1167` (master, architecture lock).
 **Note:** Documentation-only commits may follow this baseline. Always fetch and compare current `origin/master` before executing. Do not assume this checkpoint SHA is current HEAD.
 
@@ -20,9 +20,9 @@
 - W0: CERTIFIED (historic baseline).
 - W1 / W1-R1 / W1-R2: PASS, **NOT CERTIFIED**; external reviewer acceptance outstanding. Never upgrade status without review evidence and acceptance.
 - FMCA architecture lock: completed at `2dd5e0d`; project-graph + source-level guards and negative tests, CI, contribution rules.
-- Local execution reported: Debug and Release zero warnings/errors; 143 tests passed (BuildingBlocks 16, SyncContracts 55, Architecture 72), 0 failed.
+- Local execution reported: Debug and Release zero warnings/errors; 152 tests passed (BuildingBlocks 16, SyncContracts 55, Architecture 72, Infrastructure.IntegrationTests 9), 0 failed.
 - GitHub Actions run `37920796253` for `2dd5e0d`: success (independently verified).
-- W2 persistence: **not implemented** at this checkpoint; planned and requires explicit task authorization plus persistence ADR.
+- W2 persistence: **implemented** at this checkpoint (see below). ADR-010 accepted; `AccountingSources.Infrastructure` + `Ingestion.Infrastructure` with EF Core, migrations, tenant isolation, unique/idempotency constraints, and real PostgreSQL integration tests; CI provisions PostgreSQL.
 
 ## Immutable design invariants
 
@@ -37,9 +37,60 @@
 
 ## Current next action
 
-Execute a separately authorized W2 Persistence Foundation task. First audit W1 contracts and write/accept a PostgreSQL + EF Core persistence ADR; then implement tenant-aware persistence in the module-owned Infrastructure, migrations, source/checkpoint/provenance uniqueness and idempotency constraints, transactional boundaries and integration tests. Do not add HTTP/MCP endpoints, real accounting-provider integrations, dashboards, or AI.
+Execute a separately authorized W3 Ingestion Engine task. First audit the W2 persistence
+schema and the W1 sync contract; then implement durable synchronization execution (run
+orchestration, retries, failure states, resumability) over the persisted state. Do not add
+new provider integrations, dashboards, REST/MCP endpoints, or AI.
 
-W2 may not bypass unresolved W1 compatibility issues: report blockers rather than silently changing the contract. Keep Host composition-only and extend guards with negative tests for every new boundary.
+W3 must not bypass unresolved W1/W2 certification: report blockers rather than silently
+changing the contract. Keep Host composition-only and preserve every invariant below.
+
+## W2 — Persistence Foundation (implementation complete — NOT certified)
+
+**Task:** `FT-W2-PERSISTENCE-FOUNDATION-001`. **Status:** `PASS` (acceptance criteria passed;
+**not certified** — awaiting reviewer acceptance as the new baseline). W2 does not authorize
+W3; W3 requires a separate explicit task.
+
+**Delivered (per ADR-010, Accepted):**
+- New module-owned Infrastructure projects:
+  - `src/Modules/AccountingSources/AccountingSources.Infrastructure/` — persists `Tenant` +
+    `AccountingSource` and implements the provider-independent, fail-closed
+    `IAccountingSourceOwnership` oracle.
+  - `src/Modules/Ingestion/Ingestion.Infrastructure/` — persists sync run state,
+    checkpoints/cursors, source-record identity, and provenance.
+- EF Core is Infrastructure-only (never in Domain/Application/BuildingBlocks/Host, ADR-009
+  decision 4). Design-time `DbContextFactory` types wired for both modules.
+- Migrations: `FTW2-InitialSchema` for both modules, reviewed manually against the model
+  (ADR-010 decision 10), applied by an operator/CI step (never silently at runtime).
+- Database-enforced tenant isolation: `(TenantId, …)` UNIQUE constraints make cross-tenant
+  rows impossible at the DB.
+- Database-enforced idempotency/uniqueness: source-record identity
+  `(TenantId, SourceId, RecordKind, ExternalId)` — duplicate delivery rejected via
+  `ON CONFLICT DO NOTHING` (first delivery canonical, ADR-010 decision 7); checkpoint
+  `(TenantId, SourceId, Capability)` unique per scope.
+- Trusted tenant-context resolution: `DatabaseTenantScope.FromTrusted(TenantContext)`
+  (ADR-010 decision 5) — tenant authority from the trusted execution context only.
+- Layer authority preserved: Application resolves inward ports only; only the module-owned
+  `Composition` (DI wiring) references Infrastructure; the Host composes modules through
+  their `Composition` entry points and references no concrete adapter/persistence assembly.
+
+**Verification:**
+- Debug + Release builds: zero warnings, zero errors.
+- 152 tests pass (BuildingBlocks 16, SyncContracts 55, Architecture 72,
+  Infrastructure.IntegrationTests 9), 0 failed. Baseline 143 preserved.
+- Integration tests exercise real PostgreSQL (tenant isolation, fail-closed ownership,
+  idempotency, concurrent duplicate insertion, transaction rollback, invalid checkpoint);
+  never EF Core InMemory.
+- Guard updates (not weakenings): physical-structure allowlists extended to the two new
+  Infrastructure folders + their Composition/Authorization single-file leaves; the
+  layer-graph guard now permits Application → its own module Infrastructure composition while
+  still forbidding Application → adapters and → EF in business code; test-file budget raised
+  to 600 for the now-larger guard file.
+- CI (`.github/workflows/architecture.yml`): provisions a PostgreSQL service and points the
+  integration fixture at it via `FATARAZ_INTEGRATION_TEST_CONNECTION_STRING`.
+
+**Out of scope (correctly deferred):** W3 ingestion engine, real provider integrations,
+dashboards, REST/MCP endpoints, AI. No secrets introduced.
 
 ## Required checkpoint update on every task
 
