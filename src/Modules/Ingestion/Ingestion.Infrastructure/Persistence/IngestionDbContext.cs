@@ -65,6 +65,7 @@ public sealed class IngestionDbContext : DbContext
             entity.Property(e => e.Capability).HasMaxLength(255);
             entity.Property(e => e.CursorToken).HasMaxLength(1024);
             entity.Property(e => e.UpdatedAtUtc);
+            entity.Property(e => e.Version);
 
             // One cursor per (tenant, source, capability). A duplicate resume for the same scope
             // upserts the existing row; a cursor for a different scope is a different row.

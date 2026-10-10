@@ -159,6 +159,28 @@ dashboards, REST/MCP endpoints, AI. No secrets introduced.
 
 **Next exact task:** `FT-W3-INGESTION-ENGINE-001` (or first authorized W3 slice) — audit the W2 persistence schema + W1 sync contract, then implement durable sync execution over persisted state. Do not add provider integrations, dashboards, REST/MCP, or AI.
 
+## FT-W2-R3-CHECKPOINT-CONCURRENCY — concurrency repair (implemented, PASS locally, NOT certified)
+
+**Task:** `FT-W2-R3-CHECKPOINT-CONCURRENCY` (bounded W3 preflight slice; FT-DATA-001). **Status:** `PASS` locally — **NOT CERTIFIED**; awaiting independent ChatGPT architect review. **Did not implement W3 or any business feature; did not mark FT-DATA-001 VERIFIED.** W2 NOT CERTIFIED; W3 NOT AUTHORIZED.
+
+**Verified HEAD (base):** `54c03cd1765d580d2db7c1f8c3519a1cc998c760` (master; current remote HEAD).
+
+**Defect (FT-DATA-001):** `SyncCheckpointRepository.SaveAsync` used read-then-write `SaveChanges`: (1) concurrent first writers both `Add` → unique-constraint violation → crash; (2) a concurrent/stale writer could overwrite a newer checkpoint with stale progress (lost update). The defect asks for an atomic/concurrency-safe checkpoint protocol aligned with the accepted ADR.
+
+**Invariant (now enforced, DB-backed):** a checkpoint write is an atomic, DB-enforced optimistic-concurrency conditional upsert. A writer that observed an older version is rejected (never overwrites a newer checkpoint with stale progress). The ordering is **commit order** via a DB-managed monotonic `Version` column — not the opaque cursor token (not lexically ordered) and not `UpdatedAtUtc` (wall-clock, skew-prone).
+
+**Design decision (PENDING architect confirmation / ADR-010 amendment):** added a DB-managed monotonic `Version` column and made `SaveAsync` a single `INSERT ... ON CONFLICT (TenantId,SourceId,Capability) DO UPDATE SET cursor, updated_at, version = new WHERE version = @expected`. Accepted only when the row's current version equals the version the writer last observed; otherwise 0 rows → throw `StaleCheckpointException` (re-read and retry). First write inserts `version = 0`; a concurrent first writer conflicts and is rejected (never crashes, never silently discarded). This EXTENDS ADR-010 decision 8 (which covers the unique-constraint first-writer race) to also cover the lost-update case the ADR did not address — flagging for reviewer acceptance rather than assuming the ordering semantics.
+
+**Files changed:** `SyncCheckpointEntity.cs` (adds `Version`), `SyncCheckpointRepository.cs` (`SaveAsync` → atomic conditional upsert + `StaleCheckpointException`), `IngestionDbContext.cs` (configures `Version`), `IngestionDbContextModelSnapshot.cs`, new migration `20261010035925_FTW2-CheckpointConcurrencyVersion.{cs,Designer.cs}` (adds `SyncCheckpoints.Version bigint NOT NULL DEFAULT 0`), new test `SyncCheckpointConcurrencyTests.cs` (3 tests). `StaleCheckpointException.cs` new. No dependency/DI/adapter/Host changes.
+
+**Verification (red demonstrated, then restored to green):**
+- RED (temporary revert of `SaveAsync` to read-then-write `SaveChanges`): `Concurrent_writes_do_not_crash` FAILS with `DbUpdateException: duplicate key value violates unique constraint "UQ_SyncCheckpoints_Tenant_Source_Capability"` (concurrent first writers crash); `Sequential_writes_advance_db_managed_version_monotonically` FAILS (version stays `0`, no guard).
+- GREEN (fix restored): all 3 new concurrency tests pass; full `FaraTaraz.Infrastructure.IntegrationTests` = **24/24 pass** (was 21); `FaraTaraz.ArchitectureTests` = **75/75 pass**; full-solution Debug build = 0 warnings / 0 errors; `dotnet ef migrations has-pending-model-changes` = "No changes have been made to the model since the last migration" (migration/snapshot consistent).
+
+**Architecture restrictions honored:** no Host→Infrastructure, no Application→Infrastructure, no EF Core in Domain/Application, no guard removed/weakened, no new endpoints/providers/dashboards/W3 features. `Version` is DB-managed (never trusted from the caller).
+
+**Next exact task:** independent ChatGPT architect review of commit `...` (guard + green CI); then reconcile FT-DATA-001 in `OPEN-DEFECTS.md`. Do NOT promote W2 to certified or authorize W3.
+
 Update this file in the same task's final verified commit, including:
 - task ID / status / authorized scope
 - baseline SHA, implementation commit(s), final remote HEAD after push (report exact value; a file cannot reliably self-reference its own commit)

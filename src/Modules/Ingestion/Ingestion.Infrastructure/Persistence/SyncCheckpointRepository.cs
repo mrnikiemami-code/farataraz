@@ -59,8 +59,22 @@ public sealed class SyncCheckpointRepository
     }
 
     /// <summary>
-    /// Saves (upserts) the cursor for the trusted tenant's source/capability. Existing rows are
-    /// updated in place; the row is created when no checkpoint exists yet.
+    /// Saves (upserts) the cursor for the trusted tenant's source/capability using an atomic,
+    /// DB-enforced optimistic-concurrency conditional upsert (FT-DATA-001).
+    ///
+    /// The write is a single PostgreSQL statement:
+    /// <c>INSERT ... ON CONFLICT (scope) DO UPDATE SET cursor, updated_at, version = new
+    /// WHERE version = @expected</c>. It is accepted only when the row's current version equals the
+    /// version the writer last observed; otherwise it affects zero rows and the write is rejected
+    /// (throwing <see cref="StaleCheckpointException"/>). This makes a stale writer unable to
+    /// overwrite a newer checkpoint with stale progress — the newer write (a higher committed
+    /// version) wins, and the stale writer is rejected and must re-read.
+    ///
+    /// The first write (no row yet) inserts <c>version = 0</c>; a concurrent first writer conflicts
+    /// on the unique constraint and is rejected (never silently discarded, never crashes on a
+    /// unique-violation). The <c>Version</c> guard is DB-managed and monotonic, so the ordering is
+    /// commit order — not the opaque cursor token (not lexically ordered) and not
+    /// <c>UpdatedAtUtc</c> (wall-clock, skew-prone).
     /// </summary>
     public async Task SaveAsync(
         TenantId tenantId,
@@ -73,27 +87,44 @@ public sealed class SyncCheckpointRepository
         var tenant = RequireTrustedTenant();
         AssertCallerTenant(tenantId, tenant);
 
+        // The optimistic-concurrency guard is the version the writer last observed. A null means
+        // "no row yet" (first writer); the guard then can never match an existing row, so a
+        // concurrent first writer is rejected rather than clobbering the row it did not read.
         var existing = await GetAsync(tenantId, sourceId, capability, cancellationToken)
             .ConfigureAwait(false);
+        var expectedVersion = existing?.Version ?? -1L;
+        var newVersion = expectedVersion < 0L ? 0L : expectedVersion + 1L;
 
-        if (existing is null)
-        {
-            _db.SyncCheckpoints.Add(new SyncCheckpointEntity
-            {
-                TenantId = tenant.Value,
-                SourceId = sourceId.Value,
-                Capability = capability,
-                CursorToken = cursorToken,
-                UpdatedAtUtc = updatedAtUtc
-            });
-        }
-        else
-        {
-            existing.CursorToken = cursorToken;
-            existing.UpdatedAtUtc = updatedAtUtc;
-        }
+        var affected = await _db.Database
+            .ExecuteSqlInterpolatedAsync(
+                $@"INSERT INTO ""SyncCheckpoints""
+                       (""TenantId"", ""SourceId"", ""Capability"", ""CursorToken"",
+                        ""UpdatedAtUtc"", ""Version"")
+                       VALUES ({tenant.Value}, {sourceId.Value}, {capability}, {cursorToken},
+                               {updatedAtUtc}, {newVersion})
+                       ON CONFLICT (""TenantId"", ""SourceId"", ""Capability"") DO UPDATE
+                       SET ""CursorToken"" = EXCLUDED.""CursorToken"",
+                           ""UpdatedAtUtc"" = EXCLUDED.""UpdatedAtUtc"",
+                           ""Version"" = EXCLUDED.""Version""
+                       WHERE ""SyncCheckpoints"".""Version"" = {expectedVersion};",
+                cancellationToken)
+            .ConfigureAwait(false);
 
-        await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+        if (affected == 0)
+        {
+            // A newer checkpoint was committed for this scope since the writer read it. The newer
+            // write wins; the stale writer is rejected and must re-read (never overwrite a newer
+            // checkpoint with stale progress — FT-DATA-001).
+            var current = await GetAsync(tenantId, sourceId, capability, cancellationToken)
+                .ConfigureAwait(false);
+
+            throw new StaleCheckpointException(
+                tenant.Value,
+                sourceId.Value,
+                capability,
+                expectedVersion,
+                current?.Version ?? -1L);
+        }
     }
 
     /// <summary>
