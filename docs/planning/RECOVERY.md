@@ -1,5 +1,16 @@
 # RECOVERY — FaraTaraz / FMCA
 
+## FAST RESUME — OpenCode Wake event-driven execution (2026-10-10)
+
+- Architect: ChatGPT independently reviews source/diff/tests and owns certification and `docs/planning/OPEN-DEFECTS.md`; OpenCode is executor. W2 NOT CERTIFIED; W3 NOT AUTHORIZED. Current next implementation concern: FT-DATA-001 delayed stale writer (partially mitigated in `f373bd4`); coordinate with FT-DATA-002 transaction boundary. Do not run concurrent agents.
+- Verified tool path: ChatGPT → OpenCode Wake MCP → local Bridge → OpenCode 1.18.35 → local Ornith. Return path: OpenCode turn completion → Wake `opencode.turn.finished` → event Automation wakes architect → inspect messages/status/diff independently. Successful test returned `WAKE_RECEIVED` and `WAKE_TEST_OK` after roughly four minutes (not an SLA).
+- Allowed project: `D:\\FaraTaraz`; retained test: `C:\\Users\\User\\ChatGPTBridge\\bridge-test`. FaraTaraz bridgeSessionId `9e669b57-39b0-4636-9a19-356b25f17dd3`; test session `7ca425d3-9b35-4215-8836-c6670a23fc5e` MUST NOT be used for FaraTaraz.
+- Independently checked 2026-10-10: Wake bridge health OK, both repos listed, FaraTaraz session exists and idle, branch master and no reported uncommitted files; Wake status had only the TEST subscription and accepted test delivery. Automation list had only the TEST event automation; no FaraTaraz event subscription confirmed or created. **Do not send async implementation work until a FaraTaraz event subscription is confirmed active.**
+- Before each task: health, projects, actual session status, Git branch/HEAD/diff, concurrent actors, provider/model, existing Automation and Wake subscription/expiry. Subscribe only once to `opencode.turn.finished` scoped to the real FaraTaraz bridgeSessionId; verify creation before async send. If subscription creation errors, re-list before retry. On wake, event indicates terminal turn, NOT success; read messages/status/diff, inspect source/tests and GitHub independently, reconcile defects/journal, then issue only authorized next task. Deduplicate event deliveries and outgoing task IDs.
+- Wake subscriptions expire. Local model, Bridge, Wake, Tailscale Funnel and required proxy must stay up. No changes to Node 24, Twenty/Docker, other services, network, or secrets. No unapproved file deletion, broad permission, destructive Git operation or automatic certification. Commit/push only per bounded task scope.
+- **Tool limitation noted at this checkpoint:** Available general Automation creation API exposes scheduled VEVENT, not the Wake event subscription registration schema. Do not fake an event subscription by creating a periodic task. Obtain event-capable registration interface before using this flow for production work.
+
+
 **Checkpoint recorded:** 2026-10-10
 **Current task (architect override, 2026-10-10):** FT-W2-R2-B1-OWNERSHIP-PATH-AUDIT — READ-ONLY production ownership/DI/persistence-caller audit; target 10–15 minutes, stop by 20. FT-W2-R2-B-SOURCE-OWNERSHIP produced no implementation; prior handler inspection is recorded in ARCHITECT-JOURNAL.md and must not be repeated. W2 NOT CERTIFIED; W3 NOT AUTHORIZED.
 **Last reported W2 implementation commit:** `10eb8c9435f9958c3ce3b38bfcec82719827995e` (master; W2 PASS, not certified). Prior FMCA lock baseline: `2dd5e0dac5fcd978a074dfedc9954b3d4e0e1167`.
