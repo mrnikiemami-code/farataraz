@@ -279,10 +279,10 @@ Keep `CURRENT-STATE.md`, `ROADMAP.md`, and `DELIVERY-PLAN.md` consistent. No fal
 
 **Files changed:** `ConfigurationExceptions.cs` (new), `IngestionInfrastructureComposition.cs` + `AccountingSourcesInfrastructureComposition.cs` (remove const + validation), `IngestionDbContextFactory.cs` + `AccountingSourcesDbContextFactory.cs` (env-var fail closed), `ConnectionConfigurationFailClosedTests.cs` (new behavioral regression), `PhysicalStructureTests.cs` (document the justified `BuildingBlocks/Configuration` single-file leaf).
 
-**Verification (real PostgreSQL):**
-- `FaraTaraz.Infrastructure.IntegrationTests` = **33/33 pass** (was 25; +8 fail-closed cases: both roots reject null/empty/whitespace with the deterministic exception and register no `DbContextOptions`; both roots accept a supplied string). Integration `TenantScopeCompositionTests` still pass.
-- `FaraTaraz.ArchitectureTests` = **75/75 pass** (no guard weakened; allowlist extended).
-- Full solution Debug + Release build: zero warnings / zero errors. `dotnet ef migrations has-pending-model-changes` = "No changes have been made to the model since the last migration" for both Infrastructure projects (no entity change).
+**Verification (light — focused, per architect amendment):**
+- **Focused composition/config test (authoritative):** the new `ConnectionConfigurationFailClosedTests` (in `FaraTaraz.Infrastructure.IntegrationTests`) — both roots reject null/empty/whitespace with the deterministic `ConnectionConfigurationException` and register no `DbContextOptions`; both roots accept a supplied string. **Passed** (run once). The existing integration `TenantScopeCompositionTests` still pass.
+- **Compilation:** affected Infrastructure + IntegrationTests projects build clean (one targeted build).
+- **Broader verification (ran once beyond light-verification scope; report as PENDING for acceptance):** the full Integration suite (33/33), `FaraTaraz.ArchitectureTests` (75/75), the full Debug+Release solution matrix (180/180 each), the full-solution Debug+Release builds (0 warnings/0 errors), and `dotnet ef migrations has-pending-model-changes` (no pending model change) were run as a sanity check but belong to the separate final verification gate, not this task's acceptance. `ArchitectureTests` was **not** required — the focused test is not in that project. FT-CONFIG-001 remains FIXED — UNVERIFIED pending independent architect review.
 
 **Unresolved / pending architect decision:** FT-CONFIG-001 status: FIXED — UNVERIFIED (code committed; independent source + CI review pending). Production path: the Host composes via `AddIngestionApplication()`; the module Infrastructure composition entry points are consumed by tests and future W3 wiring — there is **no production caller yet**, so the fail-closed seam is exercised by tests, not by a live runtime fallback. No other defect status changed.
 
