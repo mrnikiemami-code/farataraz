@@ -50,6 +50,9 @@ public class PhysicalStructureTests
         Path.Combine("BuildingBlocks", "Accounting"),
         Path.Combine("BuildingBlocks", "Application"),
         Path.Combine("BuildingBlocks", "Identifiers"),
+        // Fail-closed connection configuration exception (FT-CONFIG-001): a shared foundation
+        // boundary that legitimately holds exactly one translation unit.
+        Path.Combine("BuildingBlocks", "Configuration"),
         Path.Combine("Modules", "MasterData"),
         Path.Combine("Modules", "AccountingSources", "Providers"),
         Path.Combine("Modules", "Ingestion", "Ingestion.Domain", "SourceModel"),

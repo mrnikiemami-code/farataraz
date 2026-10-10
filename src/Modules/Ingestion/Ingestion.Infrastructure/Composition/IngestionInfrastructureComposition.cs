@@ -2,6 +2,7 @@ namespace FaraTaraz.Modules.Ingestion.Infrastructure.Composition;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using FaraTaraz.BuildingBlocks.Configuration;
 using FaraTaraz.BuildingBlocks.Tenancy;
 using FaraTaraz.Modules.Ingestion.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -17,13 +18,14 @@ using Microsoft.EntityFrameworkCore;
 /// </summary>
 public static class IngestionInfrastructureComposition
 {
-    /// <summary>Default local PostgreSQL connection used when the composition root does not supply one.</summary>
-    public const string DefaultConnectionString =
-        "Host=localhost;Port=5432;Username=postgres;Password=postgres;Database=farataraz";
-
     /// <summary>
     /// Registers the Ingestion persistence (context, trusted tenant scope, repositories).
-    /// When <paramref name="connectionString"/> is null a default local PostgreSQL connection is used.
+    ///
+    /// <b>Fail-closed on missing configuration.</b> A nonempty connection string is required
+    /// (FT-CONFIG-001): a null / empty / whitespace value throws
+    /// <c>ConnectionConfigurationException</c> before any <c>DbContext</c> is registered, so the
+    /// module never silently binds to an embedded default or an implicit localhost / PostgreSQL
+    /// fallback. The caller must supply an explicit connection string.
     /// </summary>
     public static IServiceCollection AddIngestionInfrastructure(
         this IServiceCollection services,
@@ -31,10 +33,15 @@ public static class IngestionInfrastructureComposition
     {
         ArgumentNullException.ThrowIfNull(services);
 
-        var cs = connectionString ?? DefaultConnectionString;
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            throw new ConnectionConfigurationException(
+                $"{nameof(IngestionInfrastructureComposition)} requires a nonempty connection string; " +
+                "missing configuration fails closed.");
+        }
 
         services.AddDbContext<IngestionDbContext>(options =>
-            options.UseNpgsql(cs));
+            options.UseNpgsql(connectionString));
 
         // Trusted tenant scope for the current unit of work. Resolves from a trusted execution
         // context (TenantContext) when one is bound; otherwise fails closed to "None". This is a

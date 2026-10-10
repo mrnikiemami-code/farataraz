@@ -263,6 +263,31 @@ Keep `CURRENT-STATE.md`, `ROADMAP.md`, and `DELIVERY-PLAN.md` consistent. No fal
 
 **Next exact action:** independent ChatGPT architect review of `7c9bc6f` (guard + green CI), then reconcile FT-DATA-001/002 in `OPEN-DEFECTS.md`. Do NOT promote W2 to certified or authorize W3.
 
+## FT-W2-R6-CONFIG-FAIL-CLOSED — fail closed on missing connection string (implemented, PASS locally, NOT certified)
+
+**Task:** `FT-W2-R6-CONFIG-FAIL-CLOSED` (bounded W2 slice; FT-CONFIG-001). **Status:** `PASS` locally — **NOT CERTIFIED**; awaiting independent ChatGPT architect review. **Did not implement W3 or any business feature; did not mark FT-CONFIG-001 VERIFIED.** W2 NOT CERTIFIED; W3 NOT AUTHORIZED.
+
+**Baseline / implementation:** baseline `52fd1887a67486e2938d8daca70d930cc61f6026`; implementation `32e8dca98049a772b106969af24d9388fab1d539` (fast-forward from baseline).
+
+**Defect (FT-CONFIG-001):** both module Infrastructure Composition files retained a `DefaultConnectionString` fallback (`Host=localhost;Port=5432;Username=postgres;Password=postgres;…`) when config was missing — an embedded production credential and an implicit localhost/PostgreSQL fallback.
+
+**Repair (fail-closed config seam):**
+- Removed the `DefaultConnectionString` constant from `IngestionInfrastructureComposition` and `AccountingSourcesInfrastructureComposition`; each root now requires a nonempty connection string and throws a deterministic `BuildingBlocks.Configuration.ConnectionConfigurationException` **before** any `DbContext` is registered when null/empty/whitespace. Caller-supplied test strings are preserved (signature unchanged: `string? connectionString = null`).
+- Shared fail-closed exception added to BuildingBlocks (`Configuration/ConfigurationExceptions.cs`).
+- Both design-time `DbContextFactory` files fail closed on a missing `FATARAZ_INGESTION_DB` / `FATARAZ_ACCOUNTINGSOURCES_DB` env var (no embedded fallback).
+- Tenant enforcement / opaque-cursor / layer direction unchanged; no new port/handler/endpoint/provider/transaction orchestration.
+
+**Files changed:** `ConfigurationExceptions.cs` (new), `IngestionInfrastructureComposition.cs` + `AccountingSourcesInfrastructureComposition.cs` (remove const + validation), `IngestionDbContextFactory.cs` + `AccountingSourcesDbContextFactory.cs` (env-var fail closed), `ConnectionConfigurationFailClosedTests.cs` (new behavioral regression), `PhysicalStructureTests.cs` (document the justified `BuildingBlocks/Configuration` single-file leaf).
+
+**Verification (real PostgreSQL):**
+- `FaraTaraz.Infrastructure.IntegrationTests` = **33/33 pass** (was 25; +8 fail-closed cases: both roots reject null/empty/whitespace with the deterministic exception and register no `DbContextOptions`; both roots accept a supplied string). Integration `TenantScopeCompositionTests` still pass.
+- `FaraTaraz.ArchitectureTests` = **75/75 pass** (no guard weakened; allowlist extended).
+- Full solution Debug + Release build: zero warnings / zero errors. `dotnet ef migrations has-pending-model-changes` = "No changes have been made to the model since the last migration" for both Infrastructure projects (no entity change).
+
+**Unresolved / pending architect decision:** FT-CONFIG-001 status: FIXED — UNVERIFIED (code committed; independent source + CI review pending). Production path: the Host composes via `AddIngestionApplication()`; the module Infrastructure composition entry points are consumed by tests and future W3 wiring — there is **no production caller yet**, so the fail-closed seam is exercised by tests, not by a live runtime fallback. No other defect status changed.
+
+**Next exact action:** independent ChatGPT architect review of `32e8dca` (guard + green CI), then reconcile FT-CONFIG-001 in `OPEN-DEFECTS.md`. Do NOT promote W2 to certified or authorize W3.
+
 ## Agent execution limit and open review item (2026-10-09)
 
 - Owner policy: 20–30 minute target, 45-minute hard cap per task. At the cap, checkpoint and report PARTIAL; do not keep working for hours or exhaust context.

@@ -1,5 +1,6 @@
 namespace FaraTaraz.Modules.Ingestion.Infrastructure.Persistence;
 
+using FaraTaraz.BuildingBlocks.Configuration;
 using FaraTaraz.Modules.Ingestion.Infrastructure.Composition;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
@@ -18,12 +19,20 @@ public sealed class IngestionDbContextFactory
     /// <summary>
     /// Creates the context for the design-time tooling. The returned context is used only to
     /// read the model; its connection string is not opened during migration scaffolding.
+    ///
+    /// The connection string comes from the <c>FATARAZ_INGESTION_DB</c> environment variable. A
+    /// missing value fails closed (FT-CONFIG-001): no embedded default or implicit localhost /
+    /// PostgreSQL fallback remains, so scaffolding requires an explicit connection string.
     /// </summary>
     public IngestionDbContext CreateDbContext(string[] args)
     {
-        var connectionString =
-            Environment.GetEnvironmentVariable("FATARAZ_INGESTION_DB")
-            ?? IngestionInfrastructureComposition.DefaultConnectionString;
+        var connectionString = Environment.GetEnvironmentVariable("FATARAZ_INGESTION_DB");
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            throw new ConnectionConfigurationException(
+                "Design-time migration scaffolding requires the FATARAZ_INGESTION_DB connection string; " +
+                "missing configuration fails closed.");
+        }
 
         return new IngestionDbContext(
             new DbContextOptionsBuilder<IngestionDbContext>()
