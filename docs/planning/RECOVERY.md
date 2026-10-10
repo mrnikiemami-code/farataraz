@@ -179,7 +179,7 @@ dashboards, REST/MCP endpoints, AI. No secrets introduced.
 
 **Architecture restrictions honored:** no Host→Infrastructure, no Application→Infrastructure, no EF Core in Domain/Application, no guard removed/weakened, no new endpoints/providers/dashboards/W3 features. `Version` is DB-managed (never trusted from the caller).
 
-**Next exact task:** independent ChatGPT architect review of commit `...` (guard + green CI); then reconcile FT-DATA-001 in `OPEN-DEFECTS.md`. Do NOT promote W2 to certified or authorize W3.
+**Next exact task:** independent ChatGPT architect review of commit `f373bd45df647c317307224d4e99999e5a9b7efd` (guard + green CI); then reconcile FT-DATA-001 in `OPEN-DEFECTS.md`. Do NOT promote W2 to certified or authorize W3.
 
 Update this file in the same task's final verified commit, including:
 - task ID / status / authorized scope
