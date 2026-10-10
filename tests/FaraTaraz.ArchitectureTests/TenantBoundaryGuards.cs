@@ -11,7 +11,9 @@ using Xunit;
 ///
 /// These enforce that tenant authority cannot be reached by bypassing repository enforcement:
 ///   A. concrete EF Core contexts (<c>IngestionDbContext</c> / <c>AccountingSourcesDbContext</c>)
-///      are referenced only inside a project whose directory ends in <c>.Infrastructure</c>
+///      are referenced only inside one of the two real Infrastructure project roots
+///      (<c>Modules/Ingestion/Ingestion.Infrastructure</c>,
+///      <c>Modules/AccountingSources/AccountingSources.Infrastructure</c>) and their descendants
 ///      (repository/oracle/design-time tooling/migrations). No other production project may name
 ///      them, so non-Infrastructure code cannot construct or query a tenant-owned context directly.
 ///   B. trusted-context minting (<c>TenantContext.FromAuthenticatedPrincipal</c> /
@@ -22,7 +24,9 @@ using Xunit;
 /// is excluded automatically. The core logic is a pure function of (relative path, source) so the
 /// same code path is exercised by synthetic negative/positive cases. Matching is performed on a
 /// lexical scan that strips comments and string/char literals first, so a comment or string that
-/// merely mentions these identifiers does not trip the guard.
+/// merely mentions these identifiers does not trip the guard. Interpolated strings are handled so
+/// that literal text is stripped while expression content inside <c>{ ... }</c> is preserved as
+/// code, and a missing closing delimiter never swallows the rest of the file.
 /// </summary>
 public sealed class TenantBoundaryGuards
 {
@@ -35,6 +39,16 @@ public sealed class TenantBoundaryGuards
     {
         DbContextTypeIngestion,
         DbContextTypeAccounting,
+    };
+
+    // Only the two real production Infrastructure project roots (and their descendants) are allowed
+    // to name concrete DbContext types. A nested folder whose name ends in ".Infrastructure" under
+    // another project (e.g. Application/Escape.Infrastructure) is NOT an allowed root and stays
+    // forbidden.
+    private static readonly string[] InfrastructureProjectRoots =
+    {
+        "Modules/Ingestion/Ingestion.Infrastructure",
+        "Modules/AccountingSources/AccountingSources.Infrastructure",
     };
 
     private static readonly string RepoRoot = FindRepoRoot();
@@ -54,7 +68,7 @@ public sealed class TenantBoundaryGuards
         {
             var identifiers = ExtractIdentifiers(StripCommentsAndStrings(source));
 
-            // Concrete DbContext types are allowed only inside a .Infrastructure project.
+            // Concrete DbContext types are allowed only inside the two real Infrastructure roots.
             if (!IsInfrastructureDirectory(relativeDir))
             {
                 var dbContext = identifiers
@@ -164,6 +178,83 @@ public sealed class TenantBoundaryGuards
         Assert.Empty(violations);
     }
 
+    [Fact]
+    public void Synthetic_forbidden_identifier_after_interpolated_string_is_detected()
+    {
+        // The interpolated string must close on its own delimiter; the identifier after it is code.
+        var violations = FindViolations(new[]
+        {
+            ("Modules/Ingestion/Ingestion.Application",
+                "namespace X;\nclass B {\n" +
+                "    void M() {\n" +
+                "        var s = $\"literal text here\";\n" +
+                "        IngestionDbContext ctx = null;\n" +
+                "    }\n" +
+                "}"),
+        });
+
+        Assert.NotEmpty(violations);
+    }
+
+    [Fact]
+    public void Synthetic_forbidden_identifier_inside_expression_detected_but_literal_text_ignored()
+    {
+        // Identifier inside { ... } is expression code and must be detected.
+        var expression = FindViolations(new[]
+        {
+            ("Modules/Ingestion/Ingestion.Application",
+                "namespace X;\nclass B {\n" +
+                "    void M() { var s = $\"value: {IngestionDbContext} end\"; }\n" +
+                "}"),
+        });
+
+        Assert.NotEmpty(expression);
+
+        // The same words as literal text are ignored.
+        var literal = FindViolations(new[]
+        {
+            ("Modules/Ingestion/Ingestion.Application",
+                "namespace X;\nclass B {\n" +
+                "    void M() { var s = $\"IngestionDbContext is the type\"; }\n" +
+                "}"),
+        });
+
+        Assert.Empty(literal);
+    }
+
+    [Fact]
+    public void Synthetic_application_escape_infrastructure_is_forbidden()
+    {
+        // A nested folder that only *looks* like Infrastructure is not an allowed root.
+        var violations = FindViolations(new[]
+        {
+            ("Modules/Ingestion/Ingestion.Application/Escape.Infrastructure",
+                "namespace X;\nclass B {\n" +
+                "    void M(IngestionDbContext ctx) { var _ = ctx; }\n" +
+                "}"),
+        });
+
+        Assert.NotEmpty(violations);
+    }
+
+    [Fact]
+    public void Real_infrastructure_roots_are_allowed()
+    {
+        var violations = FindViolations(new[]
+        {
+            ("Modules/Ingestion/Ingestion.Infrastructure/Persistence",
+                "namespace X;\nclass B {\n" +
+                "    void M(IngestionDbContext ctx) { var _ = ctx; }\n" +
+                "}"),
+            ("Modules/AccountingSources/AccountingSources.Infrastructure/Authorization",
+                "namespace X;\nclass B {\n" +
+                "    void M(AccountingSourcesDbContext ctx) { var _ = ctx; }\n" +
+                "}"),
+        });
+
+        Assert.Empty(violations);
+    }
+
     private static IEnumerable<(string, string)> ProductionInputs()
     {
         foreach (var file in ProductionSourceFiles())
@@ -177,9 +268,16 @@ public sealed class TenantBoundaryGuards
     }
 
     private static bool IsInfrastructureDirectory(string relativeDir)
-        => relativeDir
-           .Split('/')
-           .Any(seg => seg.EndsWith(".Infrastructure", StringComparison.Ordinal));
+    {
+        if (string.IsNullOrEmpty(relativeDir))
+        {
+            return false;
+        }
+
+        return InfrastructureProjectRoots.Any(root =>
+            relativeDir == root ||
+            relativeDir.StartsWith(root + "/", StringComparison.Ordinal));
+    }
 
     private static bool IsBuildingBlocksDirectory(string relativeDir)
         => relativeDir == "BuildingBlocks"
@@ -191,8 +289,7 @@ public sealed class TenantBoundaryGuards
         {
             foreach (var file in Directory.EnumerateFiles(dir, "*.cs", SearchOption.AllDirectories))
             {
-                if (file.Contains("\\bin\\", StringComparison.Ordinal) ||
-                    file.Contains("\\obj\\", StringComparison.Ordinal))
+                if (IsInBuildOutput(file))
                 {
                     continue;
                 }
@@ -202,11 +299,21 @@ public sealed class TenantBoundaryGuards
         }
     }
 
+    // bin/obj exclusion is separator-independent (Windows \ and Linux /) so generated files are
+    // skipped on both platforms.
+    private static bool IsInBuildOutput(string file)
+    {
+        var segments = file.Replace('\\', '/').Split('/');
+        return segments.Any(seg => seg == "bin" || seg == "obj");
+    }
+
     /// <summary>
     /// Strip // line comments, /* */ block comments, regular/verbatim/raw string literals, and
     /// char literals. Each skipped region becomes a single space so adjacent identifiers never
     /// merge. No full C# parser is used; this deterministic lexical state machine is sufficient for
-    /// the identifier matches this guard performs.
+    /// the identifier matches this guard performs. Interpolated strings strip literal text but
+    /// preserve expression content inside <c>{ ... }</c> as code, and always stop at the closing
+    /// delimiter even if it is missing.
     /// </summary>
     public static string StripCommentsAndStrings(string source)
     {
@@ -263,6 +370,15 @@ public sealed class TenantBoundaryGuards
                         if (d == '}') { if (depth > 0) depth--; i++; continue; }
                         if (d == '"')
                         {
+                            // A quote at depth 0 closes the interpolated string; a quote at
+                            // depth > 0 opens a nested literal whose content is stripped.
+                            if (depth == 0)
+                            {
+                                i++;
+                                break;
+                            }
+
+                            sb.Append(' ');
                             i++;
                             while (i < n && source[i] != '"') { if (source[i] == '\\') i += 2; else i++; }
                             i++;
@@ -270,11 +386,14 @@ public sealed class TenantBoundaryGuards
                         }
                         if (d == '\'')
                         {
+                            sb.Append(' ');
                             i++;
                             while (i < n && source[i] != '\'') { if (source[i] == '\\') i += 2; else i++; }
                             i++;
                             continue;
                         }
+                        // Expression content (depth > 0) is preserved as code.
+                        if (depth > 0) sb.Append(d);
                         i++;
                     }
 
