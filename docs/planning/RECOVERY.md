@@ -267,7 +267,7 @@ Keep `CURRENT-STATE.md`, `ROADMAP.md`, and `DELIVERY-PLAN.md` consistent. No fal
 
 **Task:** `FT-W2-R6-CONFIG-FAIL-CLOSED` (bounded W2 slice; FT-CONFIG-001). **Status:** `PASS` locally — **NOT CERTIFIED**; awaiting independent ChatGPT architect review. **Did not implement W3 or any business feature; did not mark FT-CONFIG-001 VERIFIED.** W2 NOT CERTIFIED; W3 NOT AUTHORIZED.
 
-**Baseline / implementation:** baseline `52fd1887a67486e2938d8daca70d930cc61f6026`; implementation `32e8dca98049a772b106969af24d9388fab1d539` (fast-forward from baseline).
+**Baseline / implementation:** baseline `6eefd5b6e8cdcc126ff7b91e8aab5cf1efa44f64`; implementation `0bc574b2039d06733186775d4d66e10feb0b339b` (fast-forward from baseline).
 
 **Defect (FT-CONFIG-001):** both module Infrastructure Composition files retained a `DefaultConnectionString` fallback (`Host=localhost;Port=5432;Username=postgres;Password=postgres;…`) when config was missing — an embedded production credential and an implicit localhost/PostgreSQL fallback.
 
@@ -286,7 +286,7 @@ Keep `CURRENT-STATE.md`, `ROADMAP.md`, and `DELIVERY-PLAN.md` consistent. No fal
 
 **Unresolved / pending architect decision:** FT-CONFIG-001 status: FIXED — UNVERIFIED (code committed; independent source + CI review pending). Production path: the Host composes via `AddIngestionApplication()`; the module Infrastructure composition entry points are consumed by tests and future W3 wiring — there is **no production caller yet**, so the fail-closed seam is exercised by tests, not by a live runtime fallback. No other defect status changed.
 
-**Next exact action:** independent ChatGPT architect review of `32e8dca` (guard + green CI), then reconcile FT-CONFIG-001 in `OPEN-DEFECTS.md`. Do NOT promote W2 to certified or authorize W3.
+**Next exact action:** independent ChatGPT architect review of `0bc574b` (guard + green CI), then reconcile FT-CONFIG-001 in `OPEN-DEFECTS.md`. Do NOT promote W2 to certified or authorize W3.
 
 ## Agent execution limit and open review item (2026-10-09)
 
