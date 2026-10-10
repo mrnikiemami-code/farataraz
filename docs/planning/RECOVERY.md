@@ -292,21 +292,22 @@ Keep `CURRENT-STATE.md`, `ROADMAP.md`, and `DELIVERY-PLAN.md` consistent. No fal
 
 **Task:** `FT-W2-R8-R1-TENANT-GUARDS-IMPLEMENT-ONLY` (bounded W2 slice; FT-SEC-006 + FT-GUARD-002). **Status:** `PASS` locally — **NOT CERTIFIED**; awaiting independent ChatGPT architect review. **Did not implement W3, runtime auth, authorization endpoints, global query filters/RLS, a production TenantContext factory, migrations, or broad refactors.** Did not mark FT-SEC-004 VERIFIED. W2 NOT CERTIFIED; W3 NOT AUTHORIZED.
 
-**Baseline / implementation:** baseline `753d6de504180a3462e9400eec4776eebfa02a84`; implementation committed in this task's one coherent code+tests+docs commit (see pushed SHA in final report), fast-forward from baseline.
+**Baseline / implementation:** baseline `753d6de504180a3462e9400eec4776eebfa02a84`; implementation `d6b854a2cd69c4521cccd372c5f6b11276e05325` (task `FT-W2-R8-R2`, fast-forward from `a665677`/`FT-W2-R8-R1`). One coherent tests+docs commit.
 
 **Defects (FT-SEC-006 / FT-GUARD-002):** raw tenant-owned `DbContext`/`DbSet` exposure could be reached outside repository enforcement; no durable guard prevented untrusted code from minting a trusted `TenantContext` or constructing a tenant-owned context directly.
 
 **Repair (durable source/architecture guard, preventive only):**
 - New `tests/FaraTaraz.ArchitectureTests/TenantBoundaryGuards.cs`. A deterministic lexical state machine strips `//`, `/* */`, regular/verbatim/raw string literals and char literals before matching, so a comment/string that only mentions an identifier does not trip the guard.
-- Outside any project/directory whose name ends in `.Infrastructure`, identifier references to `IngestionDbContext`/`AccountingSourcesDbContext` are rejected (Infrastructure repositories/oracle/design-time factories/migrations remain allowed).
+- Outside the two real Infrastructure project roots (`Modules/Ingestion/Ingestion.Infrastructure`, `Modules/AccountingSources/AccountingSources.Infrastructure`) and their descendants, identifier references to `IngestionDbContext`/`AccountingSourcesDbContext` are rejected (Infrastructure repositories/oracle/design-time factories/migrations remain allowed). A nested folder only *named* `.Infrastructure` (e.g. `Application/Escape.Infrastructure`) stays forbidden.
 - Outside `src/BuildingBlocks`, `TenantContext.FromAuthenticatedPrincipal` and `new TenantContext` are rejected.
-- Shared pure `FindViolations(relativePath, source)` helper is exercised by synthetic cases and a real-production-tree fact. `tests/` is outside `src/` and excluded automatically.
+- Shared pure `FindViolations(relativePath, source)` helper is exercised by synthetic cases and a real-production-tree fact. `tests/` is outside `src/` and excluded automatically. bin/obj exclusion is separator-independent.
+- Interpolated strings are handled so literal text is stripped while expression content inside `{ ... }` is preserved as code, and a missing closing delimiter never swallows the rest of the file.
 
-**Files changed:** `TenantBoundaryGuards.cs` (new). No other source, package, migration, or CI change.
+**Files changed:** `tests/FaraTaraz.ArchitectureTests/TenantBoundaryGuards.cs` (new in `FT-W2-R8-R1`; false-negative repairs in `FT-W2-R8-R2`). No other source, package, migration, or CI change.
 
 **Verification (focused, per restraint):**
 - Command: `dotnet test tests/FaraTaraz.ArchitectureTests/FaraTaraz.ArchitectureTests.csproj --filter "FullyQualifiedName~TenantBoundaryGuards"`.
-- Result: **5/5 passed** (2 real-production-tree facts + 3 synthetic proofs: non-INF DbContext ref rejected; non-BuildingBlocks mint rejected; comment/string accepted). One ArchitectureTests project build (compilation). No full suite, repeats, Debug/Release matrix, DB/integration tests, or migrations.
+- Result: **9/9 passed** (2 real-production-tree facts + 7 synthetic proofs: non-INF DbContext ref rejected; non-BuildingBlocks mint rejected via factory + constructor; comment/string accepted; forbidden identifier after `$"literal"` detected; forbidden identifier inside `{ ... }` detected but identical literal text ignored; `Application/Escape.Infrastructure` rejected; the two real Infrastructure roots allowed). One ArchitectureTests project build (compilation). No full suite, repeats, Debug/Release matrix, DB/integration tests, or migrations.
 
 **Unresolved / pending architect decision:** FT-SEC-006 and FT-GUARD-002 are FIXED — UNVERIFIED (guard + focused negative proof implemented and passing; independent source review pending). FT-SEC-004 stays **OPEN — PARTIALLY MITIGATED** (commit `39164cd` makes minting internal; the real production authenticated-principal boundary is still an unresolved auth/ADR decision — do not invent authentication). No RLS/global filter was added; raw DbSets remain unfiltered. No other defect status changed.
 
