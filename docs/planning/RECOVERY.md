@@ -301,7 +301,7 @@ Keep `CURRENT-STATE.md`, `ROADMAP.md`, and `DELIVERY-PLAN.md` consistent. No fal
 - Outside the two real Infrastructure project roots (`Modules/Ingestion/Ingestion.Infrastructure`, `Modules/AccountingSources/AccountingSources.Infrastructure`) and their descendants, identifier references to `IngestionDbContext`/`AccountingSourcesDbContext` are rejected (Infrastructure repositories/oracle/design-time factories/migrations remain allowed). A nested folder only *named* `.Infrastructure` (e.g. `Application/Escape.Infrastructure`) stays forbidden.
 - Outside `src/BuildingBlocks`, `TenantContext.FromAuthenticatedPrincipal` and `new TenantContext` are rejected.
 - Shared pure `FindViolations(relativePath, source)` helper is exercised by synthetic cases and a real-production-tree fact. `tests/` is outside `src/` and excluded automatically. bin/obj exclusion is separator-independent.
-- Interpolated strings are handled so literal text is stripped while expression content inside `{ ... }` is preserved as code, and a missing closing delimiter never swallows the rest of the file.
+- Interpolated strings are handled so literal text is stripped while expression content inside `{ ... }` is preserved as code, and a missing closing delimiter never swallows the rest of the file. Interpolated raw string syntax (`$"""..."""` / `$$"""..."""`) is intentionally unsupported and rejected fail-closed rather than parsed.
 
 **Files changed:** `tests/FaraTaraz.ArchitectureTests/TenantBoundaryGuards.cs` (new in `FT-W2-R8-R1`; false-negative repairs in `FT-W2-R8-R2`). No other source, package, migration, or CI change.
 

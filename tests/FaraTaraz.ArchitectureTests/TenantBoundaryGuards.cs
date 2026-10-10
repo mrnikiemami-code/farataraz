@@ -68,6 +68,12 @@ public sealed class TenantBoundaryGuards
         {
             var identifiers = ExtractIdentifiers(StripCommentsAndStrings(source));
 
+            // Fail closed: any interpolated raw string prefix ($ followed by 3+ quotes) is rejected.
+            if (HasInterpolatedRawInterpolation(source))
+            {
+                violations.Add($"{relativeDir}: unsupported interpolated raw string");
+            }
+
             // Concrete DbContext types are allowed only inside the two real Infrastructure roots.
             if (!IsInfrastructureDirectory(relativeDir))
             {
@@ -108,6 +114,32 @@ public sealed class TenantBoundaryGuards
         {
             yield return string.Empty;
         }
+    }
+
+    private static bool HasInterpolatedRawInterpolation(string source)
+    {
+        for (var i = 0; i < source.Length; i++)
+        {
+            if (source[i] != '$')
+            {
+                continue;
+            }
+
+            var quoteCount = 0;
+            var q = i + 1;
+            while (q < source.Length && source[q] == '"')
+            {
+                quoteCount++;
+                q++;
+            }
+
+            if (quoteCount >= 3)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     [Fact]
@@ -253,6 +285,38 @@ public sealed class TenantBoundaryGuards
         });
 
         Assert.Empty(violations);
+    }
+
+    [Fact]
+    public void Synthetic_interpolated_raw_string_literal_is_rejected()
+    {
+        // A raw interpolated string prefix is intentionally unsupported; the guard fails closed.
+        var violations = FindViolations(new[]
+        {
+            ("Modules/Ingestion/Ingestion.Application",
+                "namespace X;\nclass B {\n" +
+                "    void M() { var s = $\"\"\"literal\"\"\"; }\n" +
+                "}"),
+        });
+
+        Assert.NotEmpty(violations);
+        Assert.Contains(violations, v => v.Contains("unsupported interpolated raw string"));
+    }
+
+    [Fact]
+    public void Synthetic_interpolated_raw_string_expression_is_rejected()
+    {
+        // Even with an expression inside, a raw interpolated string prefix is rejected fail-closed.
+        var violations = FindViolations(new[]
+        {
+            ("Modules/Ingestion/Ingestion.Application",
+                "namespace X;\nclass B {\n" +
+                "    void M() { var s = $$\"\"\" {IngestionDbContext} \"\"\"; }\n" +
+                "}"),
+        });
+
+        Assert.NotEmpty(violations);
+        Assert.Contains(violations, v => v.Contains("unsupported interpolated raw string"));
     }
 
     private static IEnumerable<(string, string)> ProductionInputs()
