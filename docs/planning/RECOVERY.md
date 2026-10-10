@@ -1,6 +1,42 @@
 # RECOVERY — FaraTaraz / FMCA
 
-## FAST RESUME — OpenCode Wake event-driven execution (2026-10-10)
+## CURRENT WAKE RECOVERY — FaraTaraz end-to-end test VERIFIED (2026-10-10)
+
+This section supersedes the historical Wake checkpoint and stale next-task instructions below. Architect remains ChatGPT; executor is OpenCode. W2 NOT CERTIFIED; W3 NOT AUTHORIZED. No architecture defect was closed by the communication test.
+
+### Verified destination and explicit model
+- Project: `D:\FaraTaraz`; bridgeSessionId: `9e669b57-39b0-4636-9a19-356b25f17dd3`; OpenCode session: `ses_edc063b45ffewWoh2DGDN90shm`.
+- Always supply `providerID=ornith_bridge` and `modelID=ornith-1.5-35b-a3b-local` explicitly to `opencode_send_message`, with `async=true`. Do not rely on the session's old `local` model selection.
+- Project-specific `D:\FaraTaraz\opencode.json` uses the singular `provider.ornith_bridge`, `@ai-sdk/openai-compatible`, baseURL `http://127.0.0.1:18081/v1`, and both `model` and `small_model` set to `ornith_bridge/ornith-1.5-35b-a3b-local`. Full provider definition was copied from bridge-test while preserving other destination settings and backing up an existing destination; user executed the local update and architect independently read the resulting file. Credential presence was checked without displaying its value.
+- This local file and its backups contain credentials: NEVER commit/push them or expose their contents. Do not modify global OpenCode, Node, Twenty, network or other services as part of routine task execution.
+
+### Persistent event subscription and correct cycle
+- Existing Automation: `FaraTaraz Wake`, bound to this architect conversation `6ac9db99-7bb8-83ed-8657-9c728f05b255`. Connector: `asdk_app_6ac9c737e54881919361d823705e5b1f`.
+- Trigger: `opencode.turn.finished`, params `{"bridgeSessionId":"9e669b57-39b0-4636-9a19-356b25f17dd3"}`. Preserve/reuse this subscription; never create a duplicate or substitute a scheduled polling task. Test-project subscription is separate.
+- Observed subscription expiry: `2026-10-11T06:33:01.595Z` (2026-10-11 10:03:01 Asia/Tehran). Recheck actual expiry/activation before later work; this timestamp is not permanent.
+- Before sending: inspect session status and recent messages; deduplicate task/message/event IDs and avoid concurrent work. Verify actual project/server routing rather than assuming a fixed OpenCode port.
+- Send exactly one authorized async instruction with explicit provider/model, then END the architect turn without polling. Accepted send means queued/accepted only, not model success or ChatGPT wake success.
+- Upon the event-driven architect run: read `opencode_get_messages` and `opencode_get_session_status`; correlate event messageID/parentMessageID with the actual terminal reply. Report actual result/error. For implementation work also independently inspect diff/source/tests/GitHub and update architecture evidence before any acceptance.
+- Keep the persistent subscription enabled after a match or an error. A terminal error also wakes the architect and must not be called a successful model response.
+- Current Automation prompt is TEST-ONLY: read/report the result and send NO next work, modify NO files/settings/tasks, execute NO Git. Successful testing does not silently authorize an autonomous implementation loop; reconcile its prompt with an explicitly authorized next scope before real task orchestration.
+
+### Independent success evidence
+- Successful request: `msg_124ab62e0001xlOjzbIRiXBnRi`; completed assistant reply: `msg_124ab62ec001rrBKHEuP0BTyrS`; exact text: `WAKE_FARATARAZ_OK`; finish `stop`; provider `ornith_bridge`.
+- Wake event: `evt_55def956d04abe3e761d77fcf649c438aa5493e3f1265c68c1045b282d35761b`, timestamp `2026-10-10T07:16:29.073Z` (10:46:29 Tehran). The event-triggered run independently read the completed reply/status and reported `WAKE_RECEIVED` + `WAKE_FARATARAZ_OK`, without another user message or architect polling. Status reported no active execution.
+- This verifies ChatGPT architect → Bridge/OpenCode → local model → Wake → SAME architect conversation for this test, not future uptime, arbitrary tools, or architecture certification.
+
+### Failures resolved or diagnostic limits
+- First request failed with user-supplied local log `ProviderModelNotFoundError: local/ornith-1.5-35b-a3b-local`.
+- Second explicit-provider request also failed with user-supplied local log `ProviderModelNotFoundError: ornith_bridge/ornith-1.5-35b-a3b-local` before the setup chat restarted the FaraTaraz OpenCode server. A correct config file alone did not prove a running server had loaded it.
+- Subsequent event independently showed `APIError: Cannot connect to API: Unable to connect` at `127.0.0.1:18081/v1/chat/completions`. That ERROR event successfully woke this chat; it was not model success.
+- User then supplied `/health → {"status":"ok"}` for port 18081, authorized one new test, and the successful response/event above followed.
+- `opencode_capabilities` repeatedly returned `Transport closed`; user explicitly waived this as a precondition for the bounded test. Do not repeatedly block an authorized test on this tool alone or assert it proves model unavailability.
+- Bridge health and retained session baseUrl reported different ports during setup (session 4096, FaraTaraz managed server 4097 then 4098). This discrepancy was observed, but NOT established as the root cause. The final test succeeded in the retained session; do not silently recreate/rebind sessions or restart services based on that discrepancy.
+
+### Resume architecture
+Read the current journal and OPEN-DEFECTS, independently fetch latest master, preserve all OPEN/FIXED-UNVERIFIED issues. Latest substantive implementation review remains FT-W2-R3: FT-DATA-001 is partially mitigated; delayed stale writer needs an observed-version contract coordinated with FT-DATA-002. No implementation task was sent after the successful Wake test. Select/authorize the next bounded task from current evidence; do not repeat completed ownership audits from stale historical next-action prose.
+
+## HISTORICAL WAKE CHECKPOINT — superseded (2026-10-10)
 
 - Architect: ChatGPT independently reviews source/diff/tests and owns certification and `docs/planning/OPEN-DEFECTS.md`; OpenCode is executor. W2 NOT CERTIFIED; W3 NOT AUTHORIZED. Current next implementation concern: FT-DATA-001 delayed stale writer (partially mitigated in `f373bd4`); coordinate with FT-DATA-002 transaction boundary. Do not run concurrent agents.
 - Verified tool path: ChatGPT → OpenCode Wake MCP → local Bridge → OpenCode 1.18.35 → local Ornith. Return path: OpenCode turn completion → Wake `opencode.turn.finished` → event Automation wakes architect → inspect messages/status/diff independently. Successful test returned `WAKE_RECEIVED` and `WAKE_TEST_OK` after roughly four minutes (not an SLA).
