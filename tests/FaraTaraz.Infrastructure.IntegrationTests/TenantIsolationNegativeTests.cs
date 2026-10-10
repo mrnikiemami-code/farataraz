@@ -95,7 +95,7 @@ public sealed class TenantIsolationNegativeTests
         // Tenant B stores a cursor.
         await using var ctxB = db.Ingestion();
         var cpB = new SyncCheckpointRepository(ctxB, Scope(tenantB));
-        await cpB.SaveAsync(Tenant(tenantB), Source(source), "Customers", "cursor-b", DateTime.UtcNow);
+        await cpB.SaveAsync(Tenant(tenantB), Source(source), "Customers", "cursor-b", DateTime.UtcNow, observedVersion: null);
 
         // Tenant A cannot read Tenant B's cursor (mismatched caller tenant -> denied).
         await using var ctxA = db.Ingestion();
@@ -122,13 +122,13 @@ public sealed class TenantIsolationNegativeTests
 
         await using var ctxB = db.Ingestion();
         var cpB = new SyncCheckpointRepository(ctxB, Scope(tenantB));
-        await cpB.SaveAsync(Tenant(tenantB), Source(source), "Customers", "cursor-b", DateTime.UtcNow);
+        await cpB.SaveAsync(Tenant(tenantB), Source(source), "Customers", "cursor-b", DateTime.UtcNow, observedVersion: null);
 
         // Tenant A cannot overwrite Tenant B's cursor.
         await using var ctxA = db.Ingestion();
         var cpA = new SyncCheckpointRepository(ctxA, Scope(tenantA));
         await Assert.ThrowsAnyAsync<UnauthorizedTenantException>(
-            () => cpA.SaveAsync(Tenant(tenantB), Source(source), "Customers", "evil", DateTime.UtcNow));
+            () => cpA.SaveAsync(Tenant(tenantB), Source(source), "Customers", "evil", DateTime.UtcNow, observedVersion: null));
 
         // Tenant B's cursor is unchanged.
         var stored = await cpB.GetAsync(Tenant(tenantB), Source(source), "Customers");
@@ -191,7 +191,7 @@ public sealed class TenantIsolationNegativeTests
         // Checkpoint (save + get).
         var cp = new SyncCheckpointRepository(ctx, none);
         await Assert.ThrowsAnyAsync<UnauthorizedTenantException>(
-            () => cp.SaveAsync(Tenant(tenant), Source(source), "Customers", "cursor", DateTime.UtcNow));
+            () => cp.SaveAsync(Tenant(tenant), Source(source), "Customers", "cursor", DateTime.UtcNow, observedVersion: null));
         await Assert.ThrowsAnyAsync<UnauthorizedTenantException>(
             () => cp.GetAsync(Tenant(tenant), Source(source), "Customers"));
 
@@ -226,7 +226,7 @@ public sealed class TenantIsolationNegativeTests
 
         // Checkpoint: save + read for the trusted tenant.
         var cp = new SyncCheckpointRepository(ctx, Scope(tenant));
-        await cp.SaveAsync(Tenant(tenant), Source(source), "Customers", "cursor-a", DateTime.UtcNow);
+        await cp.SaveAsync(Tenant(tenant), Source(source), "Customers", "cursor-a", DateTime.UtcNow, observedVersion: null);
         var stored = await cp.GetAsync(Tenant(tenant), Source(source), "Customers");
         Assert.Equal("cursor-a", stored?.CursorToken);
 

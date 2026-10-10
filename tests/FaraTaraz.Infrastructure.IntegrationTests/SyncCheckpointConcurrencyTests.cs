@@ -7,16 +7,18 @@ using FaraTaraz.Modules.Ingestion.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
 /// <summary>
-/// Real PostgreSQL concurrency regression tests for <see cref="SyncCheckpointRepository.SaveAsync"/>
-/// (FT-DATA-001). These exercise the real database with <b>independent</b> <c>DbContext</c>
-/// instances per writer, so they exercise genuine relational concurrency — never the EF Core
-/// InMemory provider.
+/// Deterministic, public-registry PostgreSQL regression tests for
+/// <see cref="SyncCheckpointRepository.SaveAsync"/> observed-version contract (FT-DATA-001).
 ///
-/// The invariant under test: a checkpoint write is an atomic, DB-enforced optimistic-concurrency
-/// conditional upsert. A writer that observed an older version is rejected (never overwrites a
-/// newer checkpoint with stale progress), two racing first writers do not crash on a unique
-/// violation (exactly one wins), and sequential writes advance the DB-managed version
-/// monotonically.
+/// Every case drives the real database through the public repository API (<c>GetAsync</c> /
+/// <c>SaveAsync</c>) with independent <c>DbContext</c> instances per writer, so it exercises
+/// genuine relational concurrency — never EF Core InMemory and never handwritten SQL.
+///
+/// The invariant under test: a save carries the version the caller observed when it read the
+/// checkpoint. A writer whose observation is older than the committed version is rejected
+/// (<see cref="StaleCheckpointException"/>), never overwriting a newer checkpoint with stale
+/// progress; the absent-row first-write inserts version 0; and two racing first writers do not
+/// crash — exactly one wins and the other is stale.
 /// </summary>
 public sealed class SyncCheckpointConcurrencyTests
 {
@@ -31,7 +33,7 @@ public sealed class SyncCheckpointConcurrencyTests
         => new(db.Ingestion(), Scope(tenant));
 
     [Fact]
-    public async Task Sequential_writes_advance_db_managed_version_monotonically()
+    public async Task Baseline_writer_observes_absent_row_and_inserts_version_zero()
     {
         var db = new IntegrationTestDb();
         await db.ApplyMigrationsAsync();
@@ -39,20 +41,16 @@ public sealed class SyncCheckpointConcurrencyTests
         var tenant = Guid.NewGuid().ToString("N");
         var source = Guid.NewGuid().ToString("N");
 
-        // First write (no row yet) inserts version 0; each later write increments by exactly 1.
+        // The caller observed no row (null) -> the first write inserts version 0.
         await Repo(db, tenant).SaveAsync(
-            Tenant(tenant), Source(source), "Customers", "v0", DateTime.UtcNow);
-        await Repo(db, tenant).SaveAsync(
-            Tenant(tenant), Source(source), "Customers", "v1", DateTime.UtcNow);
-        await Repo(db, tenant).SaveAsync(
-            Tenant(tenant), Source(source), "Customers", "v2", DateTime.UtcNow);
+            Tenant(tenant), Source(source), "Customers", "baseline", DateTime.UtcNow, observedVersion: null);
 
         var version = await ReadVersionAsync(db, tenant, source, "Customers");
-        Assert.Equal(2L, version); // 3 sequential writes -> version 0,1,2
+        Assert.Equal(0L, version);
     }
 
     [Fact]
-    public async Task Concurrent_writes_do_not_crash_and_do_not_regress()
+    public async Task Sequential_writes_advance_observed_version_monotonically()
     {
         var db = new IntegrationTestDb();
         await db.ApplyMigrationsAsync();
@@ -60,55 +58,87 @@ public sealed class SyncCheckpointConcurrencyTests
         var tenant = Guid.NewGuid().ToString("N");
         var source = Guid.NewGuid().ToString("N");
 
-        // Two racing writers (independent DbContexts) for the same scope. The atomic conditional
-        // upsert guarantees exactly one row, no unique-violation crash, and no stale overwrite.
+        // First write observes null -> version 0; each later write observes the previous version.
+        await Repo(db, tenant).SaveAsync(
+            Tenant(tenant), Source(source), "Customers", "v0", DateTime.UtcNow, observedVersion: null);
+
+        var observedV0 = (await Repo(db, tenant).GetAsync(Tenant(tenant), Source(source), "Customers"))!.Version;
+        Assert.Equal(0L, observedV0);
+        await Repo(db, tenant).SaveAsync(
+            Tenant(tenant), Source(source), "Customers", "v1", DateTime.UtcNow, observedVersion: observedV0);
+
+        var observedV1 = (await Repo(db, tenant).GetAsync(Tenant(tenant), Source(source), "Customers"))!.Version;
+        Assert.Equal(1L, observedV1);
+        await Repo(db, tenant).SaveAsync(
+            Tenant(tenant), Source(source), "Customers", "v2", DateTime.UtcNow, observedVersion: observedV1);
+
+        var version = await ReadVersionAsync(db, tenant, source, "Customers");
+        Assert.Equal(2L, version);
+    }
+
+    [Fact]
+    public async Task Delayed_stale_save_with_old_observation_is_rejected()
+    {
+        var db = new IntegrationTestDb();
+        await db.ApplyMigrationsAsync();
+
+        var tenant = Guid.NewGuid().ToString("N");
+        var source = Guid.NewGuid().ToString("N");
+
+        // Baseline: an absent row, so the first writer observes null and inserts version 0.
+        await Repo(db, tenant).SaveAsync(
+            Tenant(tenant), Source(source), "Customers", "baseline", DateTime.UtcNow, observedVersion: null);
+
+        // Two operations both read the same baseline observation.
+        var staleObserver = await Repo(db, tenant).GetAsync(Tenant(tenant), Source(source), "Customers");
+        var newerObserver = await Repo(db, tenant).GetAsync(Tenant(tenant), Source(source), "Customers");
+        Assert.Equal(staleObserver!.Version, newerObserver!.Version);
+        Assert.Equal(0L, newerObserver!.Version);
+
+        // The newer operation commits its observation (0 -> 1) and wins.
+        await Repo(db, tenant).SaveAsync(
+            Tenant(tenant), Source(source), "Customers", "newer", DateTime.UtcNow, observedVersion: newerObserver.Version);
+
+        // The delayed operation still carries the old observation (0) and is rejected. The stale
+        // cursor is never accepted; the persisted state is the newer value/version 1.
+        await Assert.ThrowsAnyAsync<StaleCheckpointException>(
+            () => Repo(db, tenant).SaveAsync(
+                Tenant(tenant), Source(source), "Customers", "stale", DateTime.UtcNow, observedVersion: staleObserver.Version));
+
+        var stored = await ReadCursorAsync(db, tenant, source, "Customers");
+        var version = await ReadVersionAsync(db, tenant, source, "Customers");
+        Assert.Equal("newer", stored);
+        Assert.Equal(1L, version);
+    }
+
+    [Fact]
+    public async Task Two_first_writers_observing_absent_row_one_wins_one_is_stale()
+    {
+        var db = new IntegrationTestDb();
+        await db.ApplyMigrationsAsync();
+
+        var tenant = Guid.NewGuid().ToString("N");
+        var source = Guid.NewGuid().ToString("N");
+
+        // Two operations both observe an absent row (null) and race. Exactly one inserts version 0;
+        // the other is rejected as stale. Which cursor wins is nondeterministic, but the shape is
+        // deterministic: one success, one stale, one row, version 0.
         var outcomes = await Task.WhenAll(
-            WriteAsync(db, tenant, source, "newer"),
-            WriteAsync(db, tenant, source, "stale"));
+            SaveAbsentAsync(db, tenant, source, "alpha"),
+            SaveAbsentAsync(db, tenant, source, "beta"));
 
-        var winners = outcomes.Count(x => x);
-        // At most one write wins per observed version; the guard rejects the loser. If the two
-        // writers observed different versions (they did not race), both may succeed — either way
-        // the final state is consistent (one row, no regression, no crash).
-        Assert.True(winners == 1 || winners == 2);
+        var successes = outcomes.Count(x => x.Success);
+        var stale = outcomes.Count(x => x.Stale);
+        Assert.Equal(1, successes);
+        Assert.Equal(1, stale);
 
-        await using var ctx = db.Ingestion();
-        var count = await ctx.SyncCheckpoints.CountAsync(
-            c => c.TenantId == tenant && c.SourceId == source && c.Capability == "Customers");
+        var count = await CountAsync(db, tenant, source, "Customers");
+        var version = await ReadVersionAsync(db, tenant, source, "Customers");
         Assert.Equal(1, count);
-
-        var stored = await ReadCursorAsync(db, tenant, source, "Customers");
-        Assert.True(stored == "newer" || stored == "stale");
+        Assert.Equal(0L, version);
     }
 
-    [Fact]
-    public async Task Stale_atomic_guard_rejects_lost_update()
-    {
-        var db = new IntegrationTestDb();
-        await db.ApplyMigrationsAsync();
-
-        var tenant = Guid.NewGuid().ToString("N");
-        var source = Guid.NewGuid().ToString("N");
-
-        // Prime the scope to version 0. Two writers both EXPECT version 0 (the lost-update race):
-        // exactly one conditional upsert wins (version -> 1); the other affects zero rows and is
-        // rejected. This is deterministic — the DB-enforced atomic guard serializes them.
-        await Repo(db, tenant).SaveAsync(
-            Tenant(tenant), Source(source), "Customers", "v0", DateTime.UtcNow);
-
-        var outcomes = await Task.WhenAll(
-            ConditionalUpsertAsync(db, tenant, source, "newer"),
-            ConditionalUpsertAsync(db, tenant, source, "stale"));
-
-        Assert.Equal(1, outcomes.Count(x => x));
-
-        var stored = await ReadCursorAsync(db, tenant, source, "Customers");
-        Assert.True(stored == "newer" || stored == "stale");
-        var version = await ReadVersionAsync(db, tenant, source, "Customers");
-        Assert.Equal(1L, version); // exactly one accepted write beyond the prime
-    }
-
-    private static async Task<bool> WriteAsync(
+    private static async Task<(bool Success, bool Stale)> SaveAbsentAsync(
         IntegrationTestDb db, string tenant, string source, string cursor)
     {
         await using var ctx = db.Ingestion();
@@ -116,36 +146,14 @@ public sealed class SyncCheckpointConcurrencyTests
         try
         {
             await repo.SaveAsync(
-                Tenant(tenant), Source(source), "Customers", cursor, DateTime.UtcNow)
+                Tenant(tenant), Source(source), "Customers", cursor, DateTime.UtcNow, observedVersion: null)
                 .ConfigureAwait(false);
-            return true; // accepted (won the race)
+            return (true, false); // inserted version 0 (won the absent-row race)
         }
         catch (StaleCheckpointException)
         {
-            return false; // stale write rejected by the DB-enforced guard
+            return (false, true); // lost the race; rejected by the DB-enforced guard
         }
-    }
-
-    private static async Task<bool> ConditionalUpsertAsync(
-        IntegrationTestDb db, string tenant, string source, string cursor)
-    {
-        // Mirrors SyncCheckpointRepository.SaveAsync's atomic conditional upsert, but forces both
-        // writers to expect version 0 (the stale/lost-update case). Exactly one wins.
-        await using var ctx = db.Ingestion();
-        var affected = await ctx.Database.ExecuteSqlInterpolatedAsync(
-            $@"INSERT INTO ""SyncCheckpoints""
-                   (""TenantId"", ""SourceId"", ""Capability"", ""CursorToken"",
-                    ""UpdatedAtUtc"", ""Version"")
-                   VALUES ({tenant}, {source}, 'Customers', {cursor},
-                           {DateTime.UtcNow}, 1)
-                   ON CONFLICT (""TenantId"", ""SourceId"", ""Capability"") DO UPDATE
-                   SET ""CursorToken"" = EXCLUDED.""CursorToken"",
-                       ""UpdatedAtUtc"" = EXCLUDED.""UpdatedAtUtc"",
-                       ""Version"" = EXCLUDED.""Version""
-                   WHERE ""SyncCheckpoints"".""Version"" = 0;",
-            System.Threading.CancellationToken.None)
-            .ConfigureAwait(false);
-        return affected > 0;
     }
 
     private static async Task<string?> ReadCursorAsync(
@@ -172,5 +180,17 @@ public sealed class SyncCheckpointConcurrencyTests
                      c.Capability == capability)
             .ConfigureAwait(false);
         return entity?.Version ?? -1L;
+    }
+
+    private static async Task<int> CountAsync(
+        IntegrationTestDb db, string tenant, string source, string capability)
+    {
+        await using var ctx = db.Ingestion();
+        return await ctx.SyncCheckpoints
+            .CountAsync(
+                c => c.TenantId == tenant &&
+                     c.SourceId == source &&
+                     c.Capability == capability)
+            .ConfigureAwait(false);
     }
 }

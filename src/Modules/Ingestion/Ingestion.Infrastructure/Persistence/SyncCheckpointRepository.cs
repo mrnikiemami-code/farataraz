@@ -62,19 +62,24 @@ public sealed class SyncCheckpointRepository
     /// Saves (upserts) the cursor for the trusted tenant's source/capability using an atomic,
     /// DB-enforced optimistic-concurrency conditional upsert (FT-DATA-001).
     ///
-    /// The write is a single PostgreSQL statement:
+    /// The caller passes the version it observed when it read the checkpoint via
+    /// <see cref="GetAsync"/> as <paramref name="observedVersion"/>: <c>null</c> means the caller
+    /// observed no row (a fresh sync / first write); a supplied value must be <c>&gt;= 0</c> and is
+    /// the optimistic-concurrency guard. The write is a single PostgreSQL statement:
     /// <c>INSERT ... ON CONFLICT (scope) DO UPDATE SET cursor, updated_at, version = new
-    /// WHERE version = @expected</c>. It is accepted only when the row's current version equals the
-    /// version the writer last observed; otherwise it affects zero rows and the write is rejected
+    /// WHERE version = @observed</c>. It is accepted only when the row's current version equals the
+    /// version the caller observed; otherwise it affects zero rows and the write is rejected
     /// (throwing <see cref="StaleCheckpointException"/>). This makes a stale writer unable to
     /// overwrite a newer checkpoint with stale progress — the newer write (a higher committed
     /// version) wins, and the stale writer is rejected and must re-read.
     ///
-    /// The first write (no row yet) inserts <c>version = 0</c>; a concurrent first writer conflicts
-    /// on the unique constraint and is rejected (never silently discarded, never crashes on a
-    /// unique-violation). The <c>Version</c> guard is DB-managed and monotonic, so the ordering is
-    /// commit order — not the opaque cursor token (not lexically ordered) and not
-    /// <c>UpdatedAtUtc</c> (wall-clock, skew-prone).
+    /// A null observation maps to the internal expectation <c>-1</c> only here, so the first write
+    /// (no row yet) inserts <c>version = 0</c>; a concurrent first writer conflicts on the unique
+    /// constraint and is rejected (never silently discarded, never crashes on a unique-violation).
+    /// The <c>Version</c> guard is DB-managed and monotonic, so the ordering is commit order — not
+    /// the opaque cursor token (not lexically ordered) and not <c>UpdatedAtUtc</c> (wall-clock,
+    /// skew-prone). The version is never trusted from the caller for storage; it only guards the
+    /// write against a newer commit.
     /// </summary>
     public async Task SaveAsync(
         TenantId tenantId,
@@ -82,17 +87,24 @@ public sealed class SyncCheckpointRepository
         string capability,
         string cursorToken,
         DateTime updatedAtUtc,
+        long? observedVersion,
         CancellationToken cancellationToken = default)
     {
         var tenant = RequireTrustedTenant();
         AssertCallerTenant(tenantId, tenant);
 
-        // The optimistic-concurrency guard is the version the writer last observed. A null means
-        // "no row yet" (first writer); the guard then can never match an existing row, so a
-        // concurrent first writer is rejected rather than clobbering the row it did not read.
-        var existing = await GetAsync(tenantId, sourceId, capability, cancellationToken)
-            .ConfigureAwait(false);
-        var expectedVersion = existing?.Version ?? -1L;
+        if (observedVersion is { } negative && negative < 0L)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(observedVersion),
+                negative,
+                "observedVersion must be null (absent row) or >= 0.");
+        }
+
+        // The caller's observation is the optimistic-concurrency guard. null -> -1 (absent row /
+        // first write); a supplied version is used verbatim. The DB-managed Version is never trusted
+        // from the caller for storage; this only rejects a write that races a newer commit.
+        var expectedVersion = observedVersion is null ? -1L : observedVersion.Value;
         var newVersion = expectedVersion < 0L ? 0L : expectedVersion + 1L;
 
         var affected = await _db.Database
@@ -112,9 +124,11 @@ public sealed class SyncCheckpointRepository
 
         if (affected == 0)
         {
-            // A newer checkpoint was committed for this scope since the writer read it. The newer
-            // write wins; the stale writer is rejected and must re-read (never overwrite a newer
-            // checkpoint with stale progress — FT-DATA-001).
+            // A newer checkpoint was committed for this scope since the caller observed
+            // <paramref name="observedVersion"/>. The newer write wins; the stale write is rejected
+            // and the caller must re-read (never overwrite a newer checkpoint with stale progress —
+            // FT-DATA-001). The diagnostic read below is used solely to report the stored version;
+            // it never retries and never turns the stale input into a successful write.
             var current = await GetAsync(tenantId, sourceId, capability, cancellationToken)
                 .ConfigureAwait(false);
 

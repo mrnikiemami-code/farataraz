@@ -150,12 +150,13 @@ public sealed class IngestionPersistenceTests
         var source = Guid.NewGuid().ToString("N");
         var checkpoint = new SyncCheckpointRepository(db.Ingestion(), Scope(tenant));
 
-        // Same scope -> upserts to one row.
-        await checkpoint.SaveAsync(Tenant(tenant), Source(source), "Customers", "cursor-a", DateTime.UtcNow);
-        await checkpoint.SaveAsync(Tenant(tenant), Source(source), "Customers", "cursor-b", DateTime.UtcNow);
+        // Same scope -> upserts to one row. First write observes no row (null); the second write
+        // observed version 0 from the first write, so it guards against a lost update.
+        await checkpoint.SaveAsync(Tenant(tenant), Source(source), "Customers", "cursor-a", DateTime.UtcNow, observedVersion: null);
+        await checkpoint.SaveAsync(Tenant(tenant), Source(source), "Customers", "cursor-b", DateTime.UtcNow, observedVersion: 0L);
 
-        // Different capability -> a different scope, so a different row.
-        await checkpoint.SaveAsync(Tenant(tenant), Source(source), "Products", "cursor-c", DateTime.UtcNow);
+        // Different capability -> a different scope, so a different row (absent row -> null).
+        await checkpoint.SaveAsync(Tenant(tenant), Source(source), "Products", "cursor-c", DateTime.UtcNow, observedVersion: null);
 
         await using var ctx = db.Ingestion();
         var total = await ctx.SyncCheckpoints.CountAsync(

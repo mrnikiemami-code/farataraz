@@ -238,6 +238,31 @@ Update this file in the same task's final verified commit, including:
 
 Keep `CURRENT-STATE.md`, `ROADMAP.md`, and `DELIVERY-PLAN.md` consistent. No false or future-dated PASS claims. Preserve history and unrelated files, including untracked `tree.ps1`.
 
+## FT-W2-R5-CHECKPOINT-OBSERVED-VERSION-CAS — observed-version CAS contract (implemented, PASS locally, NOT certified)
+
+**Task:** `FT-W2-R5-CHECKPOINT-OBSERVED-VERSION-CAS` (bounded W2 slice; FT-DATA-001). **Status:** `PASS` locally — **NOT CERTIFIED**; awaiting independent ChatGPT architect review. **Did not implement W3 or any business feature; did not mark FT-DATA-001 VERIFIED.** W2 NOT CERTIFIED; W3 NOT AUTHORIZED.
+
+**Baseline / implementation:** baseline `52fd1887a67486e2938d8daca70d930cc61f6026`; implementation `7c9bc6f218c4d2865950bb9f37bcc05b1022583c` (fast-forward from baseline).
+
+**Defect hardened (FT-DATA-001):** `SyncCheckpointRepository.SaveAsync` previously derived its optimistic-concurrency guard by calling its own internal `GetAsync` immediately before the write, so the caller's original checkpoint observation was not part of the commit contract and a delayed older operation could carry a stale cursor. The repair threads the observation explicitly through the public API.
+
+**Contract (exact):** `SaveAsync(..., long? observedVersion, CancellationToken = default)`:
+- `null` = caller observed no row (first write); maps to internal expectation `-1` only inside the repository, so the first write inserts DB-managed `version = 0`.
+- a supplied `observedVersion` must be `>= 0` (validated; `ArgumentOutOfRangeException` otherwise) and is used verbatim as the CAS guard.
+- the pre-write internal `GetAsync` used to derive the version was removed; the repository never re-reads latest version to retry the same cursor. A diagnostic `GetAsync` after a failed CAS is allowed solely to populate `StaleCheckpointException.StoredVersion`; it never retries and never turns a stale input into a successful write.
+- tenant enforcement and opaque-cursor semantics unchanged; the one-statement PostgreSQL conditional upsert (`... WHERE "SyncCheckpoints"."Version" = @expectedVersion`) is preserved.
+
+**Files changed:** `SyncCheckpointRepository.cs` (signature + validation + guard; doc updated), `SyncCheckpointConcurrencyTests.cs` (rewritten as deterministic public-API tests, no handwritten SQL), `IngestionPersistenceTests.cs` + `TenantIsolationNegativeTests.cs` (all `SaveAsync` callers now observe explicitly). Migration / `Version` column / entity config unchanged (already present). No new port/handler/endpoint/provider/transaction orchestration.
+
+**Verification (real PostgreSQL):**
+- `FaraTaraz.Infrastructure.IntegrationTests` = **25/25 pass** (was 24; +1 concurrency test). New deterministic cases: baseline null-insert version 0; sequential observation advances 0→1→2; delayed stale save with old observation throws `StaleCheckpointException` and persists newer/1 (neither cursor accepted); two racing first writers (both observe null) → exactly one success / one stale / one row / version 0. Tenant-isolation coverage retained in `TenantIsolationNegativeTests`.
+- `FaraTaraz.ArchitectureTests` = **75/75 pass**; no guard weakened.
+- Affected projects build with zero warnings/errors (Ingestion.Infrastructure, IntegrationTests). No model change, so no new migration.
+
+**Unresolved / pending architect decision:** FT-DATA-002 (run start/finish, record insert and checkpoint saves commit independently; no proven atomic sync unit-of-work across records + cursor + run) remains OPEN — this task did not introduce a transaction and cannot close it alone. ADR-010 decisions 8/9 are now extended by the commit-order observed-version CAS, but the cross-operation atomic unit-of-work remains an accepted-ADR/transaction decision outstanding. FT-DATA-001 status: FIXED — UNVERIFIED (code committed; independent source + CI review pending).
+
+**Next exact action:** independent ChatGPT architect review of `7c9bc6f` (guard + green CI), then reconcile FT-DATA-001/002 in `OPEN-DEFECTS.md`. Do NOT promote W2 to certified or authorize W3.
+
 ## Agent execution limit and open review item (2026-10-09)
 
 - Owner policy: 20–30 minute target, 45-minute hard cap per task. At the cap, checkpoint and report PARTIAL; do not keep working for hours or exhaust context.
