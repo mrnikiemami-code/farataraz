@@ -1,5 +1,31 @@
 # RECOVERY — FaraTaraz / FMCA
 
+## GUARD CHECKPOINT — FT-W2-R9-CROSSPLATFORM-GUARDS-001 / FT-CI-003 (D-6) (2026-10-11)
+
+**Task:** `FT-W2-R9-CROSSPLATFORM-GUARDS-001` (target **FT-CI-003**, audit finding **D-6**). **Status:** `PASS` locally — guards fixed, tests green; **NOT CERTIFIED**; no production/source change, no CI claim. W2 NOT CERTIFIED; W3 NOT AUTHORIZED.
+
+**Preflight / divergence:** local HEAD `fe75a35`; `origin/master` `3571ee5`. Histories **diverged** from the common base `91db8b3`: this working branch has `0bf63c9` (FT-ARCH-001/D-1), `9f7ac3e` (D-4), `fe75a35` (FT-ARCH-002/D-2); remote `origin/master` has three architect planning-document commits (`1a16292`, `329b6b3`, `3571ee5`) that touch `ARCHITECT-JOURNAL.md`, `OPEN-DEFECTS.md`, `RECOVERY.md`. No merge/rebase/reset/force-push performed; work stayed on the current local branch. The architect's remote planning edits were **not** overwritten and are not present in this local checkpoint (reconciliation is the architect's call). Working tree was clean at start (no concurrent agent edits).
+
+**Defect (FT-CI-003 / D-6) — confirmed:** three architecture guards excluded build output using **Windows-only** path fragments (`\bin\` / `\obj\`), so on the Ubuntu CI runner generated `obj/**/*.cs` files would be scanned and fail the namespace/path guards (latent; the latest observed FT-CI-002 failure was container initialization, so tests never ran). Files: `PhysicalStructureTests.ProductionSourceFiles` (`:383`), `OrphanSourceFileTests` (two sites `:44`,`:90`), `ProjectDependencyGraph.IsBuildOutput` (`:93`). `OwnershipPathAuthorizationGuard.IsBuildOutput` already checked both separators; `TenantBoundaryGuards.IsInBuildOutput` and `SourceFileSizeGuardTests.EnumerateBudgetViolations` were already separator-independent.
+
+**Repair (smallest coherent correction):** new `tests/FaraTaraz.ArchitectureTests/SourceTreePaths.cs` — a single `internal static SourceTreePaths.IsBuildOutput(string)` that normalizes `\`→`/` and matches an exact `bin`/`obj` **directory segment** (`mybin`/`objo` are not build output). The three defective guards plus `OwnershipPathAuthorizationGuard` now delegate to it. Scanning behavior, ownership enforcement, namespace checks and architecture restrictions are unchanged; no blanket exclusion was added.
+
+**Red→green evidence:**
+- RED: `SourceTreePaths.IsBuildOutput` initially carried the exact old Windows-only logic; `SourceTreePathsTests` → **Failed 5 / Passed 11** — every forward-slash (`/`-separated) generated path was **not** excluded, while the `\` cases passed. This reproduces the defect deterministically on Windows.
+- GREEN (after the fix): `SourceTreePathsTests` → **16/16 pass** (8 generated-path cases across `\`, `/`, `C:/`; 6 real-source cases; temp-tree scan excludes generated files but keeps real source; negative case proves a misplaced real source is still scanned).
+
+**Verification (commands + counts):**
+- `dotnet test tests/FaraTaraz.ArchitectureTests/FaraTaraz.ArchitectureTests.csproj -c Debug` → **107/107 pass** (was 91; +16 new).
+- `dotnet test tests/FaraTaraz.ArchitectureTests/FaraTaraz.ArchitectureTests.csproj -c Release` → **107/107 pass**.
+- `dotnet test FaraTaraz.sln -c Debug` → **212/212 pass** (BuildingBlocks 17, Architecture 107, SyncContracts 55, Integration 33 against real PostgreSQL).
+- `git diff --check` clean.
+
+**Explicitly NOT claimed:** this does **not** prove Linux CI is fixed — no Linux CI run was performed (none is available locally), and the GitHub Actions workflow was intentionally **not** modified. The cross-platform behavior is established by the separator theories against the shared predicate, not by a Linux execution.
+
+**Files changed:** new `SourceTreePaths.cs`, `SourceTreePathsTests.cs`; edited `PhysicalStructureTests.cs`, `OrphanSourceFileTests.cs`, `ProjectDependencyGraph.cs`, `OwnershipPathAuthorizationGuard.cs`, this `RECOVERY.md`. No production/source, project-reference, package, migration or CI change. Baseline `fe75a35`; this task's commit SHA is reported out-of-band (a file cannot self-reference its own commit).
+
+**Remaining risks:** any *other* latent Windows-only assumption in guards not covered by the grep (`Replace("\\","/")` normalizations remain and are correct); an actual Ubuntu CI run is still required to confirm green end-to-end; FT-CI-002 stays OPEN. D-6 is a guard portability fix only — it does not certify W2 and does not authorize W3. The independent architect owns any ledger status change (this checkpoint does **not** mark FT-CI-003/D-6 VERIFIED).
+
 ## DECISION CHECKPOINT — FT-ARCH-002 / D-2 trusted tenant boundary (2026-10-11)
 
 **Task:** `FT-ARCH-002` (new finding **D-2**, same gap as **FT-SEC-004**). **Status:** `DECISION RECORDED` — **docs-only**; D-2 **deliberately remains OPEN**; **no code**. Owner chose the ADR-only option. No business feature, no W3, no authentication invented. W2 NOT CERTIFIED; W3 NOT AUTHORIZED.

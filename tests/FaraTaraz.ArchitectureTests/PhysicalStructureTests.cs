@@ -389,14 +389,12 @@ public class PhysicalStructureTests
         {
             foreach (var file in Directory.EnumerateFiles(dir, "*.cs", SearchOption.AllDirectories))
             {
-                if (file.Contains("\\bin\\", StringComparison.Ordinal) ||
-                    file.Contains("\\obj\\", StringComparison.Ordinal))
+                if (SourceTreePaths.IsBuildOutput(file))
                 {
                     continue;
                 }
 
-                yield return file;
-            }
+                yield return file;            }
         }
     }
 

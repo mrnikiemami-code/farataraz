@@ -43,8 +43,7 @@ public class OrphanSourceFileTests
         var violations = Directory
             .EnumerateFiles(srcRoot, "*.cs", SearchOption.AllDirectories)
             .Where(file => {
-                if (file.Contains("\\bin\\", StringComparison.Ordinal) ||
-                    file.Contains("\\obj\\", StringComparison.Ordinal))
+                if (SourceTreePaths.IsBuildOutput(file))
                 {
                     return false; // build output is excluded from the guard
                 }
@@ -89,8 +88,7 @@ public class OrphanSourceFileTests
         var violations = Directory
             .EnumerateFiles(srcRoot, "*.cs", SearchOption.AllDirectories)
             .Where(file => {
-                if (file.Contains("\\bin\\", StringComparison.Ordinal) ||
-                    file.Contains("\\obj\\", StringComparison.Ordinal))
+                if (SourceTreePaths.IsBuildOutput(file))
                 {
                     return false;
                 }

@@ -89,9 +89,7 @@ internal sealed class ProjectDependencyGraph
         return closure.ToList();
     }
 
-    private static bool IsBuildOutput(string path)
-        => path.Contains("\\bin\\", StringComparison.Ordinal) ||
-           path.Contains("\\obj\\", StringComparison.Ordinal);
+    private static bool IsBuildOutput(string path) => SourceTreePaths.IsBuildOutput(path);
 
     private sealed class ProjectModel
     {

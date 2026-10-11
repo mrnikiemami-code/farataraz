@@ -77,11 +77,7 @@ public class OwnershipPathAuthorizationGuard
             StringComparison.Ordinal);
     }
 
-    private static bool IsBuildOutput(string path)
-        => path.Contains("\\bin\\", StringComparison.Ordinal) ||
-           path.Contains("\\obj\\", StringComparison.Ordinal) ||
-           path.Contains("/bin/", StringComparison.Ordinal) ||
-           path.Contains("/obj/", StringComparison.Ordinal);
+    private static bool IsBuildOutput(string path) => SourceTreePaths.IsBuildOutput(path);
 
     /// <summary>
     /// File path relative to the repo root, without relying on <c>Path.GetRelative</c>.
