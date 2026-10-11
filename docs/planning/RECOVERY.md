@@ -1,5 +1,23 @@
 # RECOVERY — FaraTaraz / FMCA
 
+## ATOMIC-SYNC PERSISTENCE CHECKPOINT — FT-W2-R17 / FT-DATA-002 (2026-10-11)
+
+**Task:** `FT-W2-R17-ATOMIC-SYNC-PERSISTENCE`. **Status:** `PASS` (atomic boundary implemented + proven on real PostgreSQL); **FT-DATA-002 partially mitigated — not VERIFIED**. The production sync *orchestrator* that will call this unit of work is the W3 ingestion engine (NOT AUTHORIZED). No production behavior changed (new component, no caller yet). `OPEN-DEFECTS.md` not modified.
+
+**Baseline / sync:** `44c97e1` (origin/master; fast-forwarded from `c3787ff`).
+
+**Trace / scope.** `SynchronizeCustomersHandler` is a read-only bounded-page Query with **no persistence**; the run/record/checkpoint write path has no production caller yet. `SyncRunRepository`, `SourceRecordRepository` and `SyncCheckpointRepository` are all constructed over the **single scoped `IngestionDbContext`** (same database, same connection) — so an explicit transaction on that context spans every write. The ownership oracle (`AccountingSourcesDbContext`) is a **separate** module database and is consulted read-only/fail-closed **before** the unit of work; it is not part of the write unit, so no cross-database atomicity is needed (none fabricated).
+
+**Implementation (smallest Infrastructure-owned boundary).** New `src/Modules/Ingestion/Ingestion.Infrastructure/Persistence/IngestionUnitOfWork.cs`: `ExecuteAsync(work)` opens one database transaction on the shared context, runs the work, and **commits only after it completes**; on any exception (including a stale-checkpoint CAS rejection) or cancellation before commit, disposal rolls the whole step back. Registered in `IngestionInfrastructureComposition` (`AddScoped<IngestionUnitOfWork>()`). Tenant scope, source ownership, idempotency (`ON CONFLICT`) and the observed-version CAS contract are unchanged.
+
+**Red→green proof (real PostgreSQL).** RED: with `IngestionUnitOfWork` temporarily a pass-through (no transaction), `IngestionUnitOfWorkTests` → **3 failed / 3 passed** (`Failure_rolls_back…`, `Stale_checkpoint_cas_rejection…`, `Cancellation_before_commit…`): the record **and** the advanced cursor both persisted after the step failed. GREEN (transaction restored): **6/6**.
+
+**Negative tests added** (`tests/FaraTaraz.Infrastructure.IntegrationTests/IngestionUnitOfWorkTests.cs`, real PostgreSQL): commit-together; failure → both roll back; **stale CAS rejection rolls back the record write** (cursor never advances past uncommitted records); cancellation before commit → rollback; tenant isolation preserved inside the unit of work; and a reproduction proving that **without** the unit of work partial persistence + premature checkpoint advancement are possible.
+
+**Verification:** focused `IngestionUnitOfWorkTests` **6/6**; full Debug **247/247** and Release **247/247** (BuildingBlocks 17, SyncContracts 55, Integration **39** — was 33, +6, Architecture 136); `Ingestion.Infrastructure` rebuild **0 warnings**; `git diff --check` clean.
+
+**Files:** new `IngestionUnitOfWork.cs`, `IngestionUnitOfWorkTests.cs`; edited `IngestionInfrastructureComposition.cs`, this `RECOVERY.md`. No EF InMemory, no silent checkpoint retries, no early cursor advancement, no new auth, no W3 features, no guard weakening. CI result in the task final report.
+
 ## TENANT TRUST-BOUNDARY CHECKPOINT — FT-W2-R16 / FT-SEC-004 (2026-10-11)
 
 **Task:** `FT-W2-R16-TENANT-TRUST-BOUNDARY`. **Status:** `PASS` (investigation + narrow guards + ADR documentation). **FT-SEC-004 = BLOCKED on the delivery/authentication boundary** (not exploitable through the W2 public API). No authentication invented, no W3 code, no production behavior change; `OPEN-DEFECTS.md` not modified.

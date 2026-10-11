@@ -59,6 +59,10 @@ public static class IngestionInfrastructureComposition
         services.AddScoped<SyncCheckpointRepository>();
         services.AddScoped<SyncRunRepository>();
 
+        // One atomic unit of work per synchronization step over the shared IngestionDbContext
+        // (FT-DATA-002): records, run state and checkpoint movement commit together or not at all.
+        services.AddScoped<IngestionUnitOfWork>();
+
         return services;
     }
 }
