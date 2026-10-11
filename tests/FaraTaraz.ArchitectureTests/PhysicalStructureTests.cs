@@ -58,6 +58,10 @@ public class PhysicalStructureTests
         Path.Combine("Modules", "Ingestion", "Ingestion.Domain", "SourceModel"),
         // Module-local DI registration (no business rules) is a justified single-file leaf.
         Path.Combine("Modules", "Ingestion", "Ingestion.Application", "Composition"),
+        // Module-owned composition seams (D-1): one translation unit per module that only wires
+        // the module's Application + Infrastructure inward for the Host.
+        Path.Combine("Modules", "Ingestion", "Ingestion.Composition"),
+        Path.Combine("Modules", "AccountingSources", "AccountingSources.Composition"),
         // Module Infrastructure composition (DI wiring) + fail-closed ownership oracle (one impl each).
         Path.Combine("Modules", "AccountingSources", "AccountingSources.Infrastructure", "Composition"),
         Path.Combine("Modules", "AccountingSources", "AccountingSources.Infrastructure", "Authorization"),
@@ -81,6 +85,11 @@ public class PhysicalStructureTests
         ["Modules/Ingestion/Ingestion.Domain"] = "FaraTaraz.Modules.Ingestion.Domain",
         ["Modules/Ingestion/Ingestion.Application"] =
             "FaraTaraz.Modules.Ingestion.Application",
+        // Module-owned composition seams (D-1): DI wiring only, referenced by the Host instead
+        // of the concrete Infrastructure assembly.
+        ["Modules/Ingestion/Ingestion.Composition"] = "FaraTaraz.Modules.Ingestion.Composition",
+        ["Modules/AccountingSources/AccountingSources.Composition"] =
+            "FaraTaraz.Modules.AccountingSources.Composition",
         // Module-owned Infrastructure (persistence) projects (ADR-010, structure.md §10.3).
         ["Modules/AccountingSources/AccountingSources.Infrastructure"] = "FaraTaraz.Modules.AccountingSources.Infrastructure",
         ["Modules/Ingestion/Ingestion.Infrastructure"] = "FaraTaraz.Modules.Ingestion.Infrastructure",

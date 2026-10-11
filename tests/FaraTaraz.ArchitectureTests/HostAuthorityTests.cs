@@ -23,7 +23,8 @@ using Xunit;
 ///      PackageReference</c> entries and classifies them by project ownership: adapters and
 ///      infrastructure are forbidden by ownership, not by a package-name blacklist.
 ///   3. <b>Effective dependency graph</b> follows <c>ProjectReference</c> transitively and
-///      rejects any adapter or infrastructure project reachable from the host.
+///      rejects any adapter, and any infrastructure that is not composed through a module
+///      <c>*.Composition</c> seam, reachable from the host (D-1; ADR-010 decision 14).
 ///
 /// The project-reference and graph guards read the declared project files rather than the
 /// compiled assembly, because the C# compiler only emits a metadata reference for a
@@ -102,22 +103,58 @@ public class HostAuthorityTests
             "is an Infrastructure concern owned by a later wave, never the host.");
     }
 
-    // --- 3. Effective dependency-graph guard (transitive) --------------------------------
+    // --- 3. Effective dependency-graph guard (transitive, composition-aware) -------------
 
+    /// <summary>
+    /// The host's transitive closure may reach a module's Infrastructure ONLY through that
+    /// module's composition seam (<c>*.Composition</c>), which the host references directly.
+    /// Adapters are never allowed in the closure, and an Infrastructure project that is not a
+    /// declared reference of a composition seam is still rejected — so "the host composes
+    /// modules, never owns persistence" is enforced without leaving the production dependency
+    /// graph unresolvable (D-1; ADR-010 decision 14).
+    /// </summary>
     [Fact]
-    public void Host_effective_dependency_graph_has_no_adapter_or_infrastructure()
+    public void Host_effective_dependency_graph_exposes_infrastructure_only_through_a_composition_seam()
     {
-        var violations = Graph
-            .TransitiveProjectClosure(HostCsproj)
-            .Where(IsForbiddenLayer)
+        var closure = Graph.TransitiveProjectClosure(HostCsproj);
+        var allowedInfrastructure = InfrastructureBehindCompositionSeams(closure);
+
+        var violations = ForbiddenInClosure(closure, allowedInfrastructure)
             .Select(Path.GetFullPath)
             .ToList();
 
         var detail = string.Join(", ", violations);
         Assert.True(
             violations.Count == 0,
-            $"The host's transitive project dependency graph must not reach a provider adapter or " +
-            $"infrastructure project. Found: {detail}.");
+            "The host's transitive project dependency graph must reach no provider adapter and no " +
+            "Infrastructure project except one composed through a module *.Composition seam. " +
+            $"Found: {detail}.");
+    }
+
+    /// <summary>
+    /// Negative proof: Infrastructure that is NOT a declared reference of a composition seam,
+    /// and every adapter, is still reported as forbidden — the allowance is exactly
+    /// "Infrastructure behind a <c>*.Composition</c> seam", never a blanket permission.
+    /// </summary>
+    [Fact]
+    public void Infrastructure_not_behind_a_composition_seam_is_still_rejected()
+    {
+        var orphanInfrastructure = Path.Combine(
+            RepoRoot, "src", "Modules", "Ingestion", "Ingestion.Infrastructure",
+            "FaraTaraz.Modules.Ingestion.Infrastructure.csproj");
+        var adapter = Path.Combine(
+            RepoRoot, "src", "Adapters", "Accounting.Mock",
+            "FaraTaraz.Adapters.Accounting.Mock.csproj");
+
+        var closure = new[] { orphanInfrastructure, adapter };
+        var violations = ForbiddenInClosure(
+                closure,
+                allowedInfrastructure: new HashSet<string>(StringComparer.OrdinalIgnoreCase))
+            .Select(Path.GetFullPath)
+            .ToList();
+
+        Assert.Contains(Path.GetFullPath(orphanInfrastructure), violations);
+        Assert.Contains(Path.GetFullPath(adapter), violations);
     }
 
     // --- Regression: the declared-reference guard catches an injected adapter reference ---
@@ -140,19 +177,68 @@ public class HostAuthorityTests
     // --- Classification helpers ----------------------------------------------------------
 
     private static bool IsForbiddenLayer(string projectFile)
+        => IsAdapter(projectFile) || IsInfrastructure(projectFile);
+
+    private static bool IsAdapter(string projectFile)
     {
         var absolute = Path.GetFullPath(projectFile);
         var name = Path.GetFileNameWithoutExtension(absolute);
         var segments = absolute.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
 
-        var isAdapter = name.StartsWith("FaraTaraz.Adapters", StringComparison.Ordinal)
+        return name.StartsWith("FaraTaraz.Adapters", StringComparison.Ordinal)
             || segments.Any(s => s.Equals("Adapters", StringComparison.OrdinalIgnoreCase));
-        var isInfrastructure = name.EndsWith(".Infrastructure", StringComparison.Ordinal)
+    }
+
+    private static bool IsInfrastructure(string projectFile)
+    {
+        var absolute = Path.GetFullPath(projectFile);
+        var name = Path.GetFileNameWithoutExtension(absolute);
+        var segments = absolute.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+        return name.EndsWith(".Infrastructure", StringComparison.Ordinal)
             || name.StartsWith("FaraTaraz.Infrastructure", StringComparison.Ordinal)
             || segments.Any(s => s.Equals("Infrastructure", StringComparison.OrdinalIgnoreCase));
-
-        return isAdapter || isInfrastructure;
     }
+
+    /// <summary>
+    /// A module-owned composition seam is a project whose assembly name ends with
+    /// <c>.Composition</c>. Seams are the only sanctioned path by which a module's
+    /// Infrastructure may enter the host's closure.
+    /// </summary>
+    private static bool IsCompositionSeam(string projectFile)
+        => Path.GetFileNameWithoutExtension(projectFile)
+            .EndsWith(".Composition", StringComparison.Ordinal);
+
+    /// <summary>
+    /// Infrastructure projects directly declared by a composition seam in the host's closure.
+    /// These — and only these — are permitted in the closure.
+    /// </summary>
+    private static IReadOnlySet<string> InfrastructureBehindCompositionSeams(IReadOnlyList<string> closure)
+    {
+        var allowed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var seam in closure.Where(IsCompositionSeam))
+        {
+            foreach (var reference in Graph.DeclaredProjectReferences(seam))
+            {
+                if (IsInfrastructure(reference))
+                {
+                    allowed.Add(Path.GetFullPath(reference));
+                }
+            }
+        }
+
+        return allowed;
+    }
+
+    /// <summary>
+    /// Adapters and not-seam-composed Infrastructure inside a closure are forbidden.
+    /// </summary>
+    private static IEnumerable<string> ForbiddenInClosure(
+        IReadOnlyList<string> closure, IReadOnlySet<string> allowedInfrastructure)
+        => closure.Where(project =>
+            IsForbiddenLayer(project) &&
+            !allowedInfrastructure.Contains(Path.GetFullPath(project)));
 
     /// <summary>
     /// The composition root may reference only composition-framework packages (DI, middleware,

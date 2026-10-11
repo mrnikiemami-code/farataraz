@@ -1,5 +1,41 @@
 # RECOVERY — FaraTaraz / FMCA
 
+## CODE CHECKPOINT — FT-ARCH-001 / D-1 composition root (2026-10-11)
+
+**Task:** `FT-ARCH-001` (new finding **D-1**, repair of the composition root). **Status:** implemented, `PASS` locally — **NOT CERTIFIED**; awaiting independent architect review. No business feature, no W3, no provider integration, no tenant/auth invention. W2 NOT CERTIFIED; W3 NOT AUTHORIZED.
+
+**Baseline / working state:** baseline `91db8b337223a69cc2de39b2fa063daf033cee70` (branch `master`). Changes are **uncommitted** in the working tree (not pushed). See "Files changed" below.
+
+**Defect (D-1):** `FaraTarazHost.ConfigureFaraTaraz` only called `AddIngestionApplication()`; the two module Infrastructure composition entry points (`AddIngestionInfrastructure` / `AddAccountingSourcesInfrastructure`) were never invoked in production (only by tests). The production dependency graph could not register persistence or the ownership oracle. Additionally the guard set made any wiring impossible: `Host → Infrastructure` is forbidden (AGENTS.md/`HostAuthorityTests`) and `Ingestion.Application → Infrastructure` was forbidden by FT-W3-PREFLIGHT, so there was **no legal path** to compose the outward layers. This also conflicted with **ADR-010 decision 14** ("only the module-owned `Composition` references the module's Infrastructure … the Host composes modules through their `Composition` entry points") and the AGENTS.md "Composition exception review".
+
+**Repair (module-owned composition seams — ADR-010 decision 14):**
+- New module-owned composition seam projects (DI wiring only, no business rules, no handler, no tenant decision):
+  - `src/Modules/Ingestion/Ingestion.Composition/` (`FaraTaraz.Modules.Ingestion.Composition`) → `AddIngestionModule(connectionString)` composes `Ingestion.Application` + `Ingestion.Infrastructure`.
+  - `src/Modules/AccountingSources/AccountingSources.Composition/` (`FaraTaraz.Modules.AccountingSources.Composition`) → `AddAccountingSourcesModule(connectionString)` composes the ownership oracle + persistence.
+- `FaraTarazHost.ConfigureFaraTaraz(IServiceCollection, string connectionString)` now composes both modules through their seams. The Host references the **seams**, never the concrete Infrastructure (so the composition-only Host rule is preserved).
+- `AccountingSources.csproj` excludes the new sibling `AccountingSources.Composition\**` from compilation (same pattern as the existing `AccountingSources.Infrastructure\**` exclusion).
+- `Ingestion.Application` was **not** changed → the existing Application layer guard stays intact. No Application/Domain→Infrastructure reference was added.
+
+**Guard reconciliation (precise refinement, not weakening):**
+- `HostAuthorityTests`: the **transitive** guard now permits Infrastructure **only** when it is a directly declared reference of a module `*.Composition` seam; **adapters and non-seam Infrastructure remain forbidden**. The **declared-reference** guard (`Host_declares_no_adapter_or_infrastructure_project_reference`) is unchanged. Split `IsForbiddenLayer` into `IsAdapter`/`IsInfrastructure` + `IsCompositionSeam`/`InfrastructureBehindCompositionSeams`/`ForbiddenInClosure`.
+- New `tests/FaraTaraz.ArchitectureTests/CompositionSeamTests.cs`: every `*.Composition` seam must wire a `*.Infrastructure` project, must not reference an adapter, and must contain no handler/MediatR/Application-feature code. Pure classifier `SeamViolations` with synthetic negative proofs.
+- New `tests/FaraTaraz.ArchitectureTests/HostCompositionSmokeTests.cs`: proves `ConfigureFaraTaraz(connectionString)` registers `IAccountingSourceOwnership` + the two contexts + `SyncRunRepository`, and fails closed with `ConnectionConfigurationException` on a blank connection string.
+- Structural allowlists extended: `PhysicalStructureTests` (namespace roots + single-file leaves) and `OrphanSourceFileTests` (known project directories) for the two new seam projects.
+- `FaraTaraz.sln` + `FaraTaraz.ArchitectureTests.csproj` (`Microsoft.Extensions.DependencyInjection` 8.0.1→9.0.1 to match the Infrastructure EF Core 9.0.1 closure).
+
+**Negative proof (inject → fail → revert):** a temporary `Host → FaraTaraz.Adapters.Accounting.Mock` ProjectReference made **both** `Host_declares_no_adapter_or_infrastructure_project_reference` and `Host_effective_dependency_graph_exposes_infrastructure_only_through_a_composition_seam` FAIL (2 failed / 5 passed); the reference was reverted and the guard passes again. This proves the refined transitive guard still rejects adapters (the allowance is exactly "Infrastructure behind a `*.Composition` seam"). Plus synthetic negative proofs in `CompositionSeamTests`.
+
+**Verification:** Debug build 0 errors (2 pre-existing `xUnit2031` warnings in `TenantScopeCompositionTests`, present on the baseline, unrelated). Release build 0 errors. Full suite **196/196 pass** in **both Debug and Release**: BuildingBlocks 17, SyncContracts 55, ArchitectureTests **91** (was 75), Infrastructure.IntegrationTests 33 (real PostgreSQL on `localhost:54320`). No guard weakened.
+
+**Files changed:** new `src/Modules/Ingestion/Ingestion.Composition/**`, `src/Modules/AccountingSources/AccountingSources.Composition/**`, `tests/FaraTaraz.ArchitectureTests/CompositionSeamTests.cs`, `tests/FaraTaraz.ArchitectureTests/HostCompositionSmokeTests.cs`; edited `FaraTaraz.sln`, `src/Host/FaraTaraz.Host/FaraTaraz.Host.csproj`, `src/Host/FaraTaraz.Host/Composition/FaraTarazHost.cs`, `src/Modules/AccountingSources/FaraTaraz.Modules.AccountingSources.csproj`, `tests/FaraTaraz.ArchitectureTests/{HostAuthorityTests,PhysicalStructureTests,OrphanSourceFileTests,FaraTaraz.ArchitectureTests}.cs`.
+
+**Unresolved / NOT covered by this task (do not treat as fixed):**
+- **Provider adapter composition is still absent.** No `ISyncablePort<SourceCustomer>` is registered in production (no real provider exists; `Accounting.Mock` is test-only and must not be Host-referenced), so `SynchronizeCustomersHandler` is still not resolvable end-to-end. This is a separate adapter/wave concern, not D-1.
+- **D-2 (no production `TenantContext` producer) remains OPEN.** Even with persistence wired, the trusted tenant scope still resolves to `None` (fail-closed) in production until a trusted auth/execution boundary exists (ADR-010 decision 5; FT-SEC-004).
+- Existing open defects (FT-CI-002 CI red, FT-DATA-002 transaction boundary, FT-SEC-004, etc.) unchanged.
+
+**Next exact action:** independent architect source + CI review of this change set, reconcile the `*.Composition` seam pattern with ADR-010 (and update the ledger / `structure.md` §10.1 / `CURRENT-STATE.md` accordingly). Do NOT mark W2 certified or authorize W3. If authorized, commit as one coherent change (no push without confirming `origin = https://github.com/mrnikiemami-code/farataraz`).
+
 ## CURRENT WAKE RECOVERY — FaraTaraz end-to-end test VERIFIED (2026-10-10)
 
 This section supersedes the historical Wake checkpoint and stale next-task instructions below. Architect remains ChatGPT; executor is OpenCode. W2 NOT CERTIFIED; W3 NOT AUTHORIZED. No architecture defect was closed by the communication test.

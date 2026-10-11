@@ -14,6 +14,8 @@
   <ItemGroup>
     <Compile Remove="AccountingSources.Infrastructure\**" />
     <None Remove="AccountingSources.Infrastructure\**" />
+    <Compile Remove="AccountingSources.Composition\**" />
+    <None Remove="AccountingSources.Composition\**" />
   </ItemGroup>
 
   <PropertyGroup>
