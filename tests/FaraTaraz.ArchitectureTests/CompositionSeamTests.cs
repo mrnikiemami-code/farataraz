@@ -149,8 +149,11 @@ public class CompositionSeamTests
             .Descendants("ProjectReference")
             .Select(element => (string?)element.Attribute("Include"))
             .Where(value => value is not null)
+            // MSBuild accepts Windows '\' in ProjectReference on every OS; Path.Combine does not,
+            // so normalize to the running OS separator before resolving.
             .Select(value => Path.GetFullPath(Path.Combine(
-                Path.GetDirectoryName(csprojPath)!, value!)))
+                Path.GetDirectoryName(csprojPath)!,
+                value!.Replace('\\', Path.DirectorySeparatorChar))))
             .ToList();
 
     private static bool IsAdapter(string projectFile)
