@@ -270,6 +270,9 @@ builds durable synchronization execution over the persisted W2 state.
 - Any real Asan integration until the provider contract is verified.
 - AI auto-merge of canonical identities (W4) — deterministic matching only.
 - LLM-generated forecasts (W9) — deterministic only.
+- The trusted-tenant establishment seam and any tenant-scoped production execution until
+  **ADR-011** (Trusted Tenant Boundary) is accepted and a boundary wave is authorized
+  (**D-2 / FT-SEC-004** remain OPEN; no authentication is invented).
 
 ---
 

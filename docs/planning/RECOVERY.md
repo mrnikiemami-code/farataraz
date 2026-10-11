@@ -1,5 +1,23 @@
 # RECOVERY — FaraTaraz / FMCA
 
+## DECISION CHECKPOINT — FT-ARCH-002 / D-2 trusted tenant boundary (2026-10-11)
+
+**Task:** `FT-ARCH-002` (new finding **D-2**, same gap as **FT-SEC-004**). **Status:** `DECISION RECORDED` — **docs-only**; D-2 **deliberately remains OPEN**; **no code**. Owner chose the ADR-only option. No business feature, no W3, no authentication invented. W2 NOT CERTIFIED; W3 NOT AUTHORIZED.
+
+**Baseline / working state:** baseline `9f7ac3e` (master, after `0bf63c9`/FT-ARCH-001 and `9f7ac3e`/D-4).
+
+**Finding (D-2):** the trusted tenant boundary has **no producer**. `TenantContext` minting is internal to `BuildingBlocks` (`39164cd`) and `TenantBoundaryGuards` forbids `new TenantContext` / `FromAuthenticatedPrincipal` outside `src/BuildingBlocks`; no production code mints or registers a `TenantContext`, yet the module Infrastructure compositions resolve `DatabaseTenantScope` from `GetService<TenantContext>()` (ADR-010 decision 5). Net effect: in production `DatabaseTenantScope` is always `None` → every tenant-scoped operation fails closed → the boundary is defined but has no lawful door.
+
+**Why code was not written (per owner decision):** a producer can only be (1) an authenticated-principal boundary or (2) background execution with explicit non-client context (Constitution A.5). The ledger's FT-SEC-004 closure forbids **inventing authentication**, and the background path is W3 (**not authorized**). The lawful next step is therefore the decision itself.
+
+**Decision recorded — ADR-011 (Proposed):** new `docs/architecture/adr/ADR-011-Trusted-Tenant-Boundary.md` (Status: **Proposed — pending architect acceptance**). It defines a single fail-closed establishment seam converting an `IAuthenticatedPrincipal` port into a trusted `TenantContext`; minting stays internal to `BuildingBlocks`; the boundary is owned by delivery/execution admission (not Host, not Application/Domain/Infrastructure); a composition helper binds the scoped `TenantContext` from the authenticated principal (absent/unauthenticated → untrusted → `None`); `TenantBoundaryGuards` must be extended with negative proofs on any implementation wave. It explicitly does **not** design authentication and does **not** authorize code.
+
+**Files changed (docs only):** new `docs/architecture/adr/ADR-011-Trusted-Tenant-Boundary.md`; `docs/planning/OPEN-DEFECTS.md` (new `FT-ARCH-002` row, OPEN — DESIGN DECIDED); this checkpoint. No source, test, solution, or package change. No build/test required (docs-only).
+
+**Not done / still OPEN:** no establishment seam, no `IAuthenticatedPrincipal` port, no principal supplier, no guard extension; D-2/FT-SEC-004 remain OPEN and **unverified**. W3 remains NOT AUTHORIZED.
+
+**Next exact action:** the architect must **accept or amend ADR-011**, then authorize a boundary wave (delivery Endpoints or explicit background execution per Constitution A.5) that implements the seam + a principal supplier, extends `TenantBoundaryGuards` with inject→fail→revert proofs, and validates end-to-end — only then can D-2/FT-SEC-004 move toward VERIFIED. Do NOT implement the seam or any tenant-scoped production execution before that authorization.
+
 ## CODE CHECKPOINT — FT-ARCH-001 / D-1 composition root (2026-10-11)
 
 **Task:** `FT-ARCH-001` (new finding **D-1**, repair of the composition root). **Status:** implemented, `PASS` locally — **NOT CERTIFIED**; awaiting independent architect review. No business feature, no W3, no provider integration, no tenant/auth invention. W2 NOT CERTIFIED; W3 NOT AUTHORIZED.
