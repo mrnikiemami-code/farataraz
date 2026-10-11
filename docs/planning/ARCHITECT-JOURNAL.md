@@ -1,5 +1,14 @@
 # FaraTaraz — Architect Continuity Journal
 
+## ARCHITECT ACCEPTANCE HANDOFF — W2 CERTIFIED / W3 BOUNDED START — 2026-10-11
+
+**Authoritative decision:** Architect certified the **non-executable W2 Persistence Foundation** at reviewed source HEAD `a82501fcea72f05dddcad64fa1e4b9269438ee35` and actual GitHub Actions run `38161542330` (Ubuntu, real PostgreSQL 16, Debug 250/250 and Release 250/250, none skipped). Architect ledger decision commit `f682a615535d80836344213152f76c41bd2557e5`. **W3 is conditionally authorized only for bounded ingestion-engine development, NOT production execution or delivery.**
+
+**Carry-forward mandatory gates:** `FT-SEC-004` real authenticated-principal/background trust authority (ADR-011 still Proposed), `FT-SEC-007` ownership admission BEFORE W3 writer/UoW, `FT-DATA-002` use `IngestionUnitOfWork` for all records/checkpoint/run atomic writes, `FT-DATA-003` decide changed/voided record freshness (W2 first-delivery-canonical only) before enabling relevant providers. All require negative tests and independent approval. Do not claim any runtime path is already integrated. No fake trusted contexts, no production jobs/endpoints/real provider activation until gates satisfied.
+
+**Architect ledger is canonical:** `docs/planning/OPEN-DEFECTS.md` has per-ID review evidence and decisions. Historical reports below that say W2 NOT CERTIFIED/W3 NOT AUTHORIZED refer to **past checkpoints**, not current restricted authorization. Implementation agent must start by fetching latest master, reading ledger+constitution+ADRs, and must not treat certification as removal of W3 production gates.
+
+
 ## Architect independent checkpoint — 2026-10-11 — model audit triage and W2 closure planning
 
 - User supplied a 16-finding architectural report, reportedly at remote `91db8b3`, and an executor report of **unpushed local** commits `0bf63c9` (D-1 Host wiring, 16 files) and `9f7ac3e` (D-4 ignore opencode.json). Local 196 Debug and 196 Release tests and clean working tree are **executor claims**, not architect-verifiable remote evidence. D-1 change exceeded previous explicit architect recommendation to defer implementation; no acceptance or push authorized.
