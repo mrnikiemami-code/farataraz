@@ -1,5 +1,15 @@
 # RECOVERY — FaraTaraz / FMCA
 
+## CURRENT ARCHITECT HANDOFF — 2026-10-11 (supersedes older current-task/Wake-next instructions)
+
+- **Objective:** finish and independently certify W2, not W3. W2 NOT CERTIFIED; W3 NOT AUTHORIZED. Architect reviews source/CI and owns `OPEN-DEFECTS.md`; executor implements. User explicitly requests **task text in chat only; DO NOT send implementation tasks through MCP**.
+- **GitHub evidence:** remote `origin/master` at inspection = `91db8b337223a69cc2de39b2fa063daf033cee70`; latest workflow run `38076703312` = FAILURE. Architect's ledger triage commit may follow this SHA; re-fetch master every time.
+- **Unpushed local changes reported, not independently inspected:** `0bf63c9` (16-file Host/architecture wiring D-1) and `9f7ac3e` (ignore local `opencode.json` D-4); local HEAD reported `9f7ac3e`, working tree clean, 196/196 Debug and Release tests locally reported. **Never overwrite/reset/rebase/discard these local commits.** Their D-1 scope may conflict with prior architect-selected D-1 deferral; hold acceptance until full diff review. Avoid GitHub write conflict: architect documentation commits have advanced remote master; implementer must fetch and reconcile using non-destructive strategy, no force push.
+- **New audit:** 16 findings user-supplied (D-1..D-16); triaged as new ledger FT-ARCH-001, FT-SEC-008, FT-CI-003, FT-ARCH-002/003 and mapped D-2→FT-SEC-004, D-3→FT-DATA-002, D-12→FT-DATA-003. Reports are not proof. Priority: protect credentials; reconcile local commits; reproduce D-6 cross-platform guard problem and actual CI failure; close trust boundary, checkpoint/transaction correctness and remaining W2 verification with source+negative tests+CI.
+- **Next task:** `FT-W2-R9-CROSSPLATFORM-GUARDS-001` is a bounded local agent task to be pasted by user; inspect four reported bin/obj guards, reproduce Linux path behavior with negative tests, repair only confirmed defects, run targeted tests; preserve all local commits; no push unless separately authorized. W2 closure requires subsequent independent review and successful CI.
+- **Wake:** previous event-triggered architecture chat subscription is bound to a different conversation and may have expired; it is not a prerequisite for manual task handoff in this chat. Do not create subscriptions, send MCP messages, or assume event wake for current work.
+
+
 ## CURRENT WAKE RECOVERY — FaraTaraz end-to-end test VERIFIED (2026-10-10)
 
 This section supersedes the historical Wake checkpoint and stale next-task instructions below. Architect remains ChatGPT; executor is OpenCode. W2 NOT CERTIFIED; W3 NOT AUTHORIZED. No architecture defect was closed by the communication test.
