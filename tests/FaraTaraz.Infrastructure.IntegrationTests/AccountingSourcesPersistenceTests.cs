@@ -107,6 +107,45 @@ public sealed class AccountingSourcesPersistenceTests
     }
 
     [Fact]
+    public async Task Ownership_oracle_denies_unknown_source_for_trusted_tenant()
+    {
+        var db = new IntegrationTestDb();
+        await db.ApplyMigrationsAsync();
+
+        var tenantId = Guid.NewGuid().ToString("N");
+        await SeedTenantSourceAsync(db, Tenant(tenantId), Source(Guid.NewGuid().ToString("N")));
+
+        await using var ctx = db.AccountingSources();
+        var oracle = new EfAccountingSourceOwnership(ctx, TrustedTenant(Tenant(tenantId)));
+
+        // A source id that does not exist under the trusted tenant is not owned (fail-closed).
+        var owned = await oracle.IsOwnedByAsync(Tenant(tenantId), Source(Guid.NewGuid().ToString("N")));
+
+        Assert.False(owned);
+    }
+
+    [Fact]
+    public async Task Ownership_oracle_uses_only_the_trusted_scope_not_the_caller_supplied_tenant()
+    {
+        var db = new IntegrationTestDb();
+        await db.ApplyMigrationsAsync();
+
+        var tenantId = Guid.NewGuid().ToString("N");
+        var sourceId = Guid.NewGuid().ToString("N");
+        await SeedTenantSourceAsync(db, Tenant(tenantId), Source(sourceId));
+
+        await using var ctx = db.AccountingSources();
+        // Trusted scope = the real owner. The caller-supplied tenant argument is ignored entirely:
+        // authority comes only from the trusted scope, so source identity alone never grants and a
+        // mismatched argument cannot downgrade or elevate the decision.
+        var oracle = new EfAccountingSourceOwnership(ctx, TrustedTenant(Tenant(tenantId)));
+
+        var owned = await oracle.IsOwnedByAsync(Tenant("some-other-tenant"), Source(sourceId));
+
+        Assert.True(owned);
+    }
+
+    [Fact]
     public async Task Unique_constraint_rejects_duplicate_source_for_same_tenant()
     {
         var db = new IntegrationTestDb();

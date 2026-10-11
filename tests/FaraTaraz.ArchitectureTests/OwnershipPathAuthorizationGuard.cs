@@ -8,9 +8,10 @@ using System.Text.RegularExpressions;
 using Xunit;
 
 /// <summary>
-/// FT-SEC-007 durable guard: the Ingestion persistence write primitives
-/// <c>SyncRunRepository.StartAsync</c> and <c>SourceRecordRepository.InsertOrUpdateAsync</c> must
-/// be reached only through the approved ownership-authorized orchestration boundary.
+/// FT-SEC-007 durable guard: the Ingestion persistence write surface —
+/// <c>SyncRunRepository.StartAsync</c>, <c>SourceRecordRepository.InsertOrUpdateAsync</c>,
+/// <c>SyncCheckpointRepository.SaveAsync</c> and <c>IngestionUnitOfWork.ExecuteAsync</c> — must
+/// be reached only from the approved ownership-authorized Infrastructure boundary.
 ///
 /// <b>What it checks.</b> It reads the ACTUAL production source and flags any call to one of the
 /// target write methods whose file is outside the owning layer
@@ -34,7 +35,7 @@ public class OwnershipPathAuthorizationGuard
     public static readonly string ApprovedBoundaryFolder = "src/Modules/Ingestion/Ingestion.Infrastructure";
 
     private static readonly Regex Call = new(
-        @"(?<receiver>[A-Za-z_][A-Za-z0-9_.]*)\.\s?(?<method>StartAsync|InsertOrUpdateAsync)\s*\(",
+        @"(?<receiver>[A-Za-z_][A-Za-z0-9_.]*)\.\s?(?<method>StartAsync|InsertOrUpdateAsync|SaveAsync|ExecuteAsync)\s*\(",
         RegexOptions.Compiled);
 
     /// <summary>
@@ -301,6 +302,31 @@ public class OwnershipPathAuthorizationGuardTests
 
         Assert.DoesNotContain("StartAsync", stripped);
         Assert.DoesNotContain("InsertOrUpdateAsync", stripped);
+    }
+
+    /// <summary>
+    /// The atomic unit of work and the checkpoint save are part of the same protected write
+    /// surface: an Application-layer caller of <c>IngestionUnitOfWork.ExecuteAsync</c> (or a direct
+    /// <c>SaveAsync</c>) is a write-path bypass and is flagged exactly like the record/run writes.
+    /// </summary>
+    [Fact]
+    public void Guard_flags_a_forbidden_layer_caller_of_the_unit_of_work_or_checkpoint_save()
+    {
+        var root = CreateTempRepoRoot();
+
+        WriteFile(root, "src/Modules/Ingestion/Ingestion.Application/Engine.cs",
+            @"namespace FaraTaraz.Modules.Ingestion.Application;
+              class Engine
+              {
+                  void Run() { _uow.ExecuteAsync(null); _checkpoints.SaveAsync(default); }
+              }");
+
+        var violations = OwnershipPathAuthorizationGuard.DetectForbiddenWriteCalls(root);
+
+        Assert.Contains(violations, v => v.Contains("ExecuteAsync", StringComparison.Ordinal));
+        Assert.Contains(violations, v => v.Contains("SaveAsync", StringComparison.Ordinal));
+
+        DeleteTempRepoRoot(root);
     }
 
     private static string CreateTempRepoRoot()

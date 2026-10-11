@@ -1,5 +1,29 @@
 # RECOVERY — FaraTaraz / FMCA
 
+## SOURCE-OWNERSHIP BOUNDARY CHECKPOINT — FT-W2-R18 / FT-SEC-007 (2026-10-11)
+
+**Task:** `FT-W2-R18-SOURCE-OWNERSHIP-BOUNDARY`. **Status:** `PASS` (inventory + preventive guard + real-PostgreSQL negatives). **FT-SEC-007 CANNOT close for W2 as a runtime guarantee — it requires an explicit W3 admission gate** (documented below). No W3 code, no fake auth, no VERIFIED claim. `OPEN-DEFECTS.md` untouched.
+
+**Baseline / sync:** `e7e3ffb` (origin/master; fast-forwarded from `f842b14`).
+
+**Entry-point / caller inventory (production `src/`).**
+- `SynchronizeCustomersHandler` — defined in `Ingestion.Application`; **no production caller** (no endpoint/worker dispatches it; it is dispatched only by tests through `ISender`).
+- `IAccountingSourceOwnership` — port in `AccountingSources`; `EfAccountingSourceOwnership` the only implementation; DI registers it exactly once (`AddScoped<IAccountingSourceOwnership, EfAccountingSourceOwnership>()`). Its only production consumer is the handler constructor.
+- `SyncRunRepository.StartAsync`, `SourceRecordRepository.InsertOrUpdateAsync`, `SyncCheckpointRepository.SaveAsync`, `IngestionUnitOfWork.ExecuteAsync` — defined in `Ingestion.Infrastructure`; **zero production callers** (grep shows only definitions + XML-doc references).
+- Conclusion: **the entire write + admission path is unreachable in production today** (no delivery surface, no ingestion engine). There is **no reachable production bypass** — and equally, no production caller is "already protected"; the W3 writer does not exist.
+
+**Fail-closed boundaries that DO exist (verified):** handler denies cross-tenant / untrusted / unknown-source / lookup-failure with zero provider invocations (`TenantSourceOwnershipTests`); oracle denies cross-tenant and missing scope against real PostgreSQL; repositories deny missing/untrusted/cross-tenant (`TenantIsolationNegativeTests`).
+
+**Preventive guard added (FT-SEC-007).** `OwnershipPathAuthorizationGuard` now covers the **full Ingestion write surface** — `StartAsync`, `InsertOrUpdateAsync`, `SaveAsync`, `ExecuteAsync` — and still flags any caller outside the approved `src/Modules/Ingestion/Ingestion.Infrastructure` boundary. A new synthetic negative test proves an Application-layer caller of `IngestionUnitOfWork.ExecuteAsync`/`SaveAsync` is flagged. This pins the invariant "ownership-gated persistence is reached only from the approved boundary" so a future W3 writer cannot bypass it silently.
+
+**Real-PostgreSQL negative tests added** (`AccountingSourcesPersistenceTests`): the oracle denies an unknown source for a trusted tenant, and uses **only the trusted scope** — the caller-supplied tenant argument is ignored (source identity alone never grants, a mismatched argument cannot elevate/downgrade).
+
+**Verification:** focused guard **4/4**; focused ownership+isolation **12/12**; full Debug **250/250** and Release **250/250** (BuildingBlocks 17, SyncContracts 55, Integration **41** — was 39, Architecture **137** — was 136); `git diff --check` clean.
+
+**W3 dependency (exact):** enforcing source ownership on the **write path** belongs to the future W3 ingestion writer/admission gate: the writer must call `IAccountingSourceOwnership.IsOwnedByAsync` (trusted tenant) **before** entering `IngestionUnitOfWork.ExecuteAsync`, inside an explicitly authorized wave. Adding that enforcement now would either be W3 implementation or duplicated business authorization in Infrastructure — both prohibited here. Therefore **FT-SEC-007 stays OPEN** and can only close once that admission gate exists and is independently reviewed.
+
+**Files:** edited `tests/FaraTaraz.ArchitectureTests/OwnershipPathAuthorizationGuard.cs`, `tests/FaraTaraz.Infrastructure.IntegrationTests/AccountingSourcesPersistenceTests.cs`, this `RECOVERY.md`. No production/source change, no guard weakening. CI result in the task final report.
+
 ## ATOMIC-SYNC PERSISTENCE CHECKPOINT — FT-W2-R17 / FT-DATA-002 (2026-10-11)
 
 **Task:** `FT-W2-R17-ATOMIC-SYNC-PERSISTENCE`. **Status:** `PASS` (atomic boundary implemented + proven on real PostgreSQL); **FT-DATA-002 partially mitigated — not VERIFIED**. The production sync *orchestrator* that will call this unit of work is the W3 ingestion engine (NOT AUTHORIZED). No production behavior changed (new component, no caller yet). `OPEN-DEFECTS.md` not modified.
