@@ -1,5 +1,13 @@
 # FaraTaraz — Architect Continuity Journal
 
+## Architect independent checkpoint — 2026-10-11 — model audit triage and W2 closure planning
+
+- User supplied a 16-finding architectural report, reportedly at remote `91db8b3`, and an executor report of **unpushed local** commits `0bf63c9` (D-1 Host wiring, 16 files) and `9f7ac3e` (D-4 ignore opencode.json). Local 196 Debug and 196 Release tests and clean working tree are **executor claims**, not architect-verifiable remote evidence. D-1 change exceeded previous explicit architect recommendation to defer implementation; no acceptance or push authorized.
+- Independently fetched GitHub `master=91db8b337223a69cc2de39b2fa063daf033cee70` before documentation updates; Actions run `38076703312` concluded failure. Full failing log not yet examined. Thus W2 NOT CERTIFIED, W3 NOT AUTHORIZED.
+- Architect updated ledger with report-derived OPEN triage entries FT-ARCH-001, FT-SEC-008, FT-CI-003, FT-ARCH-002/003, preserving existing D-2/3/12 tracking. **These are hypotheses pending code review, not verified findings.** Agent RECOVERY updated with local/remote divergence and manual handoff; never overwrite local commits or force push.
+- Next bounded task: `FT-W2-R9-CROSSPLATFORM-GUARDS-001` (D-6) with cross-platform regression/negative tests, no unrelated changes, no push; user receives prompt directly in chat, not through MCP. Before task, executor checks AGENTS, constitution, latest ledger/RECOVERY, local status, both local commits and remote ahead/behind. Independent reviewer inspects output and updates ledger; subsequent tasks address CI and W2 security/data blockers.
+
+
 **Owner:** ChatGPT (independent architecture reviewer)  
 **Purpose:** Durable, evidence-based memory for the architecture reviewer across chat/context loss.  
 **Created:** 2026-10-09.  
