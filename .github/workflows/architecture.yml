@@ -19,40 +19,84 @@ jobs:
   architecture-lock:
     name: FMCA invariants (build + tests)
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
 
     # W2 Persistence Foundation: the integration suite exercises real PostgreSQL behaviour
     # (tenant isolation, unique-constraint idempotency, transactional rollback) — never the
-    # EF Core InMemory provider (ADR-010 decision 12). CI provisions a disposable PostgreSQL
-    # service and points the integration fixture at it via the connection-string override.
-    # The image is pulled from AWS ECR Public (a verified registry that mirrors the official
-    # postgres image and allows anonymous pulls without Docker Hub throttle) so the service
-    # container pull is not blocked by Docker Hub unauthenticated pull-rate limits. No secret
-    # is required, keeping this workflow secret-free.
-    services:
-      postgres:
-        image: public.ecr.amazonaws.com/libraries/postgres:16
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: ftpw
-          POSTGRES_DB: farataraz
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-    # Integration fixture override so the fixture connects to the provisioned service
-    # (published on localhost:5432) regardless of the local default (port 54320).
+    # EF Core InMemory provider, SQLite or a mock (ADR-010 decision 12). CI installs and starts
+    # a real, native PostgreSQL 16 from the Ubuntu package archive. There is NO service container,
+    # so there is no pre-checkout Docker image pull. The integration fixture is pointed at the
+    # native server through this override; the test role/password are disposable CI-only values.
     env:
       FATARAZ_INTEGRATION_TEST_CONNECTION_STRING: >-
-        Host=localhost;Port=5432;Username=postgres;Password=ftpw;Database=farataraz
+        Host=127.0.0.1;Port=5432;Username=farataraz;Password=ftpw;Database=farataraz
 
     steps:
       - name: Check out source
         uses: actions/checkout@v4
+
+      # Native PostgreSQL 16 (no Docker). Explicit install + start + dedicated disposable
+      # role/database + readiness verification, with diagnostics on failure. Credentials are
+      # never printed.
+      - name: Provision and start native PostgreSQL 16
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          echo "::group::Install PostgreSQL 16"
+          sudo apt-get update
+          sudo apt-get install -y postgresql-16 postgresql-client-16
+          echo "Installed packages:"
+          dpkg -l | grep -E '^ii[[:space:]]+postgresql' || true
+          echo "::endgroup::"
+
+          echo "::group::Start PostgreSQL cluster"
+          # The runner does not reliably manage the cluster through systemd; start it explicitly.
+          if sudo pg_lsclusters -h 2>/dev/null | awk '{print $1" "$2}' | grep -qx '16 main'; then
+            sudo pg_ctlcluster 16 main start || true
+          else
+            sudo pg_createcluster 16 main --start
+          fi
+          sudo pg_lsclusters
+          echo "::endgroup::"
+
+          echo "::group::Create disposable test role and database"
+          sudo -u postgres psql -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE ROLE farataraz LOGIN PASSWORD 'ftpw';
+          CREATE DATABASE farataraz OWNER farataraz;
+          SQL
+          echo "::endgroup::"
+
+          echo "::group::Readiness verification"
+          ready=""
+          for i in $(seq 1 30); do
+            if pg_isready -h 127.0.0.1 -p 5432 -U farataraz -d farataraz >/dev/null 2>&1; then
+              ready="yes"
+              echo "PostgreSQL accepted connections after ${i} attempt(s)."
+              break
+            fi
+            echo "Waiting for PostgreSQL to accept connections (attempt ${i}/30)..."
+            sleep 2
+          done
+
+          if [ -z "${ready}" ]; then
+            echo "::error::PostgreSQL did not become ready on 127.0.0.1:5432"
+            sudo pg_lsclusters || true
+            sudo tail -n 100 /var/log/postgresql/postgresql-16-main.log || true
+            exit 1
+          fi
+          echo "::endgroup::"
+
+          echo "::group::Connection and version check"
+          # Prove the TCP password path the integration tests use actually works, then print the
+          # server version. The password is never echoed.
+          if ! PGPASSWORD=ftpw psql -h 127.0.0.1 -p 5432 -U farataraz -d farataraz \
+                -v ON_ERROR_STOP=1 -tAc "SELECT version();"; then
+            echo "::error::Could not authenticate to PostgreSQL over TCP with the test credentials"
+            sudo tail -n 100 /var/log/postgresql/postgresql-16-main.log || true
+            exit 1
+          fi
+          echo "::endgroup::"
 
       - name: Configure .NET
         uses: actions/setup-dotnet@v4

@@ -1,5 +1,19 @@
 # RECOVERY — FaraTaraz / FMCA
 
+## CI NATIVE-POSTGRES CHECKPOINT — FT-W2-R14 (FT-CI-002) (2026-10-11)
+
+**Task:** `FT-W2-R14-NATIVE-POSTGRES-CI`. **Status:** workflow rewritten (CI-only); CI result recorded in the task final report. No defect marked VERIFIED; `OPEN-DEFECTS.md` not modified. W2 NOT CERTIFIED; W3 NOT AUTHORIZED.
+
+**Baseline:** `f6ee82a` (origin/master, fast-forwarded from `2911b39`).
+
+**Confirmed failure investigated:** run `38152401479` failed **pre-checkout** in `Initialize containers` with the run's own annotation `Docker pull failed with exit code 1` (+2 back-off retries) for the `public.ecr.amazonaws.com/libraries/postgres:16` service image; checkout/build/tests all skipped. Full job logs are not retrievable unauthenticated (`403 Must have admin rights`), so no lower-level root cause was assumed.
+
+**Fix (minimal, workflow-only).** Removed the workflow-level `services:` block (no Docker image pull before checkout) and provision **native PostgreSQL 16** on the runner: `sudo apt-get install -y postgresql-16 postgresql-client-16`; explicit cluster start (`sudo pg_ctlcluster 16 main start`, with a `pg_createcluster 16 main` fallback); a dedicated **disposable** role `farataraz` + database `farataraz`; readiness verification (`pg_isready`, 30×2s) and an explicit TCP password-auth check that prints `SELECT version()`. `FATARAZ_INTEGRATION_TEST_CONNECTION_STRING` now targets `Host=127.0.0.1;Port=5432;Username=farataraz;Password=ftpw;Database=farataraz`. Diagnostics print install/version/readiness/cluster/log-tail on failure; **credentials are never printed.** Debug build, Debug tests, Release build, Release tests and the whitespace guard are preserved unchanged. No EF InMemory / SQLite / mocked PostgreSQL / skipped tests / reduced guard coverage / disabled failures.
+
+**Verification:** workflow YAML parsed (`yaml.safe_load`) — 8 steps, `services` absent; local Debug **222/222** and Release **222/222**; `git diff --check` clean. CI result recorded in the task final report (not claimed PASS here).
+
+**Files:** `.github/workflows/architecture.yml`, this `RECOVERY.md`. No source/test change.
+
 ## COMPOSITION-GUARD HARDENING CHECKPOINT — FT-W2-R12 (D-1/D-6 review) (2026-10-11)
 
 **Task:** `FT-W2-R12-COMPOSITION-GUARD-HARDENING`. **Status:** `PASS` locally — **NOT CERTIFIED**. No production composition behavior changed; no W3; `OPEN-DEFECTS.md` not modified. W2 NOT CERTIFIED; W3 NOT AUTHORIZED.
