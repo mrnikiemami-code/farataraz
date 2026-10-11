@@ -110,6 +110,52 @@ now is therefore the *shape* of the boundary, not its implementation.
 - **Implementing a specific authentication protocol here:** rejected — out of scope and explicitly
   prohibited by the ledger ("do not invent authentication").
 
+## W2 status and trust-source inventory (2026-10-11)
+
+Re-verified against `origin/master` (`d967f1e`). **No real authenticated-principal authority
+exists in W2**: there is no production producer of a trusted `TenantContext`, and production
+tenant-scoped work is therefore fail-closed.
+
+Inventory of every production touch point:
+
+- `BuildingBlocks/Tenancy/TenantContext.cs` — public record; **internal** constructor and
+  **internal** `FromAuthenticatedPrincipal`; the only public members are read-only
+  (`IsTrusted`, `AssertTrusted`). No public minting API.
+- `BuildingBlocks/Tenancy/DatabaseTenantScope.cs` — public `None` and public
+  `FromTrusted(TenantContext)` (which calls `context.AssertTrusted()`), **private** constructor.
+  A trusted scope cannot be produced without an already-trusted `TenantContext`.
+- `Ingestion.Infrastructure.Composition` and `AccountingSources.Infrastructure.Composition` —
+  `TryAddScoped<DatabaseTenantScope>(provider => GetService<TenantContext>() is {IsTrusted:true}
+  ? FromTrusted(...) : None)`. They **read** a possibly-bound context; they register **no**
+  `TenantContext`. With nothing bound, the scope is `None`.
+- `SynchronizeCustomersQuery(TenantContext Tenant, SyncRequest Request)` accepts a context; the
+  handler calls `command.Tenant.AssertTrusted()` before any provider work
+  (`TenantSourceOwnershipTests` proves untrusted/not-owned → denial, zero provider calls).
+- Repositories and `EfAccountingSourceOwnership` consume only `DatabaseTenantScope` and fail
+  closed when it is `None` (`TenantIsolationNegativeTests`, `TenantScopeCompositionTests`).
+
+Ways a caller could mint or substitute a trusted context, and their status:
+
+- **Public API / DI:** none. No public constructor/factory on `TenantContext`
+  (`FaraTaraz.BuildingBlocks.Tests.TenantContextTests` asserts this), and no way to create a
+  trusted `DatabaseTenantScope`. Registering `DatabaseTenantScope.None` is possible but only
+  *denies* (fail-closed) — it is not a bypass.
+- **Assembly-access (friend) route:** `BuildingBlocks` grants internal minting to three
+  `InternalsVisibleTo` assemblies. These are now pinned to **TEST assemblies only** by
+  `tests/FaraTaraz.ArchitectureTests/TenantTrustSourceTests.cs` (explicit, fail-closed allowlist;
+  a production/module/host/adapter assembly added as a friend fails the guard).
+- **Reflection:** could invoke the internal factory; this is outside the deterministic
+  source/assembly guard model and is only reachable by already-compromised in-process code. It is
+  **not** a public-API bypass and is not fixable without a real authentication boundary.
+
+**Dependency:** the real authenticated-principal authority — and the background-execution
+admission path (Constitution A.5) — belongs to a **delivery/authentication boundary** (the
+deferred `Endpoints` wave) and, for background work, the ingestion engine wave. It is neither part
+of W2 nor implemented here. **FT-SEC-004 is therefore BLOCKED on that boundary, not exploitable
+through the W2 public API**, and W2 must remain fail-closed until the boundary is authorized,
+implemented, and independently reviewed. Implementing any part of that authority would require the
+real authentication subsystem, which this task/ADR explicitly does not authorize.
+
 ## Implementation gating
 
 No agent may implement this seam, a principal supplier, or any tenant-scoped production execution

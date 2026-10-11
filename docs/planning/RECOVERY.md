@@ -1,5 +1,28 @@
 # RECOVERY — FaraTaraz / FMCA
 
+## TENANT TRUST-BOUNDARY CHECKPOINT — FT-W2-R16 / FT-SEC-004 (2026-10-11)
+
+**Task:** `FT-W2-R16-TENANT-TRUST-BOUNDARY`. **Status:** `PASS` (investigation + narrow guards + ADR documentation). **FT-SEC-004 = BLOCKED on the delivery/authentication boundary** (not exploitable through the W2 public API). No authentication invented, no W3 code, no production behavior change; `OPEN-DEFECTS.md` not modified.
+
+**Baseline / sync:** `d967f1e` (origin/master; fast-forwarded from `23aefb6`).
+
+**Trust-source findings (re-verified against source).**
+- `TenantContext`: **internal** ctor + **internal** `FromAuthenticatedPrincipal`; public surface is read-only (`IsTrusted`, `AssertTrusted`). No public minting API.
+- `DatabaseTenantScope`: public `None`, public `FromTrusted(TenantContext)` (calls `AssertTrusted`), **private** ctor — a trusted scope cannot be built without an already-trusted context.
+- Production DI: **no** `TenantContext` registration anywhere. The two module Infrastructure compositions only READ `GetService<TenantContext>()` and fall back to `None`. So in production the scope is always `None` → every tenant-scoped operation fails closed.
+- `SynchronizeCustomersQuery(TenantContext, SyncRequest)` + handler `AssertTrusted()`; repositories/`EfAccountingSourceOwnership` consume `DatabaseTenantScope` and fail closed.
+- **No real authenticated-principal authority exists today.**
+
+**Entry points that could mint/substitute (and status).** Public API/DI: none (DI registration of `DatabaseTenantScope.None` only *denies*). Assembly-access: `InternalsVisibleTo` (3 friend assemblies) — now pinned to TEST assemblies only by a new durable guard. Reflection: possible but outside the guard model and not a public-API bypass.
+
+**Narrow negative guards added.** `tests/FaraTaraz.ArchitectureTests/TenantTrustSourceTests.cs` (8 tests): the `InternalsVisibleTo` friend list must be exactly the explicit allowlist of TEST assemblies (fail-closed allowlist; production/module/host/adapter names rejected by a synthetic negative theory), and no production source registers a `TenantContext` producer (fail-closed W2 state, comments/strings stripped before matching).
+
+**ADR.** `ADR-011` gained a "W2 status and trust-source inventory" section stating the dependency: the authenticated-principal authority (and background admission, Constitution A.5) belongs to the delivery/Endpoints (+background) boundary, is not part of W2, and W2 must remain fail-closed until that boundary is authorized and reviewed.
+
+**Verification:** focused trust/boundary/ownership Debug **28/28**; `TenantContextTests` 4/4; integration tenant isolation + scope composition 12/12; full Debug **241/241** and Release **241/241** (BuildingBlocks 17, SyncContracts 55, Integration 33, Architecture **136** — was 128, +8); `git diff --check` clean.
+
+**Files:** new `tests/FaraTaraz.ArchitectureTests/TenantTrustSourceTests.cs`; edited `docs/architecture/adr/ADR-011-Trusted-Tenant-Boundary.md`, this `RECOVERY.md`. No production/source/project/package/migration change. CI result in the task final report.
+
 ## ADAPTER-GUARD NON-VACUOUS CHECKPOINT — FT-W2-R15 (2026-10-11)
 
 **Task:** `FT-W2-R15-ADAPTER-GUARD-NONVACUOUS`. **Status:** `PASS` locally — awaiting CI. No production behavior changed; `OPEN-DEFECTS.md` not modified. W2 NOT CERTIFIED; W3 NOT AUTHORIZED.
