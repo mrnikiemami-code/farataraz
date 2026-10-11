@@ -1,5 +1,41 @@
 # RECOVERY — FaraTaraz / FMCA
 
+## W2 FINAL-ACCEPTANCE PREFLIGHT AUDIT — FT-W2-R19 (2026-10-11)
+
+**Task:** `FT-W2-R19-FINAL-ACCEPTANCE-PREFLIGHT` (read-only audit + recovery documentation). **Baseline:** `ceef37a` (origin/master; fast-forwarded from `368b1f7`). W2 NOT CERTIFIED; W3 NOT AUTHORIZED. `OPEN-DEFECTS.md` untouched (architect-owned); no production code changed.
+
+**Audit evidence on `ceef37a`:** full solution Debug **250/250** and Release **250/250** (BuildingBlocks 17, SyncContracts 55, Integration 41, Architecture 137), 0 failed/skipped; Linux CI green at the immediately preceding SHAs (`38154728752`, `38156371471`, `38159980853`, `38160912881`).
+
+### Per-defect evidence & recommendation matrix
+
+| ID | Current ledger status | Audited evidence (source / tests) | Recommendation |
+|---|---|---|---|
+| FT-SEC-001/002/003 | FIXED — UNVERIFIED | Repositories derive tenant only from `DatabaseTenantScope`; `TenantIsolationNegativeTests` (real PostgreSQL, 6) prove cross-tenant finish/read/write denial + missing-scope fail-closed. | **VERIFY-able now** (source + negative tests + green CI). |
+| FT-SEC-005 | FIXED — UNVERIFIED | `TryAddScoped<DatabaseTenantScope>` in both compositions; `TenantScopeCompositionTests` (both module orders, missing/untrusted). | **VERIFY-able now.** |
+| FT-SEC-006 / FT-GUARD-002 | FIXED — UNVERIFIED | `TenantBoundaryGuards` (real-tree + synthetic negatives: non-INF DbContext ref, mint outside BuildingBlocks, comment/string, interpolated/raw string). | **VERIFY-able now.** |
+| FT-SEC-004 | BLOCKED — deferred authority boundary | ADR-011 trust-source inventory (R16): internal minting only, test-only `InternalsVisibleTo` allowlist guard, no production `TenantContext` producer → always fail-closed. No authenticated-principal authority exists. | **Accepted W3/delivery dependency** (ADR-011). Not a W2 code defect; W2 stays fail-closed. Keep BLOCKED. |
+| FT-SEC-007 | OPEN — orchestration check observed | R18 inventory: handler + write primitives + unit of work have **zero production callers**; ownership gate proven fail-closed where reachable; guard now covers the full write surface (`StartAsync|InsertOrUpdateAsync|SaveAsync|ExecuteAsync`). | **Requires explicit W3 admission gate** (writer must gate ownership before `IngestionUnitOfWork`). Keep OPEN. |
+| FT-DATA-001 | FIXED — UNVERIFIED | `SyncCheckpointConcurrencyTests` (deterministic public-API CAS: stale rejected, newer retained, racing first writers). | **VERIFY-able now.** |
+| FT-DATA-002 | FIXED — infra verified; W3 orchestration open | `IngestionUnitOfWork` (single scoped `IngestionDbContext`, commit-after-success, rollback on error/CAS/cancel) + 6 real-PG tests; no production orchestrator invokes it. | **W2 infra boundary accepted; W3 gate required.** Keep dependency open. |
+| FT-DATA-003 | OPEN — review semantics | ADR-010 decision 7 explicitly permits "rejected (**or** upserted)"; ADR-005 requires idempotent de-dup + provenance. `ON CONFLICT DO NOTHING` = **approved first-delivery-canonical for duplicate identity**; **changed-record freshness (same identity, new version/fingerprint) is undecided** — currently silently ignored. | **Needs an explicit architect decision**: accept first-delivery-canonical as W2 semantics (mark ACCEPTED RISK + ADR note) **or** schedule a version/freshness task. Not silently closeable. |
+| FT-CONFIG-001 | FIXED — UNVERIFIED | `ConnectionConfigurationFailClosedTests` (null/empty/whitespace rejected, supplied string accepted) + design-time factories fail closed. | **VERIFY-able now.** |
+| FT-GUARD-001 | FIXED — UNVERIFIED | `IsForbiddenLayer` recognizes module-scoped `.Infrastructure`; `LayerDependencyGraphTests`/`HostAuthorityTests` + injection negative proofs. | **VERIFY-able now.** |
+| FT-ARCH-001 (D-1) | OPEN — local fix reported, unreviewed | Implemented on master (`0bf63c9`): module-owned `*.Composition` seams; Host wires seams, not Infrastructure; transitive Host guard refined to seam-only + `CompositionSeamTests`/`HostCompositionSmokeTests`. | **Architect review** of the seam pattern vs ADR-010; appears coherent with ADR-010 decision 14. |
+| FT-ARCH-002 (D-5/D-8) | OPEN — design review | Capability contracts split across `AccountingSources` + `Ingestion.Domain`; Infrastructure nesting/naming. Explicitly a deferred `Contracts` extraction (`structure.md` §10, ADR-009 decision 1/2). | **Deferred design choice, not a violation.** Recommend architect record as accepted deferral. |
+| FT-ARCH-003 (D-7/D-9..D-16) | OPEN — triage | Mix of trade-offs; D-7→FT-DATA-002, D-12→FT-DATA-003; rest (raw-SQL/schema drift, BuildingsBlocks logging dep, unused marker, capability switch, silent run finish, duplicated scope registration, future-module guard classification, hardcoded reference graph) are maintainability smells, not demonstrated invariant violations. | **Triage individually**; split only demonstrated problems; no speculative refactor. |
+| FT-SEC-008 | OPEN — reported risk | Verified: `git check-ignore -v opencode.json` → `.gitignore:22`; `git ls-files opencode.json` → empty (untracked, ignored, not in history). | **VERIFY-able now.** |
+| FT-DOC-001 | OPEN | RECOVERY top-level reconciled (current section is W2 NOT CERTIFIED + this audit); historical sections referencing `53a66c5`/"safe foundation" are explicitly labeled historical by the acceptance override at the "Open defects"/"Current acceptance override" notes. No demonstrably incorrect *current* recovery claim found. | **Recommend close as reconciled**; do not rewrite preserved history. |
+
+### Bottom line
+- **VERIFY-able now (architect action):** FT-SEC-001/002/003, FT-SEC-005, FT-SEC-006, FT-GUARD-001/002, FT-DATA-001, FT-CONFIG-001, FT-SEC-008, and (per prior architect verification) FT-CI-001/002/003 already VERIFIED.
+- **Accepted W3/delivery dependencies (not W2 code defects):** FT-SEC-004 (auth boundary, ADR-011), FT-SEC-007 (W3 admission gate), FT-DATA-002 (W3 orchestrator wraps the unit of work).
+- **Needs an explicit decision, not silent closure:** FT-DATA-003 (changed-record freshness) — either ACCEPTED RISK + ADR note or a scheduled task.
+- **Documentation/triage, not certification blockers:** FT-ARCH-002 (accepted deferral), FT-ARCH-003 (triage), FT-DOC-001 (reconciled).
+- **Genuine W2 certification blockers:** none in W2 code correctness — certification is gated on the architect accepting the three deferred W3/delivery dependencies and deciding FT-DATA-003, plus reviewing FT-ARCH-001.
+- **Required minimal remaining fixes:** **none in code.** Optional: an explicit ADR note (or ledger ACCEPTED RISK) for FT-DATA-003, and an architect ruling on FT-ARCH-002 as an accepted deferral.
+
+**Files:** this `RECOVERY.md` only. No production/source, guard, migration or CI change; `OPEN-DEFECTS.md` untouched; no defect VERIFIED or closed; W3 not authorized.
+
 ## SOURCE-OWNERSHIP BOUNDARY CHECKPOINT — FT-W2-R18 / FT-SEC-007 (2026-10-11)
 
 **Task:** `FT-W2-R18-SOURCE-OWNERSHIP-BOUNDARY`. **Status:** `PASS` (inventory + preventive guard + real-PostgreSQL negatives). **FT-SEC-007 CANNOT close for W2 as a runtime guarantee — it requires an explicit W3 admission gate** (documented below). No W3 code, no fake auth, no VERIFIED claim. `OPEN-DEFECTS.md` untouched.
