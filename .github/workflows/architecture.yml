@@ -101,7 +101,7 @@ jobs:
       - name: Configure .NET
         uses: actions/setup-dotnet@v4
         with:
-          version: 10.x
+          dotnet-version: 10.x
 
       # Debug build — zero warnings, zero errors.
       - name: Debug build
@@ -109,9 +109,21 @@ jobs:
         shell: pwsh
 
       # Debug: all suites. The architecture suite fails on any invariant breach.
+      # On failure, surface the failing test names as annotations (the raw job log requires
+      # repository admin rights, so annotations are the only publicly readable failure detail).
       - name: Debug tests
-        run: dotnet test FaraTaraz.sln -c Debug --no-build
         shell: pwsh
+        run: |
+          $log = Join-Path $env:RUNNER_TEMP 'debug-tests.log'
+          dotnet test FaraTaraz.sln -c Debug --no-build 2>&1 | Tee-Object -FilePath $log
+          $code = $LASTEXITCODE
+          if ($code -ne 0) {
+            $failed = Select-String -Path $log -Pattern '^\s*Failed\s+\S' | Select-Object -First 15 |
+              ForEach-Object { $_.Line.Trim() }
+            if ($failed.Count -eq 0) { $failed = @('dotnet test failed; see the job log') }
+            Write-Output ("::error title=Debug tests failed::" + ($failed -join ' || '))
+            exit $code
+          }
 
       # Release build — zero warnings, zero errors.
       - name: Release build
@@ -120,8 +132,18 @@ jobs:
 
       # Release: all suites.
       - name: Release tests
-        run: dotnet test FaraTaraz.sln -c Release --no-build
         shell: pwsh
+        run: |
+          $log = Join-Path $env:RUNNER_TEMP 'release-tests.log'
+          dotnet test FaraTaraz.sln -c Release --no-build 2>&1 | Tee-Object -FilePath $log
+          $code = $LASTEXITCODE
+          if ($code -ne 0) {
+            $failed = Select-String -Path $log -Pattern '^\s*Failed\s+\S' | Select-Object -First 15 |
+              ForEach-Object { $_.Line.Trim() }
+            if ($failed.Count -eq 0) { $failed = @('dotnet test failed; see the job log') }
+            Write-Output ("::error title=Release tests failed::" + ($failed -join ' || '))
+            exit $code
+          }
 
       # Guard: `git diff --check` must report no whitespace/line-ending errors.
       - name: Whitespace guard (git diff --check)
