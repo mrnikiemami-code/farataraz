@@ -18,6 +18,9 @@ obj/
 # Local / machine-specific
 local*.json
 *.user
+# Local OpenCode server config — may contain provider credentials; never commit (D-4).
+opencode.json
+opencode.json.*
 
 # NuGet
 **/NuGet/
