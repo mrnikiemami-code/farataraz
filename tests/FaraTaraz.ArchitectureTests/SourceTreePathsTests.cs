@@ -104,7 +104,7 @@ public class SourceTreePathsTests
         => Directory
             .EnumerateFiles(root, "*.cs", SearchOption.AllDirectories)
             .Where(file => !SourceTreePaths.IsBuildOutput(file))
-            .Select(Path.GetFileName)
+            .Select(file => Path.GetFileName(file) ?? string.Empty)
             .ToList();
 
     private static string WriteFile(string root, string relative, string content = "namespace X;\nclass X;\n")

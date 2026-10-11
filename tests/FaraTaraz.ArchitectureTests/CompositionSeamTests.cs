@@ -11,8 +11,9 @@ using Xunit;
 /// <summary>
 /// Guards the module-owned composition seams introduced for D-1 (ADR-010 decision 14).
 ///
-/// A composition seam is a project whose assembly name ends with <c>.Composition</c>. It is the
-/// only sanctioned path by which a module's Infrastructure may enter the Host's dependency
+/// A composition seam is a module-owned project at
+/// <c>src/Modules/&lt;Module&gt;/&lt;Module&gt;.Composition/…</c> (see <see cref="CompositionSeamPolicy"/>). It is
+/// the only sanctioned path by which a module's Infrastructure may enter the Host's dependency
 /// closure (see <see cref="HostAuthorityTests"/>). A seam must therefore be DI wiring only:
 /// it wires its own module's Infrastructure and nothing else — never a provider adapter, never
 /// a handler, never an Application feature type, never business logic.
@@ -50,6 +51,22 @@ public class CompositionSeamTests
                 violations.Count == 0,
                 $"Composition seam '{Path.GetRelativePath(RepoRoot, seam)}' is invalid: " +
                 string.Join("; ", violations));
+
+            // Ownership: a seam must be a sanctioned, module-owned project, and it must wire ONLY
+            // its own module's Infrastructure (no foreign/fake ".Composition" project, no
+            // cross-module Infrastructure wiring).
+            Assert.True(
+                CompositionSeamPolicy.TryGetSeamModule(RepoRoot, seam, out var module),
+                $"Composition seam '{Path.GetRelativePath(RepoRoot, seam)}' is not a sanctioned, " +
+                "module-owned seam (expected src/Modules/<Module>/<Module>.Composition/…).");
+
+            foreach (var reference in references.Where(CompositionSeamPolicy.IsInfrastructureProject))
+            {
+                Assert.True(
+                    CompositionSeamPolicy.IsOwnModuleInfrastructure(RepoRoot, module, reference),
+                    $"Composition seam '{Path.GetRelativePath(RepoRoot, seam)}' wires " +
+                    $"'{Path.GetRelativePath(RepoRoot, reference)}', which is not its own module's Infrastructure.");
+            }
         }
     }
 
@@ -137,25 +154,10 @@ public class CompositionSeamTests
             .ToList();
 
     private static bool IsAdapter(string projectFile)
-    {
-        var absolute = Path.GetFullPath(projectFile);
-        var name = Path.GetFileNameWithoutExtension(absolute);
-        var segments = absolute.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-
-        return name.StartsWith("FaraTaraz.Adapters", StringComparison.Ordinal)
-            || segments.Any(s => s.Equals("Adapters", StringComparison.OrdinalIgnoreCase));
-    }
+        => CompositionSeamPolicy.IsAdapterProject(projectFile);
 
     private static bool IsInfrastructure(string projectFile)
-    {
-        var absolute = Path.GetFullPath(projectFile);
-        var name = Path.GetFileNameWithoutExtension(absolute);
-        var segments = absolute.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-
-        return name.EndsWith(".Infrastructure", StringComparison.Ordinal)
-            || name.StartsWith("FaraTaraz.Infrastructure", StringComparison.Ordinal)
-            || segments.Any(s => s.Equals("Infrastructure", StringComparison.OrdinalIgnoreCase));
-    }
+        => CompositionSeamPolicy.IsInfrastructureProject(projectFile);
 
     private static bool IsBuildOutput(string path)
         => path.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)

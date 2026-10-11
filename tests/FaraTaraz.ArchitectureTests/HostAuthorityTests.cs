@@ -117,7 +117,8 @@ public class HostAuthorityTests
     public void Host_effective_dependency_graph_exposes_infrastructure_only_through_a_composition_seam()
     {
         var closure = Graph.TransitiveProjectClosure(HostCsproj);
-        var allowedInfrastructure = InfrastructureBehindCompositionSeams(closure);
+        var allowedInfrastructure = CompositionSeamPolicy.AllowedInfrastructure(
+            RepoRoot, closure, Graph.DeclaredProjectReferences);
 
         var violations = ForbiddenInClosure(closure, allowedInfrastructure)
             .Select(Path.GetFullPath)
@@ -180,56 +181,10 @@ public class HostAuthorityTests
         => IsAdapter(projectFile) || IsInfrastructure(projectFile);
 
     private static bool IsAdapter(string projectFile)
-    {
-        var absolute = Path.GetFullPath(projectFile);
-        var name = Path.GetFileNameWithoutExtension(absolute);
-        var segments = absolute.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-
-        return name.StartsWith("FaraTaraz.Adapters", StringComparison.Ordinal)
-            || segments.Any(s => s.Equals("Adapters", StringComparison.OrdinalIgnoreCase));
-    }
+        => CompositionSeamPolicy.IsAdapterProject(projectFile);
 
     private static bool IsInfrastructure(string projectFile)
-    {
-        var absolute = Path.GetFullPath(projectFile);
-        var name = Path.GetFileNameWithoutExtension(absolute);
-        var segments = absolute.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-
-        return name.EndsWith(".Infrastructure", StringComparison.Ordinal)
-            || name.StartsWith("FaraTaraz.Infrastructure", StringComparison.Ordinal)
-            || segments.Any(s => s.Equals("Infrastructure", StringComparison.OrdinalIgnoreCase));
-    }
-
-    /// <summary>
-    /// A module-owned composition seam is a project whose assembly name ends with
-    /// <c>.Composition</c>. Seams are the only sanctioned path by which a module's
-    /// Infrastructure may enter the host's closure.
-    /// </summary>
-    private static bool IsCompositionSeam(string projectFile)
-        => Path.GetFileNameWithoutExtension(projectFile)
-            .EndsWith(".Composition", StringComparison.Ordinal);
-
-    /// <summary>
-    /// Infrastructure projects directly declared by a composition seam in the host's closure.
-    /// These — and only these — are permitted in the closure.
-    /// </summary>
-    private static IReadOnlySet<string> InfrastructureBehindCompositionSeams(IReadOnlyList<string> closure)
-    {
-        var allowed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-        foreach (var seam in closure.Where(IsCompositionSeam))
-        {
-            foreach (var reference in Graph.DeclaredProjectReferences(seam))
-            {
-                if (IsInfrastructure(reference))
-                {
-                    allowed.Add(Path.GetFullPath(reference));
-                }
-            }
-        }
-
-        return allowed;
-    }
+        => CompositionSeamPolicy.IsInfrastructureProject(projectFile);
 
     /// <summary>
     /// Adapters and not-seam-composed Infrastructure inside a closure are forbidden.

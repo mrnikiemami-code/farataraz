@@ -1,5 +1,26 @@
 # RECOVERY — FaraTaraz / FMCA
 
+## COMPOSITION-GUARD HARDENING CHECKPOINT — FT-W2-R12 (D-1/D-6 review) (2026-10-11)
+
+**Task:** `FT-W2-R12-COMPOSITION-GUARD-HARDENING`. **Status:** `PASS` locally — **NOT CERTIFIED**. No production composition behavior changed; no W3; `OPEN-DEFECTS.md` not modified. W2 NOT CERTIFIED; W3 NOT AUTHORIZED.
+
+**Baseline:** `60de13f` (merged HEAD).
+
+**Part A — composition ownership bypass (D-1 review finding) — CONFIRMED and fixed.** The guard authorized Infrastructure declared by any project whose name ended with `.Composition` (`IsCompositionSeam`), so a foreign/fake `*.Composition` project in the host closure could grant a module's Infrastructure — and a legitimate seam could wire **another** module's Infrastructure. Ownership was grantable by naming. **Fix:** new `tests/FaraTaraz.ArchitectureTests/CompositionSeamPolicy.cs` — a seam is sanctioned only when physically module-owned at `src/Modules/<Module>/<Module>.Composition/FaraTaraz.Modules.<Module>.Composition.csproj`, and it may allow ONLY its **own** module's Infrastructure (`src/Modules/<Module>/<Module>.Infrastructure/…`). `HostAuthorityTests` and `CompositionSeamTests` delegate to the policy; `CompositionSeamTests` now also asserts every `*.Composition` project under `src` is a sanctioned module-owned seam wiring only its own module Infrastructure. No Host business-authority rule weakened; classification centralized (adapter/infrastructure/seam) to one source to prevent drift.
+
+**Part B — CS8619.** Root cause: `SourceTreePathsTests.ScannedFileNames` returned `IReadOnlyList<string>` from `.Select(Path.GetFileName)` (which yields `IEnumerable<string?>`). Fixed type-safely with `.Select(file => Path.GetFileName(file) ?? string.Empty)` — no suppression/pragma; rebuild shows 0 CS8619.
+
+**Red→green evidence:**
+- RED (policy carrying the old naming-only rule): `CompositionSeamPolicyTests` → **7 failed / 3 passed** — foreign/fake `.Composition` accepted, legitimate seam reported the wrong module, a foreign seam was granted Infrastructure allowance, and cross-module Infrastructure was allowed.
+- GREEN (module-owned rule): `CompositionSeamPolicyTests` 10/10; focused policy+seam+host 19/19.
+- CS8619 was reproduced (build warning `SourceTreePathsTests.cs(104,12)`) and is gone after the fix (ArchitectureTests rebuild 0 warnings).
+
+**Verification (this HEAD):** ArchitectureTests Debug **117/117** (was 107; +10) and Release **117/117**; full solution Debug **222/222** and Release **222/222** (BuildingBlocks 17, SyncContracts 55, Integration 33, Architecture 117); ArchitectureTests rebuild 0 warnings; `git diff --check` clean.
+
+**Files changed:** new `CompositionSeamPolicy.cs`, `CompositionSeamPolicyTests.cs`; edited `HostAuthorityTests.cs`, `CompositionSeamTests.cs`, `SourceTreePathsTests.cs`, this `RECOVERY.md`. No production/source, project-reference, package, migration or CI change. **`OPEN-DEFECTS.md` NOT modified** (architect-owned); D-1/D-6 not marked VERIFIED.
+
+**Remaining blockers:** independent architect review; Linux CI still not run (FT-CI-002 OPEN); D-2/FT-SEC-004 OPEN; provider-adapter composition still absent.
+
 ## GUARD CHECKPOINT — FT-W2-R9-CROSSPLATFORM-GUARDS-001 / FT-CI-003 (D-6) (2026-10-11)
 
 **Task:** `FT-W2-R9-CROSSPLATFORM-GUARDS-001` (target **FT-CI-003**, audit finding **D-6**). **Status:** `PASS` locally — guards fixed, tests green; **NOT CERTIFIED**; no production/source change, no CI claim. W2 NOT CERTIFIED; W3 NOT AUTHORIZED.
