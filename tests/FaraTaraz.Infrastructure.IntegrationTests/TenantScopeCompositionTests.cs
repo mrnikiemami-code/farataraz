@@ -22,7 +22,7 @@ public sealed class TenantScopeCompositionTests
         services.AddScoped(_ => TenantContext.FromAuthenticatedPrincipal(new TenantId("tenant-a")));
         RegisterModules(services, ingestionFirst);
 
-        Assert.Single(services.Where(x => x.ServiceType == typeof(DatabaseTenantScope)));
+        Assert.Single(services, x => x.ServiceType == typeof(DatabaseTenantScope));
         using var provider = services.BuildServiceProvider();
         using var scope = provider.CreateScope();
         var resolved = scope.ServiceProvider.GetRequiredService<DatabaseTenantScope>();
@@ -37,7 +37,7 @@ public sealed class TenantScopeCompositionTests
     {
         var services = new ServiceCollection();
         RegisterModules(services, ingestionFirst);
-        Assert.Single(services.Where(x => x.ServiceType == typeof(DatabaseTenantScope)));
+        Assert.Single(services, x => x.ServiceType == typeof(DatabaseTenantScope));
         using var provider = services.BuildServiceProvider();
         using var scope = provider.CreateScope();
         Assert.False(scope.ServiceProvider.GetRequiredService<DatabaseTenantScope>().IsTrusted);

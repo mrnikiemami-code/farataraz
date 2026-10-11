@@ -237,19 +237,16 @@ public class PhysicalStructureTests
     [Fact]
     public void No_adapter_owns_an_Application_handler()
     {
-        var applicationHandler = typeof(SynchronizeCustomersHandler);
+        var adapters = AdapterAssemblies();
 
-        foreach (var adapter in AdapterAssemblies())
+        // Fail closed: never pass on a silently empty collection (FT-W2-R15). Discovery throws if
+        // an expected adapter cannot be found, so a non-empty set is guaranteed here.
+        Assert.NotEmpty(adapters);
+
+        foreach (var adapter in adapters)
         {
-            var handlers = adapter
-                .GetTypes()
-                .Where(t => t.GetInterfaces()
-                    .Any(i => i.IsGenericType &&
-                               i.GetGenericTypeDefinition() == typeof(IRequestHandler<,>)))
-                .ToList();
-
-            Assert.True(
-                handlers.Count == 0,
+            Assert.False(
+                AdapterAssemblyDiscovery.ContainsApplicationHandler(adapter.GetTypes()),
                 $"Adapter '{adapter.GetName().Name}' must not own an Application handler.");
         }
     }
@@ -487,28 +484,5 @@ public class PhysicalStructureTests
     }
 
     private static Assembly[] AdapterAssemblies()
-    {
-        var adaptersDir = Path.Combine(SrcRoot, "Adapters");
-        var result = new List<Assembly>();
-
-        foreach (var adapterDir in Directory.EnumerateDirectories(adaptersDir))
-        {
-            var csproj = Directory.EnumerateFiles(adapterDir, "*.csproj").Single();
-            var asmName = Path.GetFileNameWithoutExtension(csproj);
-
-            var dllPath = Directory
-                .EnumerateFiles(adapterDir, "*.dll", SearchOption.AllDirectories)
-                .FirstOrDefault(p =>
-                    Path.GetFileName(p) == asmName + ".dll" &&
-                    !p.Contains("ref", StringComparison.OrdinalIgnoreCase) &&
-                    !p.Contains("debug", StringComparison.OrdinalIgnoreCase));
-
-            if (dllPath is not null)
-            {
-                result.Add(Assembly.LoadFrom(dllPath));
-            }
-        }
-
-        return result.ToArray();
-    }
+        => AdapterAssemblyDiscovery.DiscoverAdapterAssemblies(SrcRoot).ToArray();
 }

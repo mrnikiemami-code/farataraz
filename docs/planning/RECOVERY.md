@@ -1,5 +1,25 @@
 # RECOVERY — FaraTaraz / FMCA
 
+## ADAPTER-GUARD NON-VACUOUS CHECKPOINT — FT-W2-R15 (2026-10-11)
+
+**Task:** `FT-W2-R15-ADAPTER-GUARD-NONVACUOUS`. **Status:** `PASS` locally — awaiting CI. No production behavior changed; `OPEN-DEFECTS.md` not modified. W2 NOT CERTIFIED; W3 NOT AUTHORIZED.
+
+**Baseline:** `dc1ca56` (origin/master, fast-forwarded from `9f9603e`).
+
+**Defect (confirmed).** `PhysicalStructureTests.AdapterAssemblies()` selected the adapter DLL with a case-insensitive **substring** filter excluding any path containing `ref` or `debug`. A **Debug-only** build (the Linux CI Debug phase, or any fresh debug build) places the adapter at `bin/Debug/<tfm>/<asm>.dll` → excluded → discovery returned **zero** assemblies and `No_adapter_owns_an_Application_handler` passed **vacuously** (a forbidden Application handler inside an adapter would escape detection). A Release-only presence masked it locally.
+
+**Repair (smallest platform-independent fix).** New `tests/FaraTaraz.ArchitectureTests/AdapterAssemblyDiscovery.cs`: enumerates adapter projects structurally (`src/Adapters/*` with exactly one csproj), selects the built `<asm>.dll` under a real **`bin` directory segment** (OS-separator independent; `obj/.../ref` intermediates rejected), and **fails closed** when no adapter project exists or any expected adapter's built assembly cannot be found. Loads by already-loaded simple name or path. `PhysicalStructureTests` now delegates and asserts `Assert.NotEmpty` (never pass on an empty collection); the handler predicate is `AdapterAssemblyDiscovery.ContainsApplicationHandler`.
+
+**Red→green evidence:**
+- RED: `AdapterAssemblyDiscoveryTests` → **1 failed / 10 passed** — `Debug_built_adapter_assembly_is_discovered` failed because the debug-substring selector returned `null` for a Debug-only build (the exact CI condition).
+- GREEN: **11/11**; focused discovery+physical-structure **23/23**.
+
+**Part B — warnings.** The two `xUnit2031` warnings in `TenantScopeCompositionTests` are fixed with `Assert.Single(services, x => x.ServiceType == typeof(DatabaseTenantScope))` (predicate overload) — assertion semantics unchanged. Rebuild of `ArchitectureTests` and `Infrastructure.IntegrationTests`: **0 warnings**.
+
+**Verification:** full Debug **233/233** and Release **233/233** (BuildingBlocks 17, SyncContracts 55, Integration 33, Architecture **128** — was 117, +11); `git diff --check` clean.
+
+**Files:** new `AdapterAssemblyDiscovery.cs`, `AdapterAssemblyDiscoveryTests.cs`; edited `PhysicalStructureTests.cs`, `TenantScopeCompositionTests.cs`, this `RECOVERY.md`. No production/source, project, package, migration or CI change. CI result recorded in the task final report.
+
 ## CI NATIVE-POSTGRES CHECKPOINT — FT-W2-R14 (FT-CI-002) (2026-10-11)
 
 **Task:** `FT-W2-R14-NATIVE-POSTGRES-CI`. **Status:** workflow rewritten (CI-only); CI result recorded in the task final report. No defect marked VERIFIED; `OPEN-DEFECTS.md` not modified. W2 NOT CERTIFIED; W3 NOT AUTHORIZED.
