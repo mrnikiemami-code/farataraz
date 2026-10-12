@@ -1,5 +1,30 @@
 # RECOVERY — FaraTaraz / FMCA
 
+## ACTIVE MISSION — FIVE-WAVE ARCHITECTURE REBASELINE (2026-10-12)
+
+**USER-APPROVED CURRENT GOAL:** Stop piecemeal architectural patch cycles. Independently establish one coherent, executable FaraTaraz modular clean architecture, decide evidence-based reuse vs full rewrite, and implement a **five-wave controlled reconstruction plan** only after the Wave 1 design gate. This mission supersedes the previously proposed `FT-ARCH-GUARD-TRUTH-004` as the next standalone task **unless it was already started**; reconcile the executor's local status before directing any new work. No automatic executor dispatch. No source deletion or production trust assumptions.
+
+**START HERE on a new chat:** Read `docs/architecture/ARCHITECTURE-REBASELINE-2026-10-12.md` (architect design baseline, created at `084a2f4`), `docs/planning/ARCHITECT-JOURNAL.md` (checkpoint `c7d7011`), `docs/planning/OPEN-DEFECTS.md`, `AGENTS.md`, constitution, `docs/architecture/structure.md`, ADR-009/010/011. Fetch live `origin/master`, check actual local executor task/status, review exact CI; never assume HEAD is still `c7d7011`. Latest independently verified **implementation** is `8d8b75b616bdb10e8708178c16c0f5975e333476`, Linux CI [38248596386](https://github.com/mrnikiemami-code/farataraz/actions/runs/38248596386) SUCCESS, **314/314 Debug and 314/314 Release**, 157 architecture and 85 real PostgreSQL integration tests per configuration. Later architect commits are documentation-only. W2 foundation accepted for bounded non-executable scope; W3 internal engine accepted only for non-production scope. Production remains blocked.
+
+**FIVE WAVES (estimates, not deadlines or authorization to auto-start):**
+
+| Wave | Objective / exit | Rough engineering effort |
+| --- | --- | --- |
+| **W1 — Architecture truth and decision lock (ACTIVE NEXT)** | Independent complete source/DI/behavior inventory; classify all 12 audit findings; reconcile Constitution/ADRs and stale structure.md §§1–9; choose controlled reconstruction vs full rewrite with cost/risk evidence; approve one exact target dependency/ownership graph and finite acceptance criteria. **Documentation/review only**. | 1.5–3 hours |
+| **W2 — Domain and Contracts** | Move only independently demonstrated pure business invariants out of handlers, settle failure taxonomy semantics and ownership, preserve provider-neutral contract compatibility, add focused negative tests. No cosmetic layer inflation. | 2–4 hours |
+| **W3 — Application and simplification** | One authoritative execution path, clear command/query roles, remove verified dead abstractions, preserve admission sequencing and MediatR Application ownership. | 2–3 hours |
+| **W4 — Trusted production delivery** | Design/approve actual identity or job authority producer per ADR-011, narrow TenantContext creation, provider DI/adapter, real delivery dispatch via ISender and end-to-end fail-closed checks. **No implementation until real authority and provider requirements are supplied and approved**. | 4–7 hours, conditional |
+| **W5 — End-to-end hardening and final acceptance** | Real PostgreSQL/tenant/provenance/CAS/rollback/changed-record behavior, executable architecture negative guards, cross-platform Debug+Release CI, actual delivery security checks, documentation consistency and independent exact-SHA acceptance. | 2–4 hours |
+
+**Total estimate:** 11.5–21 engineering hours, subject to Wave 1 findings, availability of real auth/provider integration, and unexpected issues. Five waves are a **planning target, not a promise that no follow-up work can exist**. Each wave has its own acceptance gate. Wave 4/5 may be blocked by missing external credentials, provider API, or authenticated delivery requirements; never invent them. No full-product-feature-completion claim.
+
+**IMMEDIATE NEXT ACTION:** Execute **Wave 1 only** as a coherent, read-only architectural assessment with real code evidence: inventory every production project, compare both customer sync handlers and DI registration, distinguish business invariants from application workflow, resolve D1–D12 disposition, identify authoritative trust producer gap, and produce a finite rebuild/reuse plan with measurable gates. Do **not** start W2 code changes until ChatGPT independently reviews and approves Wave 1. If full rewrite is objectively superior, halt the five-wave reconstruction assumption and seek user decision before destructive work.
+
+**WORK OWNERSHIP:** ChatGPT architect owns decisions, `OPEN-DEFECTS.md` and `ARCHITECT-JOURNAL.md`; executor updates `RECOVERY.md` during assigned implementation work. User requested this architect-authored emergency recovery pointer explicitly. Executor task instructions are given **in chat**, not dispatched through GitHub/OpenCode MCP. Preserve clean master, no force-push, no weakening existing tests, no production activation without separate security acceptance.
+
+---
+
+
 ## CURRENT RECOVERY POINTER — 2026-10-12 (architect verified)
 
 **Latest independently accepted implementation:** M3/M4 `134d84a09cd5bb2c30274b90a50d92aa2c73e15a` (Application `RunCustomerSyncHandler`, Infrastructure coordinator removed, adapter session finally fixed), Linux CI [38236380648](https://github.com/mrnikiemami-code/farataraz/actions/runs/38236380648) Debug **288/288**, Release **288/288**, zero failed/skipped. Architect acceptance ledger commit `5418d63e9b6dffc31ffef8cb4e55608b762e6095`. W2 foundation CERTIFIED only for approved non-executable scope; W3 development bounded, production blocked.
