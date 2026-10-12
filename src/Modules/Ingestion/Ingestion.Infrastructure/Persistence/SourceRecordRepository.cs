@@ -77,12 +77,15 @@ public sealed class SourceRecordRepository
     }
 
     /// <summary>
-    /// Returns the stored content fingerprint for this source-record identity, or <c>null</c> when
-    /// the identity has never been stored for the trusted tenant. Tenant-scoped; a cross-tenant
-    /// identity is never read. Used by the ingestion coordinator to distinguish an identical
-    /// duplicate (idempotent no-op) from a changed record (unsupported, fail-closed).
+    /// Probes a source-record identity: <c>null</c> when the identity does not exist for the
+    /// trusted tenant, otherwise a probe that distinguishes <b>existence</b> from the stored
+    /// <see cref="SourceRecordProbe.ContentFingerprint"/> VALUE (which may itself be <c>null</c>).
+    ///
+    /// A row that exists with a null fingerprint is NOT reported as absent — a caller can never
+    /// misclassify stored-null as a new record. Used by the ingestion coordinator to tell an
+    /// identical duplicate (idempotent) from a changed/ambiguous record (fail-closed).
     /// </summary>
-    public async Task<string?> ReadFingerprintAsync(
+    public async Task<SourceRecordProbe?> ProbeAsync(
         TenantId tenantId,
         SourceRecordId recordId,
         CancellationToken cancellationToken = default)
@@ -90,14 +93,16 @@ public sealed class SourceRecordRepository
         var tenant = RequireTrustedTenant();
         AssertCallerTenant(tenantId, tenant);
 
-        return await _db.SourceRecords
+        var row = await _db.SourceRecords
             .Where(e => e.TenantId == tenant.Value &&
                         e.SourceId == recordId.SourceId.Value &&
                         e.RecordKind == recordId.RecordKind &&
                         e.ExternalId == recordId.ExternalId)
-            .Select(e => e.ContentFingerprint)
+            .Select(e => new { e.ContentFingerprint })
             .FirstOrDefaultAsync(cancellationToken)
             .ConfigureAwait(false);
+
+        return row is null ? null : new SourceRecordProbe(true, row.ContentFingerprint);
     }
 
     /// <summary>
@@ -167,3 +172,12 @@ public sealed class SourceRecordRepository
         }
     }
 }
+
+/// <summary>
+/// The result of probing a source-record identity: it EXISTS and carries this stored
+/// <see cref="ContentFingerprint"/> value, which may itself be <c>null</c>. A <c>null</c> probe
+/// (not this type) means the identity does not exist.
+/// </summary>
+/// <param name="Exists">Always <c>true</c> for a probe instance; present so callers cannot confuse existence with the value.</param>
+/// <param name="ContentFingerprint">The stored content fingerprint, or <c>null</c> when none was stored.</param>
+public sealed record SourceRecordProbe(bool Exists, string? ContentFingerprint);

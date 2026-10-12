@@ -91,12 +91,14 @@ public sealed class IngestionRunCoordinator
 
         var capabilityName = capability.CapabilityName;
 
-        // 3. Observe the current checkpoint (needed for the CAS guard) and drive ONE bounded page.
+        // 3. Observe the persisted checkpoint (resume point + CAS guard) and drive ONE bounded page.
         var observed = await _checkpoints
             .GetAsync(tenant.TenantId, request.SourceId, capabilityName, cancellationToken)
             .ConfigureAwait(false);
 
-        var page = await capability.SyncAsync(request, cancellationToken).ConfigureAwait(false);
+        var effectiveRequest = ResolveResumeRequest(request, observed, capabilityName);
+
+        var page = await capability.SyncAsync(effectiveRequest, cancellationToken).ConfigureAwait(false);
 
         if (request.BatchSize is { } requested && page.Records.Count > requested)
         {
@@ -118,21 +120,23 @@ public sealed class IngestionRunCoordinator
             long created = 0;
             foreach (var record in page.Records)
             {
-                var existingFingerprint = await _records
-                    .ReadFingerprintAsync(tenant.TenantId, record.RecordId, innerCt)
+                var probe = await _records
+                    .ProbeAsync(tenant.TenantId, record.RecordId, innerCt)
                     .ConfigureAwait(false);
 
-                if (existingFingerprint is not null)
+                if (probe is not null)
                 {
+                    // The identity EXISTS. Classify by the fingerprint VALUE (which may itself be
+                    // null) — a stored null fingerprint is never treated as "absent".
                     var incomingFingerprint = record.Version?.ContentFingerprint;
-                    if (!string.Equals(existingFingerprint, incomingFingerprint, StringComparison.Ordinal))
+                    if (!string.Equals(probe.ContentFingerprint, incomingFingerprint, StringComparison.Ordinal))
                     {
-                        // Changed record: not supported yet (FT-DATA-003). Fail closed, never
-                        // silently discard the update.
+                        // Changed / ambiguous content: not supported yet (FT-DATA-003). Fail closed,
+                        // never silently discard the update.
                         throw new UnsupportedChangedRecordException(record.RecordId.ExternalId);
                     }
 
-                    continue; // identical duplicate: idempotent, first delivery canonical
+                    continue; // identical duplicate (including null == null): idempotent, first delivery canonical
                 }
 
                 var provenance = new SourceProvenance(
@@ -157,6 +161,10 @@ public sealed class IngestionRunCoordinator
                     .ConfigureAwait(false);
             }
 
+            // Terminal page (IsComplete == true, NextCursor == null): the previous continuation
+            // checkpoint is RETAINED (no write, no deletion) — deleting/clearing a checkpoint is
+            // NOT an approved behavior (see RECOVERY FT-W3-R2: architect decision requested).
+
             await _runs
                 .FinishAsync(run.Id, "Completed", created, null, innerCt)
                 .ConfigureAwait(false);
@@ -166,6 +174,45 @@ public sealed class IngestionRunCoordinator
         }, cancellationToken).ConfigureAwait(false);
 
         return result;
+    }
+
+    /// <summary>
+    /// Resolves the request the capability is called with, restoring the persisted continuation
+    /// cursor and rejecting conflicts/malformed state. It never silently restarts from the
+    /// beginning and never skips a page:
+    /// <list type="bullet">
+    /// <item>a caller-supplied cursor is validated against the W1 scope contract first;</item>
+    /// <item>with no persisted checkpoint the caller's (possibly absent) cursor is the first page;</item>
+    /// <item>with a persisted checkpoint the persisted cursor is restored, and a caller cursor that
+    /// conflicts with it is rejected (the opaque token never leaks into messages).</item>
+    /// </list>
+    /// </summary>
+    private static SyncRequest ResolveResumeRequest(
+        SyncRequest request, SyncCheckpointEntity? persisted, string capabilityName)
+    {
+        if (request.Cursor is not null)
+        {
+            SyncCursors.ValidateResume(request, capabilityName);
+        }
+
+        if (persisted is null)
+        {
+            return request;
+        }
+
+        // The SyncCursor constructor rejects an empty/oversized token, so a malformed persisted
+        // checkpoint fails closed instead of silently restarting the synchronization.
+        var persistedCursor = new SyncCursor(
+            persisted.CursorToken, new SyncCursorScope(request.SourceId, capabilityName));
+
+        if (request.Cursor is not null &&
+            !string.Equals(request.Cursor.Token, persistedCursor.Token, StringComparison.Ordinal))
+        {
+            throw new InvalidSyncCursorException(
+                "Caller-supplied cursor conflicts with the persisted checkpoint; refusing to resume.");
+        }
+
+        return new SyncRequest(request.SourceId, request.Mode, persistedCursor, request.BatchSize);
     }
 }
 

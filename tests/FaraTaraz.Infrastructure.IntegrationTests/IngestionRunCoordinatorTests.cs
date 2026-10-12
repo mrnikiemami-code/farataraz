@@ -312,6 +312,204 @@ public sealed class IngestionRunCoordinatorTests
         Assert.Equal(1, await CountRunsAsync(db, tenant, source)); // the rejected run rolled back
     }
 
+    private static SyncBatch<SourceCustomer> NoVersion(AccountingSourceId source, string code)
+        => SyncBatch<SourceCustomer>.Complete(new[] { new SourceCustomer(
+            new SourceRecordId(source, "Customer", code),
+            new ExternalCustomerId(source, code),
+            code,
+            "Customer " + code,
+            null) });
+
+    // W3-R2 (1) Resume with a persisted continuation cursor.
+    [Fact]
+    public async Task Resumed_step_uses_the_persisted_continuation_cursor()
+    {
+        var db = new IntegrationTestDb();
+        await db.ApplyMigrationsAsync();
+
+        var tenant = Guid.NewGuid().ToString("N");
+        var source = Source(Guid.NewGuid().ToString("N"));
+
+        await new SyncCheckpointRepository(db.Ingestion(), Scope(tenant))
+            .SaveAsync(Tenant(tenant), source, "Customers", "resume-token", DateTime.UtcNow, observedVersion: null);
+
+        var capability = new FakeCustomers((_, _) => Task.FromResult(Complete(source)));
+        await using var ctx = db.Ingestion();
+        var coordinator = Coordinator(ctx, tenant, FakeOwnership.OwnsAll());
+
+        await coordinator.ExecuteAsync(
+            Trusted(tenant), new SyncRequest(source, SyncMode.Full), capability, new ProviderId("Mock"));
+
+        Assert.NotNull(capability.LastRequest);
+        Assert.Equal("resume-token", capability.LastRequest!.Cursor?.Token);
+        Assert.Equal(source, capability.LastRequest!.Cursor?.Scope.SourceId);
+        Assert.Equal("Customers", capability.LastRequest!.Cursor?.Scope.Capability);
+    }
+
+    // W3-R2 (2) No checkpoint: correct first-page request (no cursor).
+    [Fact]
+    public async Task No_checkpoint_requests_the_first_page_without_a_cursor()
+    {
+        var db = new IntegrationTestDb();
+        await db.ApplyMigrationsAsync();
+
+        var tenant = Guid.NewGuid().ToString("N");
+        var source = Source(Guid.NewGuid().ToString("N"));
+        var capability = new FakeCustomers((_, _) => Task.FromResult(Complete(source)));
+
+        await using var ctx = db.Ingestion();
+        var coordinator = Coordinator(ctx, tenant, FakeOwnership.OwnsAll());
+
+        await coordinator.ExecuteAsync(
+            Trusted(tenant), new SyncRequest(source, SyncMode.Full), capability, new ProviderId("Mock"));
+
+        Assert.Null(capability.LastRequest!.Cursor);
+    }
+
+    // W3-R2 (3) Conflicting supplied vs persisted cursor: reject, no provider call, no writes.
+    [Fact]
+    public async Task Conflicting_supplied_and_persisted_cursors_are_rejected()
+    {
+        var db = new IntegrationTestDb();
+        await db.ApplyMigrationsAsync();
+
+        var tenant = Guid.NewGuid().ToString("N");
+        var source = Source(Guid.NewGuid().ToString("N"));
+
+        await new SyncCheckpointRepository(db.Ingestion(), Scope(tenant))
+            .SaveAsync(Tenant(tenant), source, "Customers", "persisted-token", DateTime.UtcNow, observedVersion: null);
+
+        var supplied = new SyncCursor("different-token", new SyncCursorScope(source, "Customers"));
+        var capability = new FakeCustomers((_, _) => Task.FromResult(Complete(source)));
+
+        await using var ctx = db.Ingestion();
+        var coordinator = Coordinator(ctx, tenant, FakeOwnership.OwnsAll());
+
+        await Assert.ThrowsAsync<InvalidSyncCursorException>(() => coordinator.ExecuteAsync(
+            Trusted(tenant), new SyncRequest(source, SyncMode.Full, supplied), capability, new ProviderId("Mock")));
+
+        Assert.Equal(0, capability.Calls);
+        Assert.Equal("persisted-token", await ReadCursorAsync(db, tenant, source)); // never advanced/overwritten
+    }
+
+    // W3-R2 (4) Invalid/mismatched resume scope: reject (W1 scope contract).
+    [Fact]
+    public async Task Mismatched_supplied_cursor_scope_is_rejected()
+    {
+        var db = new IntegrationTestDb();
+        await db.ApplyMigrationsAsync();
+
+        var tenant = Guid.NewGuid().ToString("N");
+        var source = Source(Guid.NewGuid().ToString("N"));
+        var wrongScope = new SyncCursor("token", new SyncCursorScope(source, "Products"));
+        var capability = new FakeCustomers((_, _) => Task.FromResult(Complete(source)));
+
+        await using var ctx = db.Ingestion();
+        var coordinator = Coordinator(ctx, tenant, FakeOwnership.OwnsAll());
+
+        await Assert.ThrowsAsync<SyncCursorScopeMismatchException>(() => coordinator.ExecuteAsync(
+            Trusted(tenant), new SyncRequest(source, SyncMode.Full, wrongScope), capability, new ProviderId("Mock")));
+
+        Assert.Equal(0, capability.Calls);
+    }
+
+    // W3-R2 (5) Terminal page behavior per the current (unapproved-changed) contract: retain.
+    [Fact]
+    public async Task Terminal_page_retains_the_previous_continuation_checkpoint()
+    {
+        var db = new IntegrationTestDb();
+        await db.ApplyMigrationsAsync();
+
+        var tenant = Guid.NewGuid().ToString("N");
+        var source = Source(Guid.NewGuid().ToString("N"));
+
+        await new SyncCheckpointRepository(db.Ingestion(), Scope(tenant))
+            .SaveAsync(Tenant(tenant), source, "Customers", "c1", DateTime.UtcNow, observedVersion: null);
+
+        var capability = new FakeCustomers((_, _) => Task.FromResult(Complete(source)));
+
+        await using var ctx = db.Ingestion();
+        var coordinator = Coordinator(ctx, tenant, FakeOwnership.OwnsAll());
+
+        var result = await coordinator.ExecuteAsync(
+            Trusted(tenant), new SyncRequest(source, SyncMode.Full), capability, new ProviderId("Mock"));
+
+        Assert.True(result.IsComplete);
+        // Retained historical state: the checkpoint is NOT deleted and NOT replaced (no approved
+        // clear/completion-marker semantics yet — architect decision requested).
+        Assert.Equal("c1", await ReadCursorAsync(db, tenant, source));
+    }
+
+    // W3-R2 (6) Stored null fingerprint: existence, not absence.
+    [Fact]
+    public async Task Stored_null_fingerprint_is_not_misclassified_as_absent()
+    {
+        var db = new IntegrationTestDb();
+        await db.ApplyMigrationsAsync();
+
+        var tenant = Guid.NewGuid().ToString("N");
+        var source = Source(Guid.NewGuid().ToString("N"));
+        var id = new SourceRecordId(source, "Customer", "C1");
+
+        // Seed an existing record with a NULL fingerprint (no version).
+        await using (var seed = db.Ingestion())
+        {
+            var repo = new SourceRecordRepository(seed, NullLogger<SourceRecordRepository>.Instance, Scope(tenant));
+            await repo.InsertOrUpdateAsync(
+                Tenant(tenant), id, null, new SourceProvenance(id, new ProviderId("Mock"), source, DateTime.UtcNow));
+        }
+
+        await using var ctx = db.Ingestion();
+        var coordinator = Coordinator(ctx, tenant, FakeOwnership.OwnsAll());
+        var request = new SyncRequest(source, SyncMode.Full);
+
+        // (a) incoming NON-NULL fingerprint for an existing row is a changed/ambiguous record.
+        var changed = new FakeCustomers((_, _) => Task.FromResult(Complete(source, Customer(source, "C1", "fp1"))));
+        await Assert.ThrowsAsync<UnsupportedChangedRecordException>(() => coordinator.ExecuteAsync(
+            Trusted(tenant), request, changed, new ProviderId("Mock")));
+        Assert.Equal(1, await CountRecordsAsync(db, tenant, source));
+        Assert.Null(await ReadFingerprintAsync(db, tenant, id)); // durable state unchanged
+
+        // (b) incoming NULL fingerprint for the same row is identical -> idempotent no-op.
+        var identical = new FakeCustomers((_, _) => Task.FromResult(NoVersion(source, "C1")));
+        var result = await coordinator.ExecuteAsync(Trusted(tenant), request, identical, new ProviderId("Mock"));
+        Assert.Equal(0, result.RecordsCreated);
+        Assert.Equal(1, await CountRecordsAsync(db, tenant, source));
+    }
+
+    // W3-R2 (8) Fault/CAS during a RESUMED step: no premature checkpoint advancement.
+    [Fact]
+    public async Task Resumed_step_with_stale_cas_does_not_advance_the_checkpoint_or_write_records()
+    {
+        var db = new IntegrationTestDb();
+        await db.ApplyMigrationsAsync();
+
+        var tenant = Guid.NewGuid().ToString("N");
+        var source = Source(Guid.NewGuid().ToString("N"));
+
+        await new SyncCheckpointRepository(db.Ingestion(), Scope(tenant))
+            .SaveAsync(Tenant(tenant), source, "Customers", "c1", DateTime.UtcNow, observedVersion: null);
+
+        // A concurrent writer advances the cursor after the engine observed version 0.
+        var capability = new FakeCustomers(async (_, _) =>
+        {
+            await new SyncCheckpointRepository(db.Ingestion(), Scope(tenant))
+                .SaveAsync(Tenant(tenant), source, "Customers", "c2", DateTime.UtcNow, observedVersion: 0L);
+            return Continue(source, "engine-cursor", Customer(source, "C1", "fp1"));
+        });
+
+        await using var ctx = db.Ingestion();
+        var coordinator = Coordinator(ctx, tenant, FakeOwnership.OwnsAll());
+
+        await Assert.ThrowsAsync<StaleCheckpointException>(() => coordinator.ExecuteAsync(
+            Trusted(tenant), new SyncRequest(source, SyncMode.Full), capability, new ProviderId("Mock")));
+
+        Assert.Equal("c1", capability.LastRequest!.Cursor?.Token); // resumed from the persisted cursor
+        Assert.Equal("c2", await ReadCursorAsync(db, tenant, source)); // the engine never advanced it
+        Assert.Equal(0, await CountRecordsAsync(db, tenant, source));
+        Assert.Equal(0, await CountRunsAsync(db, tenant, source));
+    }
+
     private sealed class FakeCustomers : ISyncablePort<SourceCustomer>
     {
         private readonly Func<SyncRequest, CancellationToken, Task<SyncBatch<SourceCustomer>>> _sync;
@@ -325,9 +523,12 @@ public sealed class IngestionRunCoordinatorTests
 
         public int Calls { get; private set; }
 
+        public SyncRequest? LastRequest { get; private set; }
+
         public Task<SyncBatch<SourceCustomer>> SyncAsync(SyncRequest request, CancellationToken cancellationToken = default)
         {
             Calls++;
+            LastRequest = request;
             return _sync(request, cancellationToken);
         }
     }

@@ -9,6 +9,26 @@
 **Architect ledger is canonical:** `docs/planning/OPEN-DEFECTS.md` has per-ID review evidence and decisions. Historical reports below that say W2 NOT CERTIFIED/W3 NOT AUTHORIZED refer to **past checkpoints**, not current restricted authorization. Implementation agent must start by fetching latest master, reading ledger+constitution+ADRs, and must not treat certification as removal of W3 production gates.
 
 
+## W3-R2 RESUME & IDENTITY SAFETY CHECKPOINT — FT-W3-R2 (2026-10-12)
+
+**Task:** `FT-W3-R2-RESUME-AND-IDENTITY-SAFETY`. **Status:** `PASS` locally — checkpoint resume, scope validation and nullable-fingerprint identity are hardened and proven on real PostgreSQL. No endpoints/workers/auth/real provider; `OPEN-DEFECTS.md` untouched.
+
+**Baseline / sync:** `cbab311` (origin/master; fast-forwarded from `4457b90`).
+
+**A. Resume algorithm (precise).** The coordinator reads the persisted checkpoint, then `ResolveResumeRequest`: (1) a caller-supplied `SyncRequest.Cursor` is validated against the W1 scope contract (`SyncCursors.ValidateResume(request, capabilityName)` → `SyncCursorScopeMismatchException` on a source/capability mismatch); (2) **no persisted checkpoint** → the caller's (possibly absent) cursor is the first page; (3) **persisted checkpoint** → the persisted cursor is reconstructed as `new SyncCursor(persisted.CursorToken, new SyncCursorScope(SourceId, capability))` (the ctor rejects an empty/oversized token, so a malformed checkpoint fails closed) and a caller cursor whose token differs is rejected (`InvalidSyncCursorException`). The capability is called with the restored cursor; it never silently restarts or skips a page. The observed version (`persisted?.Version`) drives the CAS guard unchanged.
+
+**B. Terminal page — RETAIN (architect decision requested).** When `IsComplete=true` and `NextCursor=null` the coordinator writes nothing: the previous continuation checkpoint is **retained as historical state**. Clearing/deleting a checkpoint, or replacing it with a completion marker, are **not approved** behaviors, so none were invented. **Exact decision request:** on a terminal page, should the checkpoint be (a) **retained** (current), (b) **cleared**, or (c) replaced by a **completion marker**? The ADRs do not specify this; the retain behavior is pinned by a test so a change is deliberate.
+
+**C. Nullable-fingerprint identity.** `SourceRecordRepository` now exposes `ProbeAsync` returning `SourceRecordProbe?` — `null` = identity absent, otherwise the row exists with a `ContentFingerprint` value that may itself be `null`. The coordinator classifies by VALUE: an existing row with a null fingerprint is **never** treated as absent; `stored ≠ incoming` (including null↔non-null) fails closed (`UnsupportedChangedRecordException`); `stored == incoming` (including null==null) is an idempotent no-op. First-delivery-canonical is preserved; no general changed-record freshness was added.
+
+**D. Tests (real PostgreSQL — `IngestionRunCoordinatorTests` now 16/16, +7 new):** resumed step uses the persisted continuation cursor; no checkpoint → first-page request; conflicting supplied vs persisted cursor rejected (no provider, cursor unchanged); mismatched supplied cursor scope rejected; terminal page retains the previous checkpoint; stored null fingerprint is not misclassified (changed fails closed, identical null==null is idempotent); resumed step with stale CAS → no record writes and no premature checkpoint advancement.
+
+**Verification:** focused coordinator tests **16/16**; full Debug **267/267** and Release **267/267** (BuildingBlocks 17, SyncContracts 55, Integration 57, Architecture 138); `git diff --check` clean.
+
+**Files:** edited `IngestionRunCoordinator.cs` (resume + probe + terminal-page comment), `SourceRecordRepository.cs` (`ProbeAsync` + `SourceRecordProbe`, replacing `ReadFingerprintAsync`), `IngestionRunCoordinatorTests.cs`; this `RECOVERY.md`. No Application EF dependency, no new provider abstraction, no guard weakening.
+
+**Remaining blockers:** terminal-page contract decision (above); production delivery/auth boundary (FT-SEC-004/ADR-011); real provider adapter + coordinator caller; FT-DATA-003. W3-R3 not started.
+
 ## W3-R1 INGESTION-ENGINE FOUNDATION CHECKPOINT — FT-W3-R1 (2026-10-12)
 
 **Task:** `FT-W3-R1-INGESTION-ENGINE-FOUNDATION`. **Status:** `PASS` locally — first bounded W3 orchestration slice implemented and proven on real PostgreSQL. No delivery surface/auth/worker/scheduler/real provider. `OPEN-DEFECTS.md` untouched; no defect VERIFIED.
