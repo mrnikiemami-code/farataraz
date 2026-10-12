@@ -1,5 +1,15 @@
 # FaraTaraz — Open Defects and Architecture Acceptance Ledger
 
+## FT-ARCH-REMEDIATION M3/M4 independent acceptance — 2026-10-12
+
+**M3/M4 ACCEPTED FOR APPROVED NON-PRODUCTION APPLICATION ORCHESTRATION SCOPE.** Independent GitHub source review of `134d84a09cd5bb2c30274b90a50d92aa2c73e15a` verified `RunCustomerSyncHandler` and command in Ingestion.Application, original Infrastructure coordinator removal, scoped M1/M2 ports and trusted tenant/scope agreement before ownership lookup/provider/write. Adapter session invalidated in `finally` on success and failure. CI [38236380648](https://github.com/mrnikiemami-code/farataraz/actions/runs/38236380648) verified Debug **288/288**, Release **288/288**, zero failed/skipped (17 BuildingBlocks, 55 SyncContracts, 146 Architecture, 70 PostgreSQL Integration per configuration).
+
+**Still OPEN:** W3 terminal-page durable completion (stale cursor retained; no terminal marker); caller-supplied `ProviderId` provenance authority; trusted production delivery boundary ADR-011; actual provider adapter/caller; changed/voided record policy. Existing lexical ownership guard only supplies a necessary structural check. No production authorization implied.
+
+---
+
+
+
 ## FT-ARCH-REMEDIATION M2 independent review — 2026-10-12
 
 **M2 ADAPTER + GUARD REFACTOR ACCEPTED FOR NON-PRODUCTION ARCHITECTURAL SCOPE, WITH FOLLOW-UP SECURITY FIX REQUIRED.** Independent GitHub review of `2d1c8687a71a2831a65afaf9c84f5759a0fad5e8` confirms new `EfIngestionWriteStore`, scoped DI for both M1 ports, inward Infrastructure → Application reference, and guard redesign. Linux CI [38233817379](https://github.com/mrnikiemami-code/farataraz/actions/runs/38233817379) completed **Debug 285/285, Release 285/285** (17 BuildingBlocks, 55 SyncContracts, 146 Architecture, 67 PostgreSQL Integration each; zero failures/skips). No production execution/delivery gates closed.
