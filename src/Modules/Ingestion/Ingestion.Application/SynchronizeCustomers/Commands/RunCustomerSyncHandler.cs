@@ -101,14 +101,35 @@ public sealed class RunCustomerSyncHandler : IRequestHandler<RunCustomerSyncComm
         var capabilityName = _customers.CapabilityName;
 
         // 5. Observe the persisted checkpoint (resume point + CAS guard) and drive ONE bounded page.
+        // Explicit restart never reuses a historical cursor.
+        if (command.Intent == CustomerSyncIntent.Restart && command.Request.Cursor is not null)
+        {
+            throw new InvalidSyncCursorException("An explicit restart must not supply a cursor.");
+        }
+
         var observed = await _checkpoints
             .ReadAsync(command.Request.SourceId, capabilityName, cancellationToken)
             .ConfigureAwait(false);
 
-        // Only an ACTIVE checkpoint is resumable. A completed marker must never replay a historical
-        // cursor: a cursor-less invocation then starts a FRESH synchronization (defined new-sync
-        // behavior); the completed marker itself is never auto-reset or replayed.
-        var resumable = observed is { State: SyncCheckpointState.Active } ? observed : null;
+        IngestionCheckpointRef? resumable = null;
+
+        if (observed is { State: SyncCheckpointState.Completed })
+        {
+            // A completed synchronization is TERMINAL. A normal step must reject it before any
+            // provider call or write; only an explicit restart may pass it, and that restart is
+            // transitioned through the observed-version CAS below (the marker is never deleted and
+            // its version is never reset).
+            if (command.Intent != CustomerSyncIntent.Restart)
+            {
+                throw new SyncAlreadyCompletedException(command.Request.SourceId);
+            }
+        }
+        else if (observed is { State: SyncCheckpointState.Active }
+                 && command.Intent != CustomerSyncIntent.Restart)
+        {
+            resumable = observed;
+        }
+
         var effectiveRequest = ResolveResumeRequest(command.Request, resumable, capabilityName);
 
         var page = await _customers.SyncAsync(effectiveRequest, cancellationToken).ConfigureAwait(false);
@@ -118,6 +139,16 @@ public sealed class RunCustomerSyncHandler : IRequestHandler<RunCustomerSyncComm
             throw new SyncProviderException(
                 SyncFailureCategory.Permanent,
                 $"Capability returned {page.Records.Count} records, exceeding the requested batch size of {requested}.");
+        }
+
+        // Page consistency: a terminal page must carry no continuation cursor and a non-terminal
+        // page must carry one. SyncBatch enforces this by construction; validate defensively so a
+        // future contract change cannot silently persist an inconsistent completion.
+        if (page.IsComplete != (page.NextCursor is null))
+        {
+            throw new SyncProviderException(
+                SyncFailureCategory.Permanent,
+                "Capability returned an inconsistent page: IsComplete and NextCursor disagree.");
         }
 
         // 5. Persist records + checkpoint + run state atomically through the write port.
@@ -156,12 +187,14 @@ public sealed class RunCustomerSyncHandler : IRequestHandler<RunCustomerSyncComm
                 }
             }
 
-            if (page.NextCursor is { } next)
+            // Checkpoint state is driven by the VALIDATED completion flag — not by cursor
+            // nullability alone.
+            if (!page.IsComplete)
             {
                 // Continuation: resumable. Pass the ORIGINAL observed version (CAS).
                 await session
                     .SaveCheckpointAsync(
-                        command.Request.SourceId, capabilityName, next.Token,
+                        command.Request.SourceId, capabilityName, page.NextCursor!.Token,
                         DateTime.UtcNow, observed?.Version, innerCt, SyncCheckpointState.Active)
                     .ConfigureAwait(false);
             }
@@ -177,9 +210,6 @@ public sealed class RunCustomerSyncHandler : IRequestHandler<RunCustomerSyncComm
                         DateTime.UtcNow, observed?.Version, innerCt, SyncCheckpointState.Completed)
                     .ConfigureAwait(false);
             }
-
-            // Terminal page (IsComplete, NextCursor == null): the previous checkpoint is RETAINED
-            // (no write, no deletion) pending the W3-R3 terminal-checkpoint ruling.
 
             await session
                 .FinishRunAsync(runId, IngestionRunOutcome.Completed, created, null, innerCt)

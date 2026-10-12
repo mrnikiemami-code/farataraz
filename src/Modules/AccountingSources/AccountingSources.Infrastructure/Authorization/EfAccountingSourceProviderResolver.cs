@@ -53,6 +53,11 @@ public sealed class EfAccountingSourceProviderResolver : IAccountingSourceProvid
 
             return string.IsNullOrWhiteSpace(provider) ? null : new ProviderId(provider);
         }
+        catch (OperationCanceledException)
+        {
+            // Caller cancellation must propagate; it is never classified as "no provider".
+            throw;
+        }
         catch
         {
             // Lookup failure -> fail closed (no provider), never a fabricated identity.

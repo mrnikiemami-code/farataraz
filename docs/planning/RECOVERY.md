@@ -20,6 +20,29 @@
 **Architect ledger is canonical:** `docs/planning/OPEN-DEFECTS.md` has per-ID review evidence and decisions. Historical reports below that say W2 NOT CERTIFIED/W3 NOT AUTHORIZED refer to **past checkpoints**, not current restricted authorization. Implementation agent must start by fetching latest master, reading ledger+constitution+ADRs, and must not treat certification as removal of W3 production gates.
 
 
+## W3-R3 FINAL COMPLETION CONTRACT CHECKPOINT — FT-W3-R3 (2026-10-12)
+
+**Task:** `FT-W3-R3-FINAL-COMPLETION-CONTRACT`. **Status:** `PASS`. `OPEN-DEFECTS.md` untouched; no defect VERIFIED.
+
+**Baseline / sync:** `38bbe93` (origin/master).
+
+**Restart API contract (exact).** `RunCustomerSyncCommand(TenantContext Tenant, SyncRequest Request, CustomerSyncIntent Intent = CustomerSyncIntent.Continue)`; `CustomerSyncIntent { Continue = 0, Restart = 1 }`.
+- **Completed checkpoint + `Continue` → REJECTED** (`SyncAlreadyCompletedException`) before any provider call or write.
+- **Completed checkpoint + any caller-supplied cursor → REJECTED** (never accept a historical cursor against Completed).
+- **`Restart` + a caller cursor → REJECTED** (`InvalidSyncCursorException`): an explicit restart never reuses a historical cursor.
+- **`Restart` over Completed/absent/Active** → begins a FRESH synchronization from the beginning and transitions the checkpoint through the **observed-version CAS** (the marker is never deleted and its version is never reset).
+- **Active checkpoint + `Continue`** → resumable (unchanged). **Absent checkpoint + `Continue`** → fresh first synchronization (unchanged).
+
+**Page consistency.** The handler validates `page.IsComplete == (page.NextCursor is null)` before persistence; `SyncBatch` enforces this by construction, so an inconsistent page is unrepresentable (defensive check documented). Checkpoint state is driven by the VALIDATED `IsComplete` flag, not cursor nullability alone. The stale terminal-retain comment was removed.
+
+**Provider resolver cancellation.** `EfAccountingSourceProviderResolver` now rethrows `OperationCanceledException` instead of swallowing it; other lookup failures still fail closed to `null`.
+
+**Tests (real PostgreSQL — integration 85/85).** Completed+normal → rejected (zero provider/writes); Completed+historical cursor → rejected; explicit restart over Completed → fresh page + CAS transition (no cursor reuse); restart+supplied cursor → rejected; stale explicit restart → `StaleCheckpointException` + rollback; inconsistent page is unrepresentable (batch-contract test); provider-resolution cancellation propagates; active resume + absent-first-sync retained (duplicate/changed tests adapted to Active continuations so they no longer trip the new terminal rejection).
+
+**Verification:** full Debug **303/303** and Release **303/303** (BuildingBlocks 17, SyncContracts 55, Integration **85**, Architecture 146); `git diff --check` clean.
+
+**Files:** new `SyncAlreadyCompletedException.cs`; edited `RunCustomerSyncCommand.cs` (intent), `RunCustomerSyncHandler.cs` (restart/validation/state), `EfAccountingSourceProviderResolver.cs` (cancellation), `RunCustomerSyncHandlerTests.cs` + `.Completion.cs`, `AccountingSourceProviderResolverTests.cs`, this `RECOVERY.md`. No endpoints/workers/providers/auth; no guard weakening.
+
 ## W3-ARCH-M5/R3 PROVIDER AUTHORITY + TERMINAL CHECKPOINT CHECKPOINT — FT-W3-ARCH-M5-R3 (2026-10-12)
 
 **Task:** `FT-W3-ARCH-M5-R3-PROVENANCE-AND-COMPLETION`. **Status:** `PASS` (both gaps closed). `OPEN-DEFECTS.md` untouched; no defect VERIFIED.

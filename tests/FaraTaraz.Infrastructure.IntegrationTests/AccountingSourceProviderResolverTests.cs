@@ -1,6 +1,7 @@
 namespace FaraTaraz.Infrastructure.IntegrationTests;
 
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using FaraTaraz.BuildingBlocks.Identifiers;
 using FaraTaraz.BuildingBlocks.Tenancy;
@@ -106,6 +107,26 @@ public sealed class AccountingSourceProviderResolverTests
         var resolver = new EfAccountingSourceProviderResolver(ctx, Trusted(tenant));
 
         Assert.Null(await resolver.ResolveProviderAsync(Tenant(tenant), Source(source)));
+    }
+
+    [Fact]
+    public async Task Cancellation_during_resolution_propagates()
+    {
+        var db = new IntegrationTestDb();
+        await db.ApplyMigrationsAsync();
+
+        var tenant = Guid.NewGuid().ToString("N");
+        var source = Guid.NewGuid().ToString("N");
+        await SeedAsync(db, tenant, source, "Mock");
+
+        await using var ctx = db.AccountingSources();
+        var resolver = new EfAccountingSourceProviderResolver(ctx, Trusted(tenant));
+
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => resolver.ResolveProviderAsync(Tenant(tenant), Source(source), cts.Token));
     }
 
     [Fact]

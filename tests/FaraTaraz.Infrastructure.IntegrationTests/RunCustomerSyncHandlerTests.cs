@@ -54,9 +54,6 @@ public sealed partial class RunCustomerSyncHandlerTests
     private static SyncBatch<SourceCustomer> Complete(AccountingSourceId source, params SourceCustomer[] records)
         => SyncBatch<SourceCustomer>.Complete(records);
 
-    private static SyncBatch<SourceCustomer> CompleteNoVersion(AccountingSourceId source, params SourceCustomer[] records)
-        => SyncBatch<SourceCustomer>.Complete(records);
-
     private static SyncBatch<SourceCustomer> Continue(AccountingSourceId source, string token, params SourceCustomer[] records)
         => SyncBatch<SourceCustomer>.Continue(records, new SyncCursor(token, new SyncCursorScope(source, "Customers")));
 
@@ -81,8 +78,9 @@ public sealed partial class RunCustomerSyncHandlerTests
     }
 
     private static Task<IngestionRunResult> RunAsync(
-        RunCustomerSyncHandler handler, string tenant, SyncRequest request)
-        => handler.Handle(new RunCustomerSyncCommand(Trusted(tenant), request), default);
+        RunCustomerSyncHandler handler, string tenant, SyncRequest request,
+        CustomerSyncIntent intent = CustomerSyncIntent.Continue)
+        => handler.Handle(new RunCustomerSyncCommand(Trusted(tenant), request, intent), default);
 
     private static async Task<int> CountRecordsAsync(IntegrationTestDb db, string tenant, AccountingSourceId source)
     {
@@ -316,7 +314,7 @@ public sealed partial class RunCustomerSyncHandlerTests
         var tenant = Guid.NewGuid().ToString("N");
         var source = Source(Guid.NewGuid().ToString("N"));
         var capability = new FakeCustomers((_, _) => Task.FromResult(
-            Complete(source, Customer(source, "C1", "fp1"), Customer(source, "C2", "fp2"))));
+            Continue(source, "p1", Customer(source, "C1", "fp1"), Customer(source, "C2", "fp2"))));
 
         await using var ctx = db.Ingestion();
         var handler = Handler(ctx, tenant, FakeOwnership.OwnsAll(), capability);
@@ -343,10 +341,10 @@ public sealed partial class RunCustomerSyncHandlerTests
         await using var ctx = db.Ingestion();
         var request = new SyncRequest(source, SyncMode.Full);
 
-        var first = new FakeCustomers((_, _) => Task.FromResult(Complete(source, Customer(source, "C1", "fp1"))));
+        var first = new FakeCustomers((_, _) => Task.FromResult(Continue(source, "p1", Customer(source, "C1", "fp1"))));
         await RunAsync(Handler(ctx, tenant, FakeOwnership.OwnsAll(), first), tenant, request);
 
-        var changed = new FakeCustomers((_, _) => Task.FromResult(Complete(source, Customer(source, "C1", "fp2"))));
+        var changed = new FakeCustomers((_, _) => Task.FromResult(Continue(source, "p2", Customer(source, "C1", "fp2"))));
         await Assert.ThrowsAsync<UnsupportedChangedRecordException>(
             () => RunAsync(Handler(ctx, tenant, FakeOwnership.OwnsAll(), changed), tenant, request));
 
