@@ -1,5 +1,16 @@
 # FaraTaraz — Architect Continuity Journal
 
+## CURRENT CHECKPOINT — W1 REBASELINE ACCEPTED / W2 BOUNDED NEXT — 2026-10-12
+
+**User's enduring mission:** Finish FaraTaraz modular architecture via **five decision-gated waves**, avoid repeated unplanned fixes. **W1 G0 audit independently ACCEPTED** at `ac16b254abbcf62a377ccfcbc916fd3cd11e584e`, exact-SHA Linux CI [38253194288](https://github.com/mrnikiemami-code/farataraz/actions/runs/38253194288) SUCCESS, **314/314 Debug and 314/314 Release** (85 PostgreSQL + 157 Architecture + 55 SyncContracts + 17 BuildingBlocks per configuration). Executor changed only audit document and RECOVERY. **Architect G1 decisions AD-1…AD-8 saved** in `docs/architecture/ARCHITECTURE-W1-ARCHITECT-DECISIONS-2026-10-12.md` created at `fc4aa8f`. Architect accepted controlled reconstruction/reuse instead of deleting or rewriting repository. 12-project source inventory, D1–D12 decisions, C1–C15 / Q1–Q4 / I1–I8 classifications and 7 missing execution edges in `ARCHITECTURE-W1-AUDIT-2026-10-12.md`.
+
+**Immediate next implementation task to issue directly in chat (NOT MCP):** W2, bounded `Ingestion.Domain` pure policy extraction from `RunCustomerSyncHandler`, preserve exact existing exceptions, provider/write call order and PostgreSQL parity; no speculative types; retain failure taxonomy in `Ingestion.Contracts` (AD-1); C10 defensive page validation can remain where it is. Run Debug+Release+PG+Linux CI, independent acceptance gate before W3. No W2 report yet. **No production delivery allowed:** ADR-011 remains Proposed; actual auth/worker authority and real provider are unsupplied, FT-DATA-003 freshness policy unresolved. W3 Query remains read-only preview; D11 guard repair there. Do not invent identities or start W4 early.
+
+**Context-recovery path:** read latest TOP of this journal, `OPEN-DEFECTS.md`, `RECOVERY.md`, `AGENTS.md`, constitution, `ARCHITECTURE-REBASELINE-2026-10-12.md`, W1 audit and architect decisions, ADR-009/010/011; fetch actual master, compare latest implementation and report, exact CI. Architect owns ledger/journal; executor owns RECOVERY. Do not assume the architect's docs commits are new product implementations.
+
+---
+
+
 ## ARCHITECTURE REBASELINE STARTED — 2026-10-12
 
 **User directive:** Stop repeated piecemeal fixes and evaluate controlled reconstruction vs complete rewrite. Independent architect opened [ARCHITECTURE-REBASELINE-2026-10-12.md](../architecture/ARCHITECTURE-REBASELINE-2026-10-12.md) at `084a2f4e4260ee5589899ad7f6a7718a5231a56f`. This is a **review baseline, not an accepted ADR or implementation authorization**. Preserve all existing source and database artifacts. It records target layer authority, preliminary evidence-based dispositions D1–D12, G0 inventory/G1 design/G2 finite rebuild-plan gates, and explicit G3 production-security gate. Decision at this point: **no destructive rewrite justified; controlled reconstruction provisionally preferred pending complete inventory and cost comparison**.
