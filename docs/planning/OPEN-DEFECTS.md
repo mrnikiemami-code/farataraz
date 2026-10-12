@@ -1,5 +1,14 @@
 # FaraTaraz — Open Defects and Architecture Acceptance Ledger
 
+## FT-REBASELINE-W2-DOMAIN-POLICY-001 — independent acceptance (2026-10-12)
+
+**W2 ACCEPTED, non-production architectural reconstruction only.** Independently verified implementation `60d40ea8ef901d57166ad9f3709b35646feb4f75` equals GitHub master at review: 5 changed files (one cohesive pure `IngestionSyncPolicy` Domain type, 17 new policy tests, Domain→Contracts inward project reference, Application handler delegated C5/C6/C8/C11, executor RECOVERY). No migrations, schema changes, other production change, weakened guard or edits to architect-owned records. GitHub Actions [38259364212](https://github.com/mrnikiemami-code/farataraz/actions/runs/38259364212) SUCCESS at exact source SHA; independently examined job logs confirming **331/331 Debug and 331/331 Release**: 17 BuildingBlocks + 72 SyncContracts (55 prior + 17 new) + 157 Architecture + 85 real PostgreSQL Integration per config, none failed/skipped. Source inspection confirms Domain no I/O/EF/MediatR/clock/tenant/provider calls, original handler maintains admission order, authorized provider resolution, transaction and observed-version CAS, existing public exceptions and request/response form; negative parity covered by unchanged 85 PG tests. Accepted only for these demonstrated boundaries, not full production authorization.
+
+**Residual/next wave:** bool restart input is deliberate small API, not reason to invent intent framework; C7 orchestration and C10 defensive page check remain Application. Changed/voided policy `FT-DATA-003` remains OPEN. W3 scope: preserve preview Query as no-write; remove only truly dead abstractions; repair misleading D11 architecture test anchors using real Domain and existing project paths; keep guards fail-closed and tests/PG green. Trusted principal/worker authority `FT-SEC-004`, actual delivery/provider `FT-SEC-007`, ADR-011 remain BLOCKED. W3 not accepted or started by this entry.
+
+---
+
+
 ## FT-REBASELINE-W1-ARCHITECTURE-TRUTH-001 — independent acceptance (2026-10-12)
 
 **G0 W1 AUDIT ACCEPTED (documentation and review ONLY).** Independently fetched implementation-audit deliverable commit `ac16b254abbcf62a377ccfcbc916fd3cd11e584e` and confirmed its only changes are `docs/architecture/ARCHITECTURE-W1-AUDIT-2026-10-12.md` + executor-owned `RECOVERY.md`. Linux GitHub Actions [38253194288](https://github.com/mrnikiemami-code/farataraz/actions/runs/38253194288) completed SUCCESS at exact SHA; job logs independently show Debug **314/314** and Release **314/314**, each 17 BuildingBlocks + 55 SyncContracts + 157 Architecture + 85 real PostgreSQL Integration; zero failed/skipped. W1 contains source-level inventory of all 12 production projects, D1–D12 findings, C/Q/I decision taxonomy, seven missing delivery/trust edges, ADR inconsistencies, target project graph and finite W2–W5 plan. No implementation change and no production certification.
