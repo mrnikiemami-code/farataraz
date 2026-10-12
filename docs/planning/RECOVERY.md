@@ -9,6 +9,28 @@
 **Architect ledger is canonical:** `docs/planning/OPEN-DEFECTS.md` has per-ID review evidence and decisions. Historical reports below that say W2 NOT CERTIFIED/W3 NOT AUTHORIZED refer to **past checkpoints**, not current restricted authorization. Implementation agent must start by fetching latest master, reading ledger+constitution+ADRs, and must not treat certification as removal of W3 production gates.
 
 
+## W3-ARCH-M1 PERSISTENCE PORTS CHECKPOINT — FT-W3-ARCH-M1 (2026-10-12)
+
+**Task:** `FT-W3-ARCH-M1-PERSISTENCE-PORTS`. **Status:** `PASS` — Application-owned persistence **contracts** introduced; **no runtime behavior change**, no adapter, no orchestration migration. `OPEN-DEFECTS.md` untouched; no defect VERIFIED.
+
+**Baseline / sync:** `236d5eb` (origin/master; fast-forwarded from `747ba01`).
+
+**New ports (Application-owned).**
+- `src/Modules/Ingestion/Ingestion.Application/Ports/IIngestionWriteStore.cs` → `IIngestionWriteStore` (exactly ONE transactional entry point: `Task<TResult> ExecuteAsync<TResult>(Func<IIngestionWriteSession, CancellationToken, Task<TResult>> work, CancellationToken)`), `IIngestionWriteSession` (`StartRunAsync`, `ProbeRecordAsync`, `InsertRecordAsync`, `SaveCheckpointAsync`, `FinishRunAsync` — **no commit/flush/save-changes**), `IngestionRecordProbe` (existence + fingerprint value, may be null), `IngestionRunOutcome` (typed Completed/Failed/Cancelled).
+- `src/Modules/Ingestion/Ingestion.Application/Ports/IIngestionCheckpointStore.cs` → `IIngestionCheckpointStore.ReadAsync` + `IngestionCheckpointRef(CursorToken, Version)`.
+
+**Transaction/session contract.** The store's `ExecuteAsync` is the ONLY commit boundary (Infrastructure will wrap the existing `IngestionUnitOfWork` in M2); the session is transaction-scoped with no independent commit, so run/records/checkpoint cannot be split (FT-DATA-002). Observed-version CAS is preserved by the `observedVersion` parameter; record existence/fingerprint are distinguished by the nullable probe; idempotency and cancellation are carried through every method.
+
+**Design checks.** Single atomic unit of work ✓; transaction-scoped operations cannot commit independently ✓ (enforced by a new contract guard); no caller-supplied `TenantId` on the port surface ✓ (tenant comes from the trusted context in the adapter); the future Application use case can perform `AssertTrusted` + ownership admission **before** any provider call or `ExecuteAsync` ✓; no EF/DbContext/Npgsql/entity/repository type on the surface ✓ (guard asserts the Application assembly references no persistence framework); dependency direction preserved ✓ (no new project references; the `Infrastructure → Application` port-implementation edge is deferred to M2).
+
+**Tests.** New `tests/FaraTaraz.ArchitectureTests/IngestionPersistencePortContractTests.cs` (4): single `ExecuteAsync` entry point; session exposes no independent commit; ports expose no persistence-framework types (assembly + member surface); ports never accept a caller `TenantId`. Application builds independently (0 warnings).
+
+**Verification:** focused port-contract + physical-structure **16/16**; full Debug **271/271** and Release **271/271** (BuildingBlocks 17, SyncContracts 55, Integration 57, Architecture **142** — was 138, +4); `git diff --check` clean.
+
+**Files:** new `Ports/IIngestionWriteStore.cs`, `Ports/IIngestionCheckpointStore.cs`, `IngestionPersistencePortContractTests.cs`; this `RECOVERY.md`. `IngestionRunCoordinator` and its DI registration are **unchanged**; no schema/migration, no guard change (including `OwnershipPathAuthorizationGuard`), no endpoint/worker/provider/auth.
+
+**Risks / open design questions (for M2+):** (1) M2 must add `Ingestion.Infrastructure → Ingestion.Application` (implement the ports) — a new inward edge, acceptable but should be guarded; (2) moving the ownership admission to Application will break `OwnershipPathAuthorizationGuard`'s "approved-boundary writer must reference `IAccountingSourceOwnership`" rule — the guard must be redesigned (not weakened) to require admission on the port caller; (3) `ProviderId` authority (V4) and terminal-checkpoint semantics remain open; (4) the session must not leak EF types when implemented.
+
 ## W3-R2 RESUME & IDENTITY SAFETY CHECKPOINT — FT-W3-R2 (2026-10-12)
 
 **Task:** `FT-W3-R2-RESUME-AND-IDENTITY-SAFETY`. **Status:** `PASS` locally — checkpoint resume, scope validation and nullable-fingerprint identity are hardened and proven on real PostgreSQL. No endpoints/workers/auth/real provider; `OPEN-DEFECTS.md` untouched.
