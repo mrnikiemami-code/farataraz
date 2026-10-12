@@ -1,5 +1,14 @@
 # FaraTaraz — Architect Continuity Journal
 
+## ARCHITECTURE REBASELINE STARTED — 2026-10-12
+
+**User directive:** Stop repeated piecemeal fixes and evaluate controlled reconstruction vs complete rewrite. Independent architect opened [ARCHITECTURE-REBASELINE-2026-10-12.md](../architecture/ARCHITECTURE-REBASELINE-2026-10-12.md) at `084a2f4e4260ee5589899ad7f6a7718a5231a56f`. This is a **review baseline, not an accepted ADR or implementation authorization**. Preserve all existing source and database artifacts. It records target layer authority, preliminary evidence-based dispositions D1–D12, G0 inventory/G1 design/G2 finite rebuild-plan gates, and explicit G3 production-security gate. Decision at this point: **no destructive rewrite justified; controlled reconstruction provisionally preferred pending complete inventory and cost comparison**.
+
+**Evidence inspected:** live `RunCustomerSyncHandler` contains restart/completion/page/changed-record checks; `PhysicalStructureTests` has two Domain-labeled reflection tests anchored to `typeof(SyncRequest).Assembly` (now Contracts); `LayerDependencyGraphTests` has fictitious flat Infrastructure path; `structure.md` early sections assign moved sync types to Domain; ADR-010 §11 uses the words 'Domain contract' for failure taxonomy; ADR-011 remains Proposed. Not all 12 external-review allegations have been independently verified. **No production code changed.** Supersede proposed FT-ARCH-GUARD-TRUTH-004 task unless already in execution; reconcile status first. Next action: independently finish G0 ownership/behavior/DI/entry-point inventory, then write and approve one G1 target and G2 finite plan, not ad hoc D11/D2 tasks. Architect writes journal and defect ledger; executor RECOVERY only.
+
+---
+
+
 ## CURRENT ARCHITECT RECOVERY CHECKPOINT — 2026-10-12 (after FT-ARCH-GUARD-LOCK-003)
 
 **AUTHORITATIVE HEAD AT REVIEW:** implementation `8d8b75b616bdb10e8708178c16c0f5975e333476`; after architect's OPEN-DEFECTS update, fetch latest `origin/master` before acting. Independent Linux CI [38248596386](https://github.com/mrnikiemami-code/farataraz/actions/runs/38248596386) SUCCESS at exact implementation SHA; **314/314 Debug and 314/314 Release**, including **157 architecture** and **85 real PostgreSQL integration** tests each, zero failed/skipped. Architecture guard lock task FT-ARCH-GUARD-LOCK-003 **ACCEPTED for the bounded structural/project dependency scope**. Implementation diff only `ArchitecturePolicy.cs`, `ArchitecturePolicyTests.cs`, `ModuleContractsBoundaryTests.cs`, `structure.md`, `RECOVERY.md`. Policy inventories 12 production projects, covers BuildingBlocks/Domain/Contracts/Application/Infrastructure/Composition/Host/Adapter and checks actual project reference graph plus on-disk negative fixture graphs; source-only MediatR handler scan remains limited to source-level structural evidence.
