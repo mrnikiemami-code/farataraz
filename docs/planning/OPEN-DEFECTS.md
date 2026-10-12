@@ -1,5 +1,14 @@
 # FaraTaraz — Open Defects and Architecture Acceptance Ledger
 
+## FT-W3-R3 final completion contract — independent acceptance (2026-10-12)
+
+**ACCEPTED FOR BOUNDED, NON-PRODUCTION W3-R3 ENGINE CORRECTNESS.** Independently inspected implementation commit `eb42e71c4ec289baf45bb00d67ccef2eefc27d88` on master, including `RunCustomerSyncCommand`, Application handler, terminal/restart PostgreSQL tests and provider resolver cancellation handling. CI [38238605815](https://github.com/mrnikiemami-code/farataraz/actions/runs/38238605815) independently verified Debug **303/303**, Release **303/303** (17 BuildingBlocks + 55 SyncContracts + 146 Architecture + 85 PostgreSQL Integration each; zero failures/skips). `CustomerSyncIntent.Continue` rejects Completed checkpoints before provider/write; `Restart` is explicit and rejects caller cursor, starts fresh with originally observed checkpoint-version CAS; Active resumes, absent starts first sync; valid page completion controls terminal state; OCE propagates. This resolves the specific M5/R3 completion contract blockers noted above, not all production gates. No production provider/worker/auth, changed/voided policy, or complete architectural guard certification implied.
+
+**NEXT REQUIRED GOAL (USER DIRECTIVE): ARCHITECTURE FOUNDATION STABILIZATION BEFORE FURTHER W3 FEATURES.** Reconcile current physical project/folder/namespace graph against constitution, ADRs, `structure.md` (whose W1 sections are stale), and `AGENTS.md` architect guard directive commit `a780a8f`. Independently audit MediatR feature location/ISender, module Contracts/BuildingBlocks boundaries, Infrastructure/Application references, Host/module composition, concrete cross-module dependencies, and executable guards with negative fixtures. First produce evidence-based discrepancy map, then smallest cohesive structural repairs and green full CI. Do not add speculative layers/abstractions or silently relax old guards. Remaining production trust and data policy defects stay OPEN. Executor does not edit this ledger.
+
+---
+
+
 ## FT-W3-ARCH-M5-R3 independent conditional review — 2026-10-12
 
 **PARTIAL / NOT FULLY ACCEPTED.** Implementer commit `d553c2edfeb20ec8658f3ba055f11002e6d0110e` merged at `fe7310b9f69ce2665010688f6b2371705a872036`; GitHub CI [38237577911](https://github.com/mrnikiemami-code/farataraz/actions/runs/38237577911) independently checked Debug **297/297** and Release **297/297** with zero failures/skips. ProviderId was removed from command and is now fetched from persisted AccountingSource provider configuration behind a trusted-scoped resolver; checkpoint State Active/Completed was added with migration and optimistic CAS. Security and durability improvements are present, but production activation remains blocked.
