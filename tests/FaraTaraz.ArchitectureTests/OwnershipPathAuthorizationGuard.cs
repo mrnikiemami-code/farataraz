@@ -8,24 +8,34 @@ using System.Text.RegularExpressions;
 using Xunit;
 
 /// <summary>
-/// FT-SEC-007 durable guard: the Ingestion persistence write surface —
-/// <c>SyncRunRepository.StartAsync</c>, <c>SourceRecordRepository.InsertOrUpdateAsync</c>,
-/// <c>SyncCheckpointRepository.SaveAsync</c> and <c>IngestionUnitOfWork.ExecuteAsync</c> — must
-/// be reached only from the approved ownership-authorized Infrastructure boundary.
+/// FT-SEC-007 durable guard (redesigned, M2) for the Ingestion persistence write path.
 ///
-/// <b>What it checks.</b> It reads the ACTUAL production source and flags any call to one of the
-/// target write methods whose file is outside the owning layer
-/// (<c>FaraTaraz.Modules.Ingestion.Infrastructure</c>). The Application use case that performs
-/// the fail-closed <c>IAccountingSourceOwnership</c> check is the only approved orchestration
-/// boundary; the write primitives themselves live in the Infrastructure layer. Any
-/// Application/Host/Adapter file that invokes these writes is a write-path authorization bypass.
+/// <b>Rule 1 — boundary.</b> The W2 persistence write primitives
+/// (<c>SyncRunRepository.StartAsync</c>, <c>SourceRecordRepository.InsertOrUpdateAsync</c>,
+/// <c>SyncCheckpointRepository.SaveAsync</c>, <c>IngestionUnitOfWork.ExecuteAsync</c>) may be
+/// called ONLY from the approved Infrastructure boundary
+/// (<c>src/Modules/Ingestion/Ingestion.Infrastructure</c>: adapters, repositories, unit of work).
+/// Any direct call from Application/Host/Adapters/elsewhere is a write-path bypass. There is no
+/// interface-name exemption and no allowlist.
 ///
-/// <b>Why real source, not naming/comments.</b> Before matching, the source is stripped of line
-/// comments, block comments, string literals and char literals (line counts preserved) so a
-/// comment or an XML doc cannot satisfy the guard. A match therefore reflects a REAL call edge in
-/// the code, and a drift that renames a comment or moves a file still fails the guard. The target
-/// method names (<c>StartAsync</c>/<c>InsertOrUpdateAsync</c>) are unique to the Ingestion
-/// Infrastructure write primitives, so a call to them in a forbidden layer is unambiguous.
+/// <b>Rule 2 — admission before reaching persistence through the port.</b> Application orchestration
+/// reaches persistence through the write port, whose transactional entry is
+/// <c>ExecuteInTransactionAsync</c> (NOT a write primitive, so it is not part of Rule 1). A file
+/// outside the boundary that invokes that entry must also make REAL CALLS to tenant admission
+/// (<c>AssertTrusted(</c>) and fail-closed ownership admission (<c>IsOwnedByAsync(</c>). Comments,
+/// string literals, unused fields and a bare interface name are NOT evidence (the source is
+/// comment/string-stripped before matching, and a call is required, not a reference).
+///
+/// <b>Documented limit — ordering is not proven lexically.</b> A lexical scan cannot prove that the
+/// admission calls happen BEFORE the port entry, nor that their results gate it. Rule 2 is a
+/// NECESSARY condition only. The ordering/gating invariant (trusted tenant + owned source before
+/// any provider call or persistence) is enforced by executable real-PostgreSQL negative integration
+/// tests (<c>IngestionRunCoordinatorTests</c>: untrusted tenant / not-owned source / ownership lookup
+/// failure each assert ZERO provider calls and ZERO writes). Never treat this guard as a full
+/// authorization proof.
+///
+/// The source is stripped of line comments, block comments, string/char literals (line counts
+/// preserved) before matching, so a comment or XML doc cannot satisfy the guard.
 /// </summary>
 public class OwnershipPathAuthorizationGuard
 {
@@ -35,15 +45,24 @@ public class OwnershipPathAuthorizationGuard
     public static readonly string ApprovedBoundaryFolder = "src/Modules/Ingestion/Ingestion.Infrastructure";
 
     /// <summary>
-    /// The ownership-admission port a caller inside the approved write boundary MUST reference, so
-    /// the Ingestion write surface can never be invoked without an explicit ownership admission
-    /// (FT-SEC-007). Adding a writer that forgets ownership admission fails the guard.
+    /// Application write-port transactional entry. Invoking it is the approved way for Application
+    /// orchestration to reach persistence; it is NOT a persistence write primitive, so a caller
+    /// outside the boundary that invokes it must also perform tenant + ownership admission (rule 2).
     /// </summary>
-    public static readonly string OwnershipAdmissionPort = "IAccountingSourceOwnership";
+    public static readonly string PortTransactionalEntry = "ExecuteInTransactionAsync";
+
+    /// <summary>The trusted execution-context admission call a write-port consumer must perform.</summary>
+    public static readonly string TenantAdmissionCall = "AssertTrusted(";
+
+    /// <summary>The fail-closed ownership-admission call a write-port consumer must perform.</summary>
+    public static readonly string OwnershipAdmissionCall = "IsOwnedByAsync(";
 
     private static readonly Regex Call = new(
         @"(?<receiver>[A-Za-z_][A-Za-z0-9_.]*)\.\s?(?<method>StartAsync|InsertOrUpdateAsync|SaveAsync|ExecuteAsync)\s*\(",
         RegexOptions.Compiled);
+
+    private static readonly Regex PortEntry = new(
+        @"\.\s?ExecuteInTransactionAsync\s*\(", RegexOptions.Compiled);
 
     /// <summary>
     /// Scans the shipped production source for forbidden callers of the ownership-write methods.
@@ -62,20 +81,36 @@ public class OwnershipPathAuthorizationGuard
 
             var text = File.ReadAllText(file);
             var stripped = StripCommentsAndStrings(text);
+            var relative = MakeRelative(file, repoRoot).Replace("\\", "/");
+            var insideBoundary = IsApprovedCaller(file, repoRoot);
 
-            // Approved only when the file is inside the Infrastructure write boundary AND performs
-            // an explicit ownership admission (references the ownership port).
-            if (IsApprovedCaller(file, repoRoot)
-                && stripped.Contains(OwnershipAdmissionPort, StringComparison.Ordinal))
+            // Rule 1: the W2 write surface is callable only inside the approved Infrastructure
+            // boundary. No interface-name exemption, no allowlist.
+            if (!insideBoundary)
             {
-                continue;
+                foreach (Match match in Call.Matches(stripped))
+                {
+                    var line = LineOf(text, (int)match.Index);
+                    violations.Add(
+                        $"{relative}:{line} -> {match.Groups["method"].Value} " +
+                        "(direct persistence write outside the approved boundary)");
+                }
             }
 
-            foreach (Match match in Call.Matches(stripped))
+            // Rule 2: a write-port entry call outside the boundary requires REAL tenant-admission
+            // and ownership-admission calls. Necessary condition only (ordering is enforced by the
+            // real-PostgreSQL negative integration tests; see the type doc).
+            if (!insideBoundary && PortEntry.IsMatch(stripped))
             {
-                var relative = MakeRelative(file, repoRoot).Replace("\\", "/");
-                var line = LineOf(text, (int)match.Index);
-                violations.Add($"{relative}:{line} -> {match.Groups["method"].Value}");
+                var hasTenantAdmission = stripped.Contains(TenantAdmissionCall, StringComparison.Ordinal);
+                var hasOwnershipAdmission = stripped.Contains(OwnershipAdmissionCall, StringComparison.Ordinal);
+
+                if (!hasTenantAdmission || !hasOwnershipAdmission)
+                {
+                    violations.Add(
+                        $"{relative} -> {PortTransactionalEntry} invoked without complete admission " +
+                        $"(tenant-admission={hasTenantAdmission}, ownership-admission={hasOwnershipAdmission})");
+                }
             }
         }
 
@@ -289,13 +324,12 @@ public class OwnershipPathAuthorizationGuardTests
                   void Run() { _repo.StartAsync(default, default, ""c"", ""m"", default); }
               }");
 
-        // Approved: an Infrastructure-layer file that owns the write primitive AND performs
-        // ownership admission (references the ownership port).
+        // Approved: an Infrastructure adapter/repository that owns the write primitive. Ownership
+        // admission is NOT required here (rule 2 binds it to the Application port caller).
         WriteFile(root, "src/Modules/Ingestion/Ingestion.Infrastructure/GoodOwner.cs",
             @"namespace FaraTaraz.Modules.Ingestion.Infrastructure;
               class GoodOwner
               {
-                  private readonly IAccountingSourceOwnership _ownership = null!;
                   void Run() { _repo.InsertOrUpdateAsync(default, default, null, default); }
               }");
 
@@ -347,24 +381,116 @@ public class OwnershipPathAuthorizationGuardTests
     }
 
     /// <summary>
-    /// A writer INSIDE the approved Infrastructure boundary that invokes the write surface WITHOUT
-    /// an ownership admission (no reference to the ownership port) is a bypass and must be flagged
-    /// — the engine cannot reach persistence while skipping ownership.
+    /// Rule 1: an Infrastructure adapter that maps the write surface (including the unit of work)
+    /// is APPROVED without referencing the ownership port — admission belongs to the Application
+    /// port caller (rule 2), not to the adapter.
     /// </summary>
     [Fact]
-    public void Guard_flags_an_approved_boundary_writer_that_skips_ownership_admission()
+    public void Guard_allows_an_approved_boundary_adapter_that_maps_the_write_surface()
     {
         var root = CreateTempRepoRoot();
 
-        WriteFile(root, "src/Modules/Ingestion/Ingestion.Infrastructure/Engine.cs",
-            @"namespace FaraTaraz.Modules.Ingestion.Infrastructure;
-              class Engine { void Run() { _uow.ExecuteAsync(null); } }");
+        WriteFile(root, "src/Modules/Ingestion/Ingestion.Infrastructure/Persistence/Adapter.cs",
+            @"namespace FaraTaraz.Modules.Ingestion.Infrastructure.Persistence;
+              class Adapter
+              {
+                  void Run()
+                  {
+                      _uow.ExecuteAsync(null);
+                      _runs.StartAsync(default, default, ""c"", ""m"", default);
+                      _records.InsertOrUpdateAsync(default, default, null, default);
+                      _checkpoints.SaveAsync(default);
+                  }
+              }");
+
+        var violations = OwnershipPathAuthorizationGuard.DetectForbiddenWriteCalls(root);
+
+        Assert.Empty(violations);
+        DeleteTempRepoRoot(root);
+    }
+
+    /// <summary>Rule 2: a write-port entry without tenant and ownership admission is flagged.</summary>
+    [Fact]
+    public void Guard_flags_a_write_port_entry_without_tenant_or_ownership_admission()
+    {
+        var root = CreateTempRepoRoot();
+
+        WriteFile(root, "src/Modules/Ingestion/Ingestion.Application/Run.cs",
+            @"namespace FaraTaraz.Modules.Ingestion.Application;
+              class Run { void Go() { _store.ExecuteInTransactionAsync(null); } }");
 
         var violations = OwnershipPathAuthorizationGuard.DetectForbiddenWriteCalls(root);
 
         Assert.Single(violations);
-        Assert.Contains("ExecuteAsync", violations[0]);
+        Assert.Contains("tenant-admission=False", violations[0]);
+        Assert.Contains("ownership-admission=False", violations[0]);
+        DeleteTempRepoRoot(root);
+    }
 
+    /// <summary>Rule 2: tenant admission alone is insufficient — ownership admission is required.</summary>
+    [Fact]
+    public void Guard_flags_a_write_port_entry_with_tenant_but_no_ownership_admission()
+    {
+        var root = CreateTempRepoRoot();
+
+        WriteFile(root, "src/Modules/Ingestion/Ingestion.Application/Run.cs",
+            @"namespace FaraTaraz.Modules.Ingestion.Application;
+              class Run { void Go() { _tenant.AssertTrusted(); _store.ExecuteInTransactionAsync(null); } }");
+
+        var violations = OwnershipPathAuthorizationGuard.DetectForbiddenWriteCalls(root);
+
+        Assert.Single(violations);
+        Assert.Contains("ownership-admission=False", violations[0]);
+        DeleteTempRepoRoot(root);
+    }
+
+    /// <summary>Rule 2: a write-port entry with real tenant AND ownership admission is allowed.</summary>
+    [Fact]
+    public void Guard_allows_a_write_port_entry_with_tenant_and_ownership_admission()
+    {
+        var root = CreateTempRepoRoot();
+
+        WriteFile(root, "src/Modules/Ingestion/Ingestion.Application/Run.cs",
+            @"namespace FaraTaraz.Modules.Ingestion.Application;
+              class Run
+              {
+                  async System.Threading.Tasks.Task Go()
+                  {
+                      _tenant.AssertTrusted();
+                      await _ownership.IsOwnedByAsync(default, default, default);
+                      await _store.ExecuteInTransactionAsync(null);
+                  }
+              }");
+
+        var violations = OwnershipPathAuthorizationGuard.DetectForbiddenWriteCalls(root);
+
+        Assert.Empty(violations);
+        DeleteTempRepoRoot(root);
+    }
+
+    /// <summary>
+    /// Rule 2 evidence must be a CALL: a comment, an unused field or a bare interface name is NOT
+    /// admission.
+    /// </summary>
+    [Fact]
+    public void Guard_does_not_treat_a_comment_field_or_interface_name_as_admission()
+    {
+        var root = CreateTempRepoRoot();
+
+        WriteFile(root, "src/Modules/Ingestion/Ingestion.Application/Run.cs",
+            @"namespace FaraTaraz.Modules.Ingestion.Application;
+              class Run
+              {
+                  // _tenant.AssertTrusted(); await _ownership.IsOwnedByAsync(...) -- NOT evidence
+                  private readonly IAccountingSourceOwnership _ownership = null!;
+                  void Go() { _store.ExecuteInTransactionAsync(null); }
+              }");
+
+        var violations = OwnershipPathAuthorizationGuard.DetectForbiddenWriteCalls(root);
+
+        Assert.Single(violations);
+        Assert.Contains("tenant-admission=False", violations[0]);
+        Assert.Contains("ownership-admission=False", violations[0]);
         DeleteTempRepoRoot(root);
     }
 

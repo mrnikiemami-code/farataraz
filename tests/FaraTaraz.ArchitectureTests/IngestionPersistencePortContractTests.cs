@@ -31,7 +31,7 @@ public class IngestionPersistencePortContractTests
         var methods = typeof(IIngestionWriteStore).GetMethods();
 
         Assert.Single(methods);
-        Assert.Equal("ExecuteAsync", methods[0].Name);
+        Assert.Equal("ExecuteInTransactionAsync", methods[0].Name);
     }
 
     [Fact]

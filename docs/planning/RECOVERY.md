@@ -9,6 +9,29 @@
 **Architect ledger is canonical:** `docs/planning/OPEN-DEFECTS.md` has per-ID review evidence and decisions. Historical reports below that say W2 NOT CERTIFIED/W3 NOT AUTHORIZED refer to **past checkpoints**, not current restricted authorization. Implementation agent must start by fetching latest master, reading ledger+constitution+ADRs, and must not treat certification as removal of W3 production gates.
 
 
+## W3-ARCH-M2 GUARD REDESIGN + PERSISTENCE ADAPTER CHECKPOINT — FT-W3-ARCH-M2 (2026-10-12)
+
+**Task:** `FT-W3-ARCH-M2-GUARD-AND-ADAPTER`. **Status:** `PASS` — ownership write-path guard safely redesigned AND the M1 persistence ports implemented in Infrastructure. Orchestration not moved; `OPEN-DEFECTS.md` untouched; no defect VERIFIED.
+
+**Baseline / sync:** `42a5b9c` (origin/master).
+
+**Part A — guard redesign (`OwnershipPathAuthorizationGuard`).**
+- **Rule 1 (boundary, name-independent):** the W2 write surface (`StartAsync|InsertOrUpdateAsync|SaveAsync|ExecuteAsync`) may be called ONLY inside `src/Modules/Ingestion/Ingestion.Infrastructure`. No interface-name exemption, no allowlist.
+- **Rule 2 (admission on the port caller):** a file outside the boundary that invokes the Application write-port entry `ExecuteInTransactionAsync` must make REAL CALLS to tenant admission (`AssertTrusted(`) and ownership admission (`IsOwnedByAsync(`). Comments/strings are stripped and a bare interface name or unused field is NOT evidence.
+- **Documented limit:** a lexical scan cannot prove ordering; Rule 2 is a necessary condition only. Ordering/gating is enforced by the real-PostgreSQL negative integration tests (untrusted/not-owned/lookup-failure → zero provider calls + zero writes). The guard doc states this explicitly.
+- **Port rename:** the M1 port entry was renamed `ExecuteAsync` → `ExecuteInTransactionAsync` so it no longer collides with the W2 write primitive `IngestionUnitOfWork.ExecuteAsync` (Rule 1 stays unambiguous). The M1 contract test was updated accordingly.
+- Negative tests added: adapter inside the boundary allowed without ownership reference; port entry without tenant/ownership admission flagged; tenant-only flagged; tenant+ownership allowed; comment/unused-field/interface-name not accepted as admission.
+
+**Part B — adapter (`EfIngestionWriteStore`).** `src/Modules/Ingestion/Ingestion.Infrastructure/Persistence/EfIngestionWriteStore.cs` implements `IIngestionWriteStore` + `IIngestionCheckpointStore` by mapping each session operation to the existing W2 repositories and running the session inside the **existing `IngestionUnitOfWork.ExecuteAsync`** (ONE transaction). Tenant authority comes only from the trusted `DatabaseTenantScope` (fail-closed when absent); the port surface carries no caller tenant id. CAS (`observedVersion`), rollback, cancellation, idempotent insert and nullable-fingerprint identity are preserved. The session is rejected after its transaction completes (`EnsureActive`). Typed `IngestionRunOutcome` maps to storage states; an unknown enum value throws `ArgumentOutOfRangeException`. Added the inward reference `Ingestion.Infrastructure → Ingestion.Application` and scoped DI (one adapter instance backing both ports).
+
+**Tests.** Guard+structure focused **35/35**; adapter+coordinator real PostgreSQL **26/26** (10 adapter cases: atomic commit, failure rollback, stale CAS rollback, cancellation, untrusted scope, null-fingerprint vs missing, duplicate idempotency, session-after-completion rejection, typed outcome mapping ×2).
+
+**Verification:** full Debug **285/285** and Release **285/285** (BuildingBlocks 17, SyncContracts 55, Integration **67** — was 57, Architecture **146** — was 142); `git diff --check` clean.
+
+**Files:** new `EfIngestionWriteStore.cs`, `EfIngestionWriteStoreTests.cs`; edited `IIngestionWriteStore.cs` (rename), `OwnershipPathAuthorizationGuard.cs` (redesign + tests), `IngestionPersistencePortContractTests.cs`, `Ingestion.Infrastructure.csproj`, `IngestionInfrastructureComposition.cs`, this `RECOVERY.md`. `IngestionRunCoordinator` unchanged; no schema/migration; no endpoint/worker/provider/auth; OPEN-DEFECTS.md untouched.
+
+**Risks / open items:** Rule 2 is necessary-not-sufficient (ordering enforced by integration tests, not the lexical scan); the new `Infrastructure → Application` edge is inward and acceptable but adds a graph edge; M3 (moving orchestration to Application) not started; terminal-checkpoint semantics and `ProviderId` authority remain open.
+
 ## W3-ARCH-M1 PERSISTENCE PORTS CHECKPOINT — FT-W3-ARCH-M1 (2026-10-12)
 
 **Task:** `FT-W3-ARCH-M1-PERSISTENCE-PORTS`. **Status:** `PASS` — Application-owned persistence **contracts** introduced; **no runtime behavior change**, no adapter, no orchestration migration. `OPEN-DEFECTS.md` untouched; no defect VERIFIED.

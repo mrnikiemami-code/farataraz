@@ -31,6 +31,8 @@
     <ProjectReference Include="..\Ingestion.Domain\FaraTaraz.Modules.Ingestion.Domain.csproj" />
     <!-- The ingestion engine consumes the provider-independent ownership + capability PORTS only. -->
     <ProjectReference Include="..\..\AccountingSources\FaraTaraz.Modules.AccountingSources.csproj" />
+    <!-- Implements the Application-owned persistence ports (inward dependency; M2). -->
+    <ProjectReference Include="..\Ingestion.Application\FaraTaraz.Modules.Ingestion.Application.csproj" />
   </ItemGroup>
 
 </Project>

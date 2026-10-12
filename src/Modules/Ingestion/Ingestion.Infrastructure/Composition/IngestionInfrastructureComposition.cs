@@ -67,6 +67,14 @@ public static class IngestionInfrastructureComposition
         // fail-closed source ownership) then atomic persistence. No delivery surface/worker.
         services.AddScoped<IngestionRunCoordinator>();
 
+        // M2: Infrastructure implementation of the Application-owned persistence ports. One adapter
+        // instance per scope backs both ports so the session shares the single UnitOfWork/DbContext.
+        services.AddScoped<EfIngestionWriteStore>();
+        services.AddScoped<FaraTaraz.Modules.Ingestion.Application.Ports.IIngestionWriteStore>(
+            sp => sp.GetRequiredService<EfIngestionWriteStore>());
+        services.AddScoped<FaraTaraz.Modules.Ingestion.Application.Ports.IIngestionCheckpointStore>(
+            sp => sp.GetRequiredService<EfIngestionWriteStore>());
+
         return services;
     }
 }

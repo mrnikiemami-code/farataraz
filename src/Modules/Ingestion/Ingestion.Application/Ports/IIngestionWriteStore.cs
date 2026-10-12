@@ -11,7 +11,8 @@ using FaraTaraz.Modules.Ingestion.Domain.Synchronization;
 /// Application-owned, <b>transaction-scoped</b> persistence boundary for one synchronization step
 /// (W3 architecture refactor, task M1).
 ///
-/// The unit of work is the ONLY commit boundary: <see cref="ExecuteAsync{TResult}"/> owns the
+/// The unit of work is the ONLY commit boundary: <see cref="ExecuteInTransactionAsync{TResult}"/>
+/// owns the
 /// database transaction (implemented in Infrastructure over the existing
 /// <c>IngestionUnitOfWork</c>) and commits only after <c>work</c> completes. The
 /// <see cref="IIngestionWriteSession"/> operations are scoped to that single transaction and
@@ -31,14 +32,15 @@ public interface IIngestionWriteStore
     /// completes. Any exception (including a stale-checkpoint CAS rejection) or cancellation before
     /// the commit rolls the whole unit of work back.
     /// </summary>
-    Task<TResult> ExecuteAsync<TResult>(
+    Task<TResult> ExecuteInTransactionAsync<TResult>(
         Func<IIngestionWriteSession, CancellationToken, Task<TResult>> work,
         CancellationToken cancellationToken = default);
 }
 
 /// <summary>
-/// The operations available inside a single <see cref="IIngestionWriteStore.ExecuteAsync{TResult}"/>
-/// transaction. Every operation is transaction-scoped: there is no commit, flush or
+/// The operations available inside a single
+/// <see cref="IIngestionWriteStore.ExecuteInTransactionAsync{TResult}"/> transaction. Every
+/// operation is transaction-scoped: there is no commit, flush or
 /// save-changes here, so a session can never accidentally commit on its own.
 /// </summary>
 public interface IIngestionWriteSession
