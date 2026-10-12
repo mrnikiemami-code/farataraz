@@ -54,7 +54,7 @@ public class PhysicalStructureTests
         // boundary that legitimately holds exactly one translation unit.
         Path.Combine("BuildingBlocks", "Configuration"),
         Path.Combine("Modules", "MasterData"),
-        Path.Combine("Modules", "AccountingSources", "Providers"),
+        Path.Combine("Modules", "AccountingSources", "AccountingSources.Domain", "Providers"),
         Path.Combine("Modules", "Ingestion", "Ingestion.Domain", "SourceModel"),
         // Module-local DI registration (no business rules) is a justified single-file leaf.
         Path.Combine("Modules", "Ingestion", "Ingestion.Application", "Composition"),
@@ -81,7 +81,7 @@ public class PhysicalStructureTests
     {
         ["BuildingBlocks"] = "FaraTaraz.BuildingBlocks",
         ["Modules/MasterData"] = "FaraTaraz.Modules.MasterData",
-        ["Modules/AccountingSources"] = "FaraTaraz.Modules.AccountingSources",
+        ["Modules/AccountingSources/AccountingSources.Domain"] = "FaraTaraz.Modules.AccountingSources",
         ["Modules/Ingestion/Ingestion.Domain"] = "FaraTaraz.Modules.Ingestion.Domain",
         ["Modules/Ingestion/Ingestion.Application"] =
             "FaraTaraz.Modules.Ingestion.Application",
@@ -264,7 +264,7 @@ public class PhysicalStructureTests
         {
             "BuildingBlocks",
             "Modules/MasterData",
-            "Modules/AccountingSources",
+            "Modules/AccountingSources/AccountingSources.Domain",
             "Modules/Ingestion/Ingestion.Domain",
             "Modules/Ingestion/Ingestion.Application",
         };

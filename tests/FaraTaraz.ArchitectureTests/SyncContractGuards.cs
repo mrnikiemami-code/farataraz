@@ -129,7 +129,7 @@ public class SyncContractGuards
                 "FaraTaraz.Modules.Ingestion.Domain.csproj"),
             ("Modules/Ingestion/Ingestion.Application",
                 "FaraTaraz.Modules.Ingestion.Application.csproj"),
-            ("Modules/AccountingSources", "FaraTaraz.Modules.AccountingSources.csproj")
+            ("Modules/AccountingSources/AccountingSources.Domain", "FaraTaraz.Modules.AccountingSources.csproj")
         };
 
         foreach (var (folder, csprojName) in projects)

@@ -31,7 +31,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FaraTaraz.Modules.MasterDat
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "AccountingSources", "AccountingSources", "{824BD787-6347-621E-0385-BF321C9D0B65}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FaraTaraz.Modules.AccountingSources", "src\Modules\AccountingSources\FaraTaraz.Modules.AccountingSources.csproj", "{97D37129-D1C3-4290-95E1-B3C26FEEBF6B}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FaraTaraz.Modules.AccountingSources", "src\Modules\AccountingSources\AccountingSources.Domain\FaraTaraz.Modules.AccountingSources.csproj", "{97D37129-D1C3-4290-95E1-B3C26FEEBF6B}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Ingestion", "Ingestion", "{AD089A1E-BDEB-F09F-ED14-4341B5B9A8AC}"
 EndProject

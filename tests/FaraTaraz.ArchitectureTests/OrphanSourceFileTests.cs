@@ -23,7 +23,7 @@ public class OrphanSourceFileTests
     {
         "BuildingBlocks",
         "Modules/MasterData",
-        "Modules/AccountingSources",
+        "Modules/AccountingSources/AccountingSources.Domain",
         "Modules/Ingestion/Ingestion.Domain",
         "Modules/Ingestion/Ingestion.Application",
         "Modules/AccountingSources/AccountingSources.Infrastructure",

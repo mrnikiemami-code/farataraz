@@ -23,7 +23,8 @@ src/
 ├── BuildingBlocks/          foundation — depends on nothing platform-wide
 ├── Modules/
 │   ├── MasterData/          external + canonical identity
-│   ├── AccountingSources/   provider contracts, capability ports, authorization
+│   ├── AccountingSources/
+│   │   └── AccountingSources.Domain/   provider declaration, capability ports, authorization
 │   └── Ingestion/
 │       ├── Ingestion.Domain/        sync contracts + source models (no MediatR)
 │       └── Ingestion.Application/   CQRS use cases (MediatR) + module Composition
@@ -70,9 +71,9 @@ namespace. Do not split a namespace across folders or place two namespaces in on
 | `BuildingBlocks/Errors/` | `FaraTaraz.BuildingBlocks.Errors` |
 | `BuildingBlocks/Diagnostics/` | `FaraTaraz.BuildingBlocks.Diagnostics` |
 | `Modules/MasterData/` | `FaraTaraz.Modules.MasterData` |
-| `Modules/AccountingSources/Providers/` | `FaraTaraz.Modules.AccountingSources.Providers` |
-| `Modules/AccountingSources/Capabilities/` | `FaraTaraz.Modules.AccountingSources.Capabilities` |
-| `Modules/AccountingSources/Authorization/` | `FaraTaraz.Modules.AccountingSources.Authorization` |
+| `Modules/AccountingSources/AccountingSources.Domain/Providers/` | `FaraTaraz.Modules.AccountingSources.Providers` |
+| `Modules/AccountingSources/AccountingSources.Domain/Capabilities/` | `FaraTaraz.Modules.AccountingSources.Capabilities` |
+| `Modules/AccountingSources/AccountingSources.Domain/Authorization/` | `FaraTaraz.Modules.AccountingSources.Authorization` |
 | `Modules/Ingestion/Ingestion.Domain/SourceModel/` | `FaraTaraz.Modules.Ingestion.Domain.SourceModel` |
 | `Modules/Ingestion/Ingestion.Domain/Synchronization/` | `FaraTaraz.Modules.Ingestion.Domain.Synchronization` |
 | `Modules/Ingestion/Ingestion.Application/SynchronizeCustomers/Queries/` | `FaraTaraz.Modules.Ingestion.Application.SynchronizeCustomers.Queries` |

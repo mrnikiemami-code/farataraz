@@ -20,6 +20,22 @@
 **Architect ledger is canonical:** `docs/planning/OPEN-DEFECTS.md` has per-ID review evidence and decisions. Historical reports below that say W2 NOT CERTIFIED/W3 NOT AUTHORIZED refer to **past checkpoints**, not current restricted authorization. Implementation agent must start by fetching latest master, reading ledger+constitution+ADRs, and must not treat certification as removal of W3 production gates.
 
 
+## ARCH FOUNDATION REPAIR — FT-ARCH-FOUNDATION-REPAIR-001 — PARTIAL (2026-10-12)
+
+**Task:** `FT-ARCH-FOUNDATION-REPAIR-001`. **Status:** `PARTIAL` — Phase 2 (physical nesting repair) delivered and fully tested; Phases 1/3/4(full)/5 not completed within the bounded window. `OPEN-DEFECTS.md` / `ARCHITECT-JOURNAL.md` untouched; no defect VERIFIED.
+
+**Baseline / sync:** `9d9c253` (origin/master).
+
+**Delivered (Phase 2 — AccountingSources physical structure).** The `AccountingSources` Domain project was moved from the module root into `src/Modules/AccountingSources/AccountingSources.Domain/` (project file, `Providers/`, `Capabilities/`, `Authorization/` moved with `git mv`); the obsolete `<Compile Remove>` exclusions were deleted (no longer needed — Infrastructure/Composition are now sibling directories, not compiled beneath the Domain project). Assembly name and namespaces are **unchanged** (`FaraTaraz.Modules.AccountingSources*`) to keep the change coherent and avoid consumer churn; the folder is now `.Domain` and the assembly/namespace rename to `.Domain` remains a deferred sub-step.
+
+**Path/guard updates (no guard weakened).** 9 `ProjectReference` paths updated (AccountingSources.Infrastructure/Composition, Ingestion.Application/Infrastructure, Host, Adapter, 3 test projects); `FaraTaraz.sln` project path updated; the Domain csproj ProjectReferences re-based one level up; `PhysicalStructureTests.ProjectNamespaceRoots` + `AllowedSingleFileLeaves`, `OrphanSourceFileTests.KnownProjectDirectories`, `PhysicalStructureTests`/`SyncContractGuards` persistence-package folder lists updated to the new project path; `structure.md` §1/§3 physical map corrected.
+
+**Verification:** full Debug build 0 warnings/errors; **Debug 303/303** and **Release 303/303** (BuildingBlocks 17, SyncContracts 55, Integration 85, Architecture 146); the architecture guards now enforce the new physical layout.
+
+**NOT done (remaining work / blockers):** Phase 1 — **Ingestion.Contracts extraction** (the sync contract + capability-port payloads still live in `Ingestion.Domain`; `AccountingSources` still references `Ingestion.Domain`) — not started. Phase 3 — new executable guards A–F (Domain/Contracts→Infra, AccountingSources.Domain→Ingestion.Domain, Application→EF, handler location across all modules, BuildingBlocks purity, "every production project classified") + negative fixtures — not added. Phase 4 — full `structure.md` §1–§9 reconciliation — partial. Phase 5 — Linux CI confirmation pending.
+
+**Next exact step (bounded):** implement Phase 1 (create `Ingestion.Contracts`, move the cross-module sync contract types, repoint `AccountingSources` and the adapter) with the new module-boundary guard, OR first complete the `.Domain` assembly/namespace rename; requires architect direction on ordering.
+
 ## W3-R3 FINAL COMPLETION CONTRACT CHECKPOINT — FT-W3-R3 (2026-10-12)
 
 **Task:** `FT-W3-R3-FINAL-COMPLETION-CONTRACT`. **Status:** `PASS`. `OPEN-DEFECTS.md` untouched; no defect VERIFIED.

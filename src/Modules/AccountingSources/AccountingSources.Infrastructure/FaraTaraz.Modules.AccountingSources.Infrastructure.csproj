@@ -27,7 +27,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\BuildingBlocks\FaraTaraz.BuildingBlocks.csproj" />
-    <ProjectReference Include="..\FaraTaraz.Modules.AccountingSources.csproj" />
+    <ProjectReference Include="..\AccountingSources.Domain\FaraTaraz.Modules.AccountingSources.csproj" />
   </ItemGroup>
 
 </Project>
