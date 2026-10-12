@@ -9,6 +9,28 @@
 **Architect ledger is canonical:** `docs/planning/OPEN-DEFECTS.md` has per-ID review evidence and decisions. Historical reports below that say W2 NOT CERTIFIED/W3 NOT AUTHORIZED refer to **past checkpoints**, not current restricted authorization. Implementation agent must start by fetching latest master, reading ledger+constitution+ADRs, and must not treat certification as removal of W3 production gates.
 
 
+## W3-R1 INGESTION-ENGINE FOUNDATION CHECKPOINT — FT-W3-R1 (2026-10-12)
+
+**Task:** `FT-W3-R1-INGESTION-ENGINE-FOUNDATION`. **Status:** `PASS` locally — first bounded W3 orchestration slice implemented and proven on real PostgreSQL. No delivery surface/auth/worker/scheduler/real provider. `OPEN-DEFECTS.md` untouched; no defect VERIFIED.
+
+**Baseline / sync:** `50d3673` (origin/master; fast-forwarded from `a82501f`).
+
+**Coordinator & boundary.** New `src/Modules/Ingestion/Ingestion.Infrastructure/IngestionRunCoordinator.cs` (+ `IngestionRunResult`). It lives in the **module Infrastructure layer because that is the approved write boundary** (`OwnershipPathAuthorizationGuard`), contains no EF queries of its own, and reuses the existing inward ports (`IAccountingSourceOwnership`, `ISyncablePort<SourceCustomer>`) and the W2 repositories/`IngestionUnitOfWork`. New inward project reference `Ingestion.Infrastructure → AccountingSources` (ports only). Registered scoped in `IngestionInfrastructureComposition`. Application stays EF-free (unchanged).
+
+**Ownership admission path.** `tenant.AssertTrusted()` (missing/client-origin tenant throws `UnauthorizedTenantException`) → `IAccountingSourceOwnership.IsOwnedByAsync(trustedTenant, source)` fail-closed (unknown/cross-tenant/lookup-failure never authorizes) → denial throws `UnauthorizedSourceException`. Both precede **any** provider call or write. A caller-supplied tenant id is never authority.
+
+**Transaction & checkpoint sequence.** Observe current checkpoint → drive exactly one bounded page → `IngestionUnitOfWork.ExecuteAsync { StartRun → per record: read stored fingerprint (identical = idempotent skip, changed = fail closed) else insert → SaveCheckpoint(next cursor, observedVersion) only if the page continues → FinishRun(Completed) }` → commit. No early cursor advancement, no silent stale retry; any failure/CAS-rejection/cancellation before commit rolls the whole step back. Duplicate handling stays first-delivery-canonical (ADR-010 d7); changed-record freshness is **not supported** and fails closed via `UnsupportedChangedRecordException` pending FT-DATA-003.
+
+**Tests (real PostgreSQL, `IngestionRunCoordinatorTests`, 9/9):** success commits records+checkpoint+run together; untrusted tenant → zero provider calls/writes; not-owned source → zero provider calls/writes; ownership lookup failure → fail closed; persistence failure → full rollback; stale checkpoint CAS → rollback + cursor unchanged; cancellation before commit → no partial state; duplicate delivery → no duplicate records; changed record → fail closed, stored state unchanged.
+
+**Architecture guards.** `OwnershipPathAuthorizationGuard` hardened: within the approved `Ingestion.Infrastructure` boundary a write is allowed only from a file that performs **ownership admission** (references `IAccountingSourceOwnership`); added two synthetic negatives (Application-layer UoW/checkpoint caller; approved-boundary writer that skips ownership admission). No guard weakened.
+
+**Verification:** focused `IngestionRunCoordinatorTests` **9/9**; full Debug **260/260** and Release **260/260** (BuildingBlocks 17, SyncContracts 55, Integration 50, Architecture 138); `git diff --check` clean.
+
+**Files:** new `IngestionRunCoordinator.cs`, `UnsupportedChangedRecordException.cs`, `IngestionRunCoordinatorTests.cs`; edited `SourceRecordRepository.cs` (`ReadFingerprintAsync`), `Ingestion.Infrastructure.csproj`, `IngestionInfrastructureComposition.cs`, `OwnershipPathAuthorizationGuard.cs`, this `RECOVERY.md`. No Host endpoint/worker/scheduler, no real provider, no fake principal, no auth mechanism.
+
+**Remaining W3 acceptance blockers:** production delivery/authentication boundary (FT-SEC-004 / ADR-011) and a real provider adapter wiring the capability port; the coordinator has **no production caller** yet (engine not scheduled); FT-SEC-007's in-process admission gate is now implemented but the end-to-end production path remains unproven; FT-DATA-003 decision; provider I/O currently happens before the write transaction (bounded page fetched outside the unit of work) — acceptable for this slice, to revisit when retry/streaming is designed.
+
 ## W2 FINAL-ACCEPTANCE PREFLIGHT AUDIT — FT-W2-R19 (2026-10-11)
 
 **Task:** `FT-W2-R19-FINAL-ACCEPTANCE-PREFLIGHT` (read-only audit + recovery documentation). **Baseline:** `ceef37a` (origin/master; fast-forwarded from `368b1f7`). W2 NOT CERTIFIED; W3 NOT AUTHORIZED. `OPEN-DEFECTS.md` untouched (architect-owned); no production code changed.

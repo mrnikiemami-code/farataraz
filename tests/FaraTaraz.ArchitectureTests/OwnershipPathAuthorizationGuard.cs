@@ -34,6 +34,13 @@ public class OwnershipPathAuthorizationGuard
     /// </summary>
     public static readonly string ApprovedBoundaryFolder = "src/Modules/Ingestion/Ingestion.Infrastructure";
 
+    /// <summary>
+    /// The ownership-admission port a caller inside the approved write boundary MUST reference, so
+    /// the Ingestion write surface can never be invoked without an explicit ownership admission
+    /// (FT-SEC-007). Adding a writer that forgets ownership admission fails the guard.
+    /// </summary>
+    public static readonly string OwnershipAdmissionPort = "IAccountingSourceOwnership";
+
     private static readonly Regex Call = new(
         @"(?<receiver>[A-Za-z_][A-Za-z0-9_.]*)\.\s?(?<method>StartAsync|InsertOrUpdateAsync|SaveAsync|ExecuteAsync)\s*\(",
         RegexOptions.Compiled);
@@ -48,13 +55,21 @@ public class OwnershipPathAuthorizationGuard
 
         foreach (var file in Directory.EnumerateFiles(repoRoot, "*.cs", SearchOption.AllDirectories))
         {
-            if (IsBuildOutput(file) || IsTestSource(file, repoRoot) || IsApprovedCaller(file, repoRoot))
+            if (IsBuildOutput(file) || IsTestSource(file, repoRoot))
             {
                 continue;
             }
 
             var text = File.ReadAllText(file);
             var stripped = StripCommentsAndStrings(text);
+
+            // Approved only when the file is inside the Infrastructure write boundary AND performs
+            // an explicit ownership admission (references the ownership port).
+            if (IsApprovedCaller(file, repoRoot)
+                && stripped.Contains(OwnershipAdmissionPort, StringComparison.Ordinal))
+            {
+                continue;
+            }
 
             foreach (Match match in Call.Matches(stripped))
             {
@@ -274,11 +289,13 @@ public class OwnershipPathAuthorizationGuardTests
                   void Run() { _repo.StartAsync(default, default, ""c"", ""m"", default); }
               }");
 
-        // Approved: an Infrastructure-layer file that owns the write primitive.
+        // Approved: an Infrastructure-layer file that owns the write primitive AND performs
+        // ownership admission (references the ownership port).
         WriteFile(root, "src/Modules/Ingestion/Ingestion.Infrastructure/GoodOwner.cs",
             @"namespace FaraTaraz.Modules.Ingestion.Infrastructure;
               class GoodOwner
               {
+                  private readonly IAccountingSourceOwnership _ownership = null!;
                   void Run() { _repo.InsertOrUpdateAsync(default, default, null, default); }
               }");
 
@@ -325,6 +342,28 @@ public class OwnershipPathAuthorizationGuardTests
 
         Assert.Contains(violations, v => v.Contains("ExecuteAsync", StringComparison.Ordinal));
         Assert.Contains(violations, v => v.Contains("SaveAsync", StringComparison.Ordinal));
+
+        DeleteTempRepoRoot(root);
+    }
+
+    /// <summary>
+    /// A writer INSIDE the approved Infrastructure boundary that invokes the write surface WITHOUT
+    /// an ownership admission (no reference to the ownership port) is a bypass and must be flagged
+    /// — the engine cannot reach persistence while skipping ownership.
+    /// </summary>
+    [Fact]
+    public void Guard_flags_an_approved_boundary_writer_that_skips_ownership_admission()
+    {
+        var root = CreateTempRepoRoot();
+
+        WriteFile(root, "src/Modules/Ingestion/Ingestion.Infrastructure/Engine.cs",
+            @"namespace FaraTaraz.Modules.Ingestion.Infrastructure;
+              class Engine { void Run() { _uow.ExecuteAsync(null); } }");
+
+        var violations = OwnershipPathAuthorizationGuard.DetectForbiddenWriteCalls(root);
+
+        Assert.Single(violations);
+        Assert.Contains("ExecuteAsync", violations[0]);
 
         DeleteTempRepoRoot(root);
     }

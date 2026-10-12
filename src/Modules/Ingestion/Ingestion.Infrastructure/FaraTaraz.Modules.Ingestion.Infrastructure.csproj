@@ -29,6 +29,8 @@
   <ItemGroup>
     <ProjectReference Include="..\..\..\BuildingBlocks\FaraTaraz.BuildingBlocks.csproj" />
     <ProjectReference Include="..\Ingestion.Domain\FaraTaraz.Modules.Ingestion.Domain.csproj" />
+    <!-- The ingestion engine consumes the provider-independent ownership + capability PORTS only. -->
+    <ProjectReference Include="..\..\AccountingSources\FaraTaraz.Modules.AccountingSources.csproj" />
   </ItemGroup>
 
 </Project>

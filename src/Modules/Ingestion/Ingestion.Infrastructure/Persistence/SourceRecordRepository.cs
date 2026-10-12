@@ -77,6 +77,30 @@ public sealed class SourceRecordRepository
     }
 
     /// <summary>
+    /// Returns the stored content fingerprint for this source-record identity, or <c>null</c> when
+    /// the identity has never been stored for the trusted tenant. Tenant-scoped; a cross-tenant
+    /// identity is never read. Used by the ingestion coordinator to distinguish an identical
+    /// duplicate (idempotent no-op) from a changed record (unsupported, fail-closed).
+    /// </summary>
+    public async Task<string?> ReadFingerprintAsync(
+        TenantId tenantId,
+        SourceRecordId recordId,
+        CancellationToken cancellationToken = default)
+    {
+        var tenant = RequireTrustedTenant();
+        AssertCallerTenant(tenantId, tenant);
+
+        return await _db.SourceRecords
+            .Where(e => e.TenantId == tenant.Value &&
+                        e.SourceId == recordId.SourceId.Value &&
+                        e.RecordKind == recordId.RecordKind &&
+                        e.ExternalId == recordId.ExternalId)
+            .Select(e => e.ContentFingerprint)
+            .FirstOrDefaultAsync(cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
     /// Inserts a source record idempotently. Returns <c>true</c> if a NEW row was created,
     /// <c>false</c> if the delivery was a duplicate (the unique idempotency key already exists).
     /// Only the VALUES are parameterised; column/constraint names are literal SQL.

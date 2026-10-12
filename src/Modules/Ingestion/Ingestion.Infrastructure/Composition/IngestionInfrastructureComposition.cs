@@ -63,6 +63,10 @@ public static class IngestionInfrastructureComposition
         // (FT-DATA-002): records, run state and checkpoint movement commit together or not at all.
         services.AddScoped<IngestionUnitOfWork>();
 
+        // First bounded W3 ingestion-engine orchestration slice: admission (trusted tenant +
+        // fail-closed source ownership) then atomic persistence. No delivery surface/worker.
+        services.AddScoped<IngestionRunCoordinator>();
+
         return services;
     }
 }
