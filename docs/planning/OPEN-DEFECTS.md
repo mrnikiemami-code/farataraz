@@ -1,5 +1,15 @@
 # FaraTaraz — Open Defects and Architecture Acceptance Ledger
 
+## FT-ARCH-REMEDIATION M2 independent review — 2026-10-12
+
+**M2 ADAPTER + GUARD REFACTOR ACCEPTED FOR NON-PRODUCTION ARCHITECTURAL SCOPE, WITH FOLLOW-UP SECURITY FIX REQUIRED.** Independent GitHub review of `2d1c8687a71a2831a65afaf9c84f5759a0fad5e8` confirms new `EfIngestionWriteStore`, scoped DI for both M1 ports, inward Infrastructure → Application reference, and guard redesign. Linux CI [38233817379](https://github.com/mrnikiemami-code/farataraz/actions/runs/38233817379) completed **Debug 285/285, Release 285/285** (17 BuildingBlocks, 55 SyncContracts, 146 Architecture, 67 PostgreSQL Integration each; zero failures/skips). No production execution/delivery gates closed.
+
+**M3/M4 mandatory fixes:** `EfIngestionWriteStore.ExecuteInTransactionAsync` currently calls `session.MarkCompleted()` only after `IngestionUnitOfWork.ExecuteAsync` returns successfully; if work/commit fails, a captured session remains callable. Invalidate in `finally`, and test captured session after exceptions, rollback, cancellation. OwnershipPathAuthorizationGuard's per-file lexical `AssertTrusted(` + `IsOwnedByAsync(` check is necessary but insufficient to prove order and authorization outcome; insist on actual Application use-case ordering and real-PostgreSQL negative tests (untrusted, not-owned, ownership lookup error all yield zero provider calls/writes), and test direct port-bypass risks. Keep provider authority and terminal checkpoint semantics OPEN. No lowering tests/guards.
+
+---
+
+
+
 **Canonical path:** `docs/planning/OPEN-DEFECTS.md`  
 **Created:** 2026-10-09  
 **Scope:** W2 persistence foundation, W2-R1 tenant-isolation repair, W3 preflight, FMCA guards and CI.  
