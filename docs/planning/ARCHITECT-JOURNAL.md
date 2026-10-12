@@ -1,5 +1,20 @@
 # FaraTaraz — Architect Continuity Journal
 
+## CURRENT ARCHITECT RECOVERY CHECKPOINT — 2026-10-12 (after M3/M4 acceptance)
+
+**Authoritative current handoff.** Independently reviewed M3/M4 implementation at `134d84a09cd5bb2c30274b90a50d92aa2c73e15a`; GitHub Actions [38236380648](https://github.com/mrnikiemami-code/farataraz/actions/runs/38236380648) confirmed Debug **288/288**, Release **288/288**, no failures/skips. Acceptance recorded by ChatGPT in `OPEN-DEFECTS.md` at architect commit `5418d63e9b6dffc31ffef8cb4e55608b762e6095`. Source changes: `RunCustomerSyncHandler` in Application now owns admission and orchestration; previous Infrastructure coordinator deleted; M2 adapter session lifetime corrected with `finally`; trusted TenantContext and DatabaseTenantScope agreement before ownership/provider/writes. No production delivery.
+
+**Architecture remediation history:** M1 persistence contracts `cb3bcdf`, independently accepted (architect ledger `42a5b9c`); M2 guard+adapter `2d1c868`, independently accepted with session lifetime follow-up (architect ledger `3e7b297`); M3/M4 `134d84a`, accepted (architect ledger `5418d63`). W2 non-executable foundation remains CERTIFIED; W3 internal bounded engine conditionally authorized only. Do not confuse this with production certification.
+
+**Last task ISSUED, NOT YET REPORTED OR VERIFIED:** `FT-W3-ARCH-M5-R3-PROVENANCE-AND-COMPLETION`, issued after M3/M4: derive ProviderId from authoritative persisted AccountingSource configuration, not caller input; persist explicit terminal completion/non-resumable checkpoint with observed-version CAS and deterministic explicit restart; real PostgreSQL negative tests, migration compatibility; no provider/worker/endpoint/auth. The task may be running locally: NEVER presume completion or clean worktree from this journal. Check current origin/master, local status if available, and latest executor report before any further instruction.
+
+**Remaining gates:** terminal checkpoint/restart and provider provenance (M5 pending); `FT-SEC-004`/ADR-011 trusted production principal or worker producer; `FT-SEC-007` end-to-end production admission; `FT-DATA-003` changed/voided freshness; actual provider adapter and caller; broader Contracts/BuildingBlocks/schema/module layout and capability-neutral extension review. Lexical ownership guard is necessary but not a proof of call order. No fake authority, no production activation, no weakening guards, no invented completion.
+
+**Resume protocol:** read this top checkpoint plus `RECOVERY.md`, `OPEN-DEFECTS.md`, ADRs and AGENTS.md; fetch GitHub master and CI; reconcile executor M5 status; inspect changed code/tests; independently approve or stop. ChatGPT owns architect journal and defect ledger; executor updates RECOVERY only. User wants short end-to-end turnaround to resume W3, NOT shorter or less complete task instructions. Do not dispatch tasks through MCP; provide task text in chat.
+
+---
+
+
 ## ARCHITECT ACCEPTANCE HANDOFF — W2 CERTIFIED / W3 BOUNDED START — 2026-10-11
 
 **Authoritative decision:** Architect certified the **non-executable W2 Persistence Foundation** at reviewed source HEAD `a82501fcea72f05dddcad64fa1e4b9269438ee35` and actual GitHub Actions run `38161542330` (Ubuntu, real PostgreSQL 16, Debug 250/250 and Release 250/250, none skipped). Architect ledger decision commit `f682a615535d80836344213152f76c41bd2557e5`. **W3 is conditionally authorized only for bounded ingestion-engine development, NOT production execution or delivery.**

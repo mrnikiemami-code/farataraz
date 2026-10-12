@@ -1,5 +1,16 @@
 # RECOVERY — FaraTaraz / FMCA
 
+## CURRENT RECOVERY POINTER — 2026-10-12 (architect verified)
+
+**Latest independently accepted implementation:** M3/M4 `134d84a09cd5bb2c30274b90a50d92aa2c73e15a` (Application `RunCustomerSyncHandler`, Infrastructure coordinator removed, adapter session finally fixed), Linux CI [38236380648](https://github.com/mrnikiemami-code/farataraz/actions/runs/38236380648) Debug **288/288**, Release **288/288**, zero failed/skipped. Architect acceptance ledger commit `5418d63e9b6dffc31ffef8cb4e55608b762e6095`. W2 foundation CERTIFIED only for approved non-executable scope; W3 development bounded, production blocked.
+
+**NEXT TASK ISSUED, NOT VERIFIED:** `FT-W3-ARCH-M5-R3-PROVENANCE-AND-COMPLETION`: authoritative ProviderId resolution + explicit terminal checkpoint completion/CAS/restart semantics. No completion report yet; executor may be working. Do not issue or assume a subsequent task before independently reconciling M5. Remaining production gates: ADR-011 trusted producer, end-to-end ownership, changed/voided policy, actual provider/caller. Architect-only continuity: `docs/planning/ARCHITECT-JOURNAL.md` and canonical `docs/planning/OPEN-DEFECTS.md`.
+
+**Recovery action:** fetch latest origin/master and check status/CI; read journal+ledger; distinguish executor claims from independent verification. Never overwrite local work, fabricate success or mark a defect VERIFIED based on a report. User prioritizes completing architecture corrections quickly to return to W3 while retaining full safety checks.
+
+---
+
+
 ## ARCHITECT ACCEPTANCE HANDOFF — W2 CERTIFIED / W3 BOUNDED START — 2026-10-11
 
 **Authoritative decision:** Architect certified the **non-executable W2 Persistence Foundation** at reviewed source HEAD `a82501fcea72f05dddcad64fa1e4b9269438ee35` and actual GitHub Actions run `38161542330` (Ubuntu, real PostgreSQL 16, Debug 250/250 and Release 250/250, none skipped). Architect ledger decision commit `f682a615535d80836344213152f76c41bd2557e5`. **W3 is conditionally authorized only for bounded ingestion-engine development, NOT production execution or delivery.**
