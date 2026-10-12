@@ -55,7 +55,12 @@ public sealed class EfIngestionWriteStore : IIngestionWriteStore, IIngestionChec
             .GetAsync(tenant, sourceId, capability, cancellationToken)
             .ConfigureAwait(false);
 
-        return row is null ? null : new IngestionCheckpointRef(row.CursorToken, row.Version);
+        return row is null
+            ? null
+            : new IngestionCheckpointRef(
+                row.CursorToken,
+                row.Version,
+                row.State == SyncCheckpointStates.Completed ? SyncCheckpointState.Completed : SyncCheckpointState.Active);
     }
 
     /// <inheritdoc />
@@ -165,11 +170,12 @@ public sealed class EfIngestionWriteStore : IIngestionWriteStore, IIngestionChec
             string cursorToken,
             DateTime updatedAtUtc,
             long? observedVersion,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default,
+            SyncCheckpointState state = SyncCheckpointState.Active)
         {
             EnsureActive();
             await _store._checkpoints
-                .SaveAsync(_tenant, sourceId, capability, cursorToken, updatedAtUtc, observedVersion, cancellationToken)
+                .SaveAsync(_tenant, sourceId, capability, cursorToken, updatedAtUtc, observedVersion, cancellationToken, state)
                 .ConfigureAwait(false);
         }
 

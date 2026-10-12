@@ -16,8 +16,7 @@ using MediatR;
 /// </summary>
 public sealed record RunCustomerSyncCommand(
     TenantContext Tenant,
-    SyncRequest Request,
-    ProviderId Provider) : IRequest<IngestionRunResult>;
+    SyncRequest Request) : IRequest<IngestionRunResult>;
 
 /// <summary>Outcome of one bounded ingestion step.</summary>
 /// <param name="RunId">The persisted synchronization run id.</param>

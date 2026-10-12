@@ -59,6 +59,7 @@ public static class AccountingSourcesInfrastructureComposition
         });
 
         services.AddScoped<IAccountingSourceOwnership, EfAccountingSourceOwnership>();
+        services.AddScoped<IAccountingSourceProviderResolver, EfAccountingSourceProviderResolver>();
 
         return services;
     }

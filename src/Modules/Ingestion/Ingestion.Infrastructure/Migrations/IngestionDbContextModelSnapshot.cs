@@ -104,6 +104,11 @@ namespace FaraTaraz.Modules.Ingestion.Infrastructure.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)");
 
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)");
+
                     b.Property<string>("TenantId")
                         .IsRequired()
                         .HasMaxLength(255)

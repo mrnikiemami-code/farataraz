@@ -29,6 +29,12 @@ public sealed class SyncCheckpointEntity
     public DateTime UpdatedAtUtc { get; set; }
 
     /// <summary>
+    /// Persisted checkpoint state: <c>"Active"</c> (a resumable continuation) or <c>"Completed"</c>
+    /// (a durably finished synchronization, NOT resumable). Stored as a short string so the raw
+    /// upsert and the EF model agree (task M5/R3).</summary>
+    public string State { get; set; } = SyncCheckpointStates.Active;
+
+    /// <summary>
     /// DB-managed monotonic version (commit order of checkpoint writes for this scope).
     ///
     /// Incremented by the database on every accepted write and used as an optimistic-concurrency
@@ -40,4 +46,14 @@ public sealed class SyncCheckpointEntity
     /// the caller; the DB increments it and the repository only reads the value it returned.
     /// </summary>
     public long Version { get; set; } = 0L;
+}
+
+/// <summary>
+/// Storage mapping of <see cref="FaraTaraz.Modules.Ingestion.Domain.Synchronization.SyncCheckpointState"/>
+/// to its persisted string form (task M5/R3).
+/// </summary>
+internal static class SyncCheckpointStates
+{
+    public const string Active = "Active";
+    public const string Completed = "Completed";
 }

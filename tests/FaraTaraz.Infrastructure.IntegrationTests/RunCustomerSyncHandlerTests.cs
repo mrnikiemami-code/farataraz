@@ -1,4 +1,4 @@
-namespace FaraTaraz.Infrastructure.IntegrationTests;
+﻿namespace FaraTaraz.Infrastructure.IntegrationTests;
 
 using System;
 using System.Threading;
@@ -24,7 +24,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 /// tenant/scope agreement, single atomic write step, CAS, resume, nullable-fingerprint identity,
 /// duplicate/changed handling and rollback.
 /// </summary>
-public sealed class RunCustomerSyncHandlerTests
+public sealed partial class RunCustomerSyncHandlerTests
 {
     private static TenantId Tenant(string value) => new(value);
     private static AccountingSourceId Source(string value) => new(value);
@@ -65,7 +65,8 @@ public sealed class RunCustomerSyncHandlerTests
         IngestionDbContext ctx,
         string bindingTenant,
         IAccountingSourceOwnership ownership,
-        ISyncablePort<SourceCustomer> capability)
+        ISyncablePort<SourceCustomer> capability,
+        IAccountingSourceProviderResolver? providerResolver = null)
     {
         var scope = Scope(bindingTenant);
         var store = new EfIngestionWriteStore(
@@ -75,12 +76,13 @@ public sealed class RunCustomerSyncHandlerTests
             new SyncRunRepository(ctx, scope),
             scope);
 
-        return new RunCustomerSyncHandler(store, store, store, ownership, capability);
+        return new RunCustomerSyncHandler(
+            store, store, store, ownership, providerResolver ?? FakeProviderResolver.Resolving("Mock"), capability);
     }
 
     private static Task<IngestionRunResult> RunAsync(
         RunCustomerSyncHandler handler, string tenant, SyncRequest request)
-        => handler.Handle(new RunCustomerSyncCommand(Trusted(tenant), request, new ProviderId("Mock")), default);
+        => handler.Handle(new RunCustomerSyncCommand(Trusted(tenant), request), default);
 
     private static async Task<int> CountRecordsAsync(IntegrationTestDb db, string tenant, AccountingSourceId source)
     {
@@ -99,6 +101,13 @@ public sealed class RunCustomerSyncHandlerTests
         await using var ctx = db.Ingestion();
         var row = await ctx.SyncCheckpoints.FirstOrDefaultAsync(c => c.TenantId == tenant && c.SourceId == source.Value);
         return row?.CursorToken;
+    }
+
+    private static async Task<string?> ReadStateAsync(IntegrationTestDb db, string tenant, AccountingSourceId source)
+    {
+        await using var ctx = db.Ingestion();
+        var row = await ctx.SyncCheckpoints.FirstOrDefaultAsync(c => c.TenantId == tenant && c.SourceId == source.Value);
+        return row?.State;
     }
 
     private static async Task<string?> ReadFingerprintAsync(IntegrationTestDb db, string tenant, SourceRecordId id)
@@ -149,7 +158,7 @@ public sealed class RunCustomerSyncHandlerTests
 
         var untrusted = new TenantContext(Tenant(tenant), TenantContextOrigin.ClientInput);
         await Assert.ThrowsAsync<UnauthorizedTenantException>(() => handler.Handle(
-            new RunCustomerSyncCommand(untrusted, new SyncRequest(source, SyncMode.Full), new ProviderId("Mock")), default));
+            new RunCustomerSyncCommand(untrusted, new SyncRequest(source, SyncMode.Full)), default));
 
         Assert.Equal(0, capability.Calls);
         Assert.Equal(0, await CountRecordsAsync(db, tenant, source));
@@ -290,7 +299,7 @@ public sealed class RunCustomerSyncHandlerTests
         var handler = Handler(ctx, tenant, FakeOwnership.OwnsAll(), capability);
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => handler.Handle(
-            new RunCustomerSyncCommand(Trusted(tenant), new SyncRequest(source, SyncMode.Full), new ProviderId("Mock")),
+            new RunCustomerSyncCommand(Trusted(tenant), new SyncRequest(source, SyncMode.Full)),
             cts.Token));
 
         Assert.Equal(0, await CountRecordsAsync(db, tenant, source));
@@ -433,28 +442,6 @@ public sealed class RunCustomerSyncHandlerTests
     }
 
     [Fact]
-    public async Task Terminal_page_retains_the_previous_continuation_checkpoint()
-    {
-        var db = new IntegrationTestDb();
-        await db.ApplyMigrationsAsync();
-
-        var tenant = Guid.NewGuid().ToString("N");
-        var source = Source(Guid.NewGuid().ToString("N"));
-
-        await new SyncCheckpointRepository(db.Ingestion(), Scope(tenant))
-            .SaveAsync(Tenant(tenant), source, "Customers", "c1", DateTime.UtcNow, observedVersion: null);
-
-        var capability = new FakeCustomers((_, _) => Task.FromResult(Complete(source)));
-        await using var ctx = db.Ingestion();
-        var handler = Handler(ctx, tenant, FakeOwnership.OwnsAll(), capability);
-
-        var result = await RunAsync(handler, tenant, new SyncRequest(source, SyncMode.Full));
-
-        Assert.True(result.IsComplete);
-        Assert.Equal("c1", await ReadCursorAsync(db, tenant, source));
-    }
-
-    [Fact]
     public async Task Stored_null_fingerprint_is_not_misclassified_as_absent()
     {
         var db = new IntegrationTestDb();
@@ -538,6 +525,63 @@ public sealed class RunCustomerSyncHandlerTests
             LastRequest = request;
             return _sync(request, cancellationToken);
         }
+    }
+
+    [Fact]
+    public async Task Provenance_uses_the_resolved_provider_identity()
+    {
+        var db = new IntegrationTestDb();
+        await db.ApplyMigrationsAsync();
+
+        var tenant = Guid.NewGuid().ToString("N");
+        var source = Source(Guid.NewGuid().ToString("N"));
+        var capability = new FakeCustomers((_, _) => Task.FromResult(Complete(source, Customer(source, "C1", "fp1"))));
+
+        await using var ctx = db.Ingestion();
+        var handler = Handler(ctx, tenant, FakeOwnership.OwnsAll(), capability, FakeProviderResolver.Resolving("ResolvedProvider"));
+        await RunAsync(handler, tenant, new SyncRequest(source, SyncMode.Full));
+
+        await using var read = db.Ingestion();
+        var storedProvider = await read.SourceRecords
+            .Where(r => r.TenantId == tenant && r.SourceId == source.Value)
+            .Select(r => r.Provider)
+            .FirstOrDefaultAsync();
+        Assert.Equal("ResolvedProvider", storedProvider);
+    }
+
+    [Fact]
+    public async Task Missing_provider_configuration_fails_closed_before_provider_and_writes()
+    {
+        var db = new IntegrationTestDb();
+        await db.ApplyMigrationsAsync();
+
+        var tenant = Guid.NewGuid().ToString("N");
+        var source = Source(Guid.NewGuid().ToString("N"));
+        var capability = new FakeCustomers((_, _) => Task.FromResult(Complete(source, Customer(source, "C1", "fp1"))));
+
+        await using var ctx = db.Ingestion();
+        var handler = Handler(ctx, tenant, FakeOwnership.OwnsAll(), capability, FakeProviderResolver.Missing());
+
+        await Assert.ThrowsAsync<UnauthorizedSourceException>(
+            () => RunAsync(handler, tenant, new SyncRequest(source, SyncMode.Full)));
+
+        Assert.Equal(0, capability.Calls);
+        Assert.Equal(0, await CountRecordsAsync(db, tenant, source));
+        Assert.Equal(0, await CountRunsAsync(db, tenant, source));
+    }
+
+    private sealed class FakeProviderResolver : IAccountingSourceProviderResolver
+    {
+        private readonly ProviderId? _provider;
+
+        private FakeProviderResolver(ProviderId? provider) => _provider = provider;
+
+        public static FakeProviderResolver Resolving(string provider) => new(new ProviderId(provider));
+        public static FakeProviderResolver Missing() => new(null);
+
+        public Task<ProviderId?> ResolveProviderAsync(
+            TenantId tenantId, AccountingSourceId sourceId, CancellationToken cancellationToken = default)
+            => Task.FromResult(_provider);
     }
 
     private sealed class FakeOwnership : IAccountingSourceOwnership

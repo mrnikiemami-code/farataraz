@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using FaraTaraz.BuildingBlocks.Identifiers;
 using FaraTaraz.BuildingBlocks.Tenancy;
+using FaraTaraz.Modules.Ingestion.Domain.Synchronization;
 using Microsoft.EntityFrameworkCore;
 
 /// <summary>
@@ -88,7 +89,8 @@ public sealed class SyncCheckpointRepository
         string cursorToken,
         DateTime updatedAtUtc,
         long? observedVersion,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        SyncCheckpointState state = SyncCheckpointState.Active)
     {
         var tenant = RequireTrustedTenant();
         AssertCallerTenant(tenantId, tenant);
@@ -101,6 +103,13 @@ public sealed class SyncCheckpointRepository
                 "observedVersion must be null (absent row) or >= 0.");
         }
 
+        var stateValue = state switch
+        {
+            SyncCheckpointState.Active => SyncCheckpointStates.Active,
+            SyncCheckpointState.Completed => SyncCheckpointStates.Completed,
+            _ => throw new ArgumentOutOfRangeException(nameof(state), state, "Unknown checkpoint state.")
+        };
+
         // The caller's observation is the optimistic-concurrency guard. null -> -1 (absent row /
         // first write); a supplied version is used verbatim. The DB-managed Version is never trusted
         // from the caller for storage; this only rejects a write that races a newer commit.
@@ -111,13 +120,14 @@ public sealed class SyncCheckpointRepository
             .ExecuteSqlInterpolatedAsync(
                 $@"INSERT INTO ""SyncCheckpoints""
                        (""TenantId"", ""SourceId"", ""Capability"", ""CursorToken"",
-                        ""UpdatedAtUtc"", ""Version"")
+                        ""UpdatedAtUtc"", ""Version"", ""State"")
                        VALUES ({tenant.Value}, {sourceId.Value}, {capability}, {cursorToken},
-                               {updatedAtUtc}, {newVersion})
+                               {updatedAtUtc}, {newVersion}, {stateValue})
                        ON CONFLICT (""TenantId"", ""SourceId"", ""Capability"") DO UPDATE
                        SET ""CursorToken"" = EXCLUDED.""CursorToken"",
                            ""UpdatedAtUtc"" = EXCLUDED.""UpdatedAtUtc"",
-                           ""Version"" = EXCLUDED.""Version""
+                           ""Version"" = EXCLUDED.""Version"",
+                           ""State"" = EXCLUDED.""State""
                        WHERE ""SyncCheckpoints"".""Version"" = {expectedVersion};",
                 cancellationToken)
             .ConfigureAwait(false);

@@ -82,7 +82,8 @@ public interface IIngestionWriteSession
         string cursorToken,
         DateTime updatedAtUtc,
         long? observedVersion,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,
+        SyncCheckpointState state = SyncCheckpointState.Active);
 
     /// <summary>Completes the run with its terminal outcome and processed count.</summary>
     Task FinishRunAsync(

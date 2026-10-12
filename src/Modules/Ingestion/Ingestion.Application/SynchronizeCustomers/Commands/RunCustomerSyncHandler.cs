@@ -34,20 +34,23 @@ public sealed class RunCustomerSyncHandler : IRequestHandler<RunCustomerSyncComm
     private readonly IIngestionCheckpointStore _checkpoints;
     private readonly IIngestionTrustedTenantScope _trustedTenant;
     private readonly IAccountingSourceOwnership _ownership;
+    private readonly IAccountingSourceProviderResolver _providerResolver;
     private readonly ISyncablePort<SourceCustomer> _customers;
 
-    /// <summary>Wraps the persistence ports, the ownership oracle and the customer capability port.</summary>
+    /// <summary>Wraps the persistence ports, the ownership + provider oracles and the customer capability port.</summary>
     public RunCustomerSyncHandler(
         IIngestionWriteStore writes,
         IIngestionCheckpointStore checkpoints,
         IIngestionTrustedTenantScope trustedTenant,
         IAccountingSourceOwnership ownership,
+        IAccountingSourceProviderResolver providerResolver,
         ISyncablePort<SourceCustomer> customers)
     {
         _writes = writes ?? throw new ArgumentNullException(nameof(writes));
         _checkpoints = checkpoints ?? throw new ArgumentNullException(nameof(checkpoints));
         _trustedTenant = trustedTenant ?? throw new ArgumentNullException(nameof(trustedTenant));
         _ownership = ownership ?? throw new ArgumentNullException(nameof(ownership));
+        _providerResolver = providerResolver ?? throw new ArgumentNullException(nameof(providerResolver));
         _customers = customers ?? throw new ArgumentNullException(nameof(customers));
     }
 
@@ -81,14 +84,32 @@ public sealed class RunCustomerSyncHandler : IRequestHandler<RunCustomerSyncComm
                 "The trusted Tenant does not own the requested AccountingSource.");
         }
 
+        // 4. Resolve the AUTHORITATIVE provider identity from the source's persisted configuration.
+        //    The provider is never taken from the request; a missing source or blank/absent provider
+        //    configuration fails closed before any provider call or write (provenance authority).
+        var resolvedProvider = await _providerResolver
+            .ResolveProviderAsync(command.Tenant.TenantId, command.Request.SourceId, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (resolvedProvider is not { } provider || string.IsNullOrWhiteSpace(provider.Value))
+        {
+            throw new UnauthorizedSourceException(
+                command.Request.SourceId,
+                "The AccountingSource has no resolvable provider configuration.");
+        }
+
         var capabilityName = _customers.CapabilityName;
 
-        // 4. Observe the persisted checkpoint (resume point + CAS guard) and drive ONE bounded page.
+        // 5. Observe the persisted checkpoint (resume point + CAS guard) and drive ONE bounded page.
         var observed = await _checkpoints
             .ReadAsync(command.Request.SourceId, capabilityName, cancellationToken)
             .ConfigureAwait(false);
 
-        var effectiveRequest = ResolveResumeRequest(command.Request, observed, capabilityName);
+        // Only an ACTIVE checkpoint is resumable. A completed marker must never replay a historical
+        // cursor: a cursor-less invocation then starts a FRESH synchronization (defined new-sync
+        // behavior); the completed marker itself is never auto-reset or replayed.
+        var resumable = observed is { State: SyncCheckpointState.Active } ? observed : null;
+        var effectiveRequest = ResolveResumeRequest(command.Request, resumable, capabilityName);
 
         var page = await _customers.SyncAsync(effectiveRequest, cancellationToken).ConfigureAwait(false);
 
@@ -125,7 +146,7 @@ public sealed class RunCustomerSyncHandler : IRequestHandler<RunCustomerSyncComm
                 }
 
                 var provenance = new SourceProvenance(
-                    record.RecordId, command.Provider, command.Request.SourceId, DateTime.UtcNow);
+                    record.RecordId, provider, command.Request.SourceId, DateTime.UtcNow);
 
                 if (await session
                         .InsertRecordAsync(record.RecordId, record.Version, provenance, innerCt)
@@ -137,11 +158,23 @@ public sealed class RunCustomerSyncHandler : IRequestHandler<RunCustomerSyncComm
 
             if (page.NextCursor is { } next)
             {
-                // No early cursor advancement; pass the ORIGINAL observed version (CAS).
+                // Continuation: resumable. Pass the ORIGINAL observed version (CAS).
                 await session
                     .SaveCheckpointAsync(
                         command.Request.SourceId, capabilityName, next.Token,
-                        DateTime.UtcNow, observed?.Version, innerCt)
+                        DateTime.UtcNow, observed?.Version, innerCt, SyncCheckpointState.Active)
+                    .ConfigureAwait(false);
+            }
+            else
+            {
+                // Durable terminal completion: atomically mark the checkpoint non-resumable with the
+                // ORIGINAL observed version (CAS). Completion of the SYNC is distinct from the run
+                // step's own Completed outcome.
+                await session
+                    .SaveCheckpointAsync(
+                        command.Request.SourceId, capabilityName,
+                        effectiveRequest.Cursor?.Token ?? string.Empty,
+                        DateTime.UtcNow, observed?.Version, innerCt, SyncCheckpointState.Completed)
                     .ConfigureAwait(false);
             }
 

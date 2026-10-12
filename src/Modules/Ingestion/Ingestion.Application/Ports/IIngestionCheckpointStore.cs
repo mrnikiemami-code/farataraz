@@ -1,8 +1,9 @@
-namespace FaraTaraz.Modules.Ingestion.Application.Ports;
-
 using System.Threading;
 using System.Threading.Tasks;
 using FaraTaraz.BuildingBlocks.Identifiers;
+using FaraTaraz.Modules.Ingestion.Domain.Synchronization;
+
+namespace FaraTaraz.Modules.Ingestion.Application.Ports;
 
 /// <summary>
 /// Application-owned read port for the persisted synchronization checkpoint of one
@@ -32,4 +33,5 @@ public interface IIngestionCheckpointStore
 /// </summary>
 /// <param name="CursorToken">Opaque continuation cursor token; interpreted only by the provider, never by the platform.</param>
 /// <param name="Version">The DB-managed version observed at read time.</param>
-public sealed record IngestionCheckpointRef(string CursorToken, long Version);
+/// <param name="State">Whether the checkpoint is a resumable continuation or a durably completed sync.</param>
+public sealed record IngestionCheckpointRef(string CursorToken, long Version, SyncCheckpointState State);

@@ -9,6 +9,26 @@
 **Architect ledger is canonical:** `docs/planning/OPEN-DEFECTS.md` has per-ID review evidence and decisions. Historical reports below that say W2 NOT CERTIFIED/W3 NOT AUTHORIZED refer to **past checkpoints**, not current restricted authorization. Implementation agent must start by fetching latest master, reading ledger+constitution+ADRs, and must not treat certification as removal of W3 production gates.
 
 
+## W3-ARCH-M5/R3 PROVIDER AUTHORITY + TERMINAL CHECKPOINT CHECKPOINT — FT-W3-ARCH-M5-R3 (2026-10-12)
+
+**Task:** `FT-W3-ARCH-M5-R3-PROVENANCE-AND-COMPLETION`. **Status:** `PASS` (both gaps closed). `OPEN-DEFECTS.md` untouched; no defect VERIFIED.
+
+**Baseline / sync:** `5418d63` (origin/master).
+
+**Part A — provider authority.** `RunCustomerSyncCommand` no longer carries a `ProviderId`. New inward port `AccountingSources/Authorization/IAccountingSourceProviderResolver.cs` implemented by `AccountingSources.Infrastructure/Authorization/EfAccountingSourceProviderResolver.cs` (trusted `DatabaseTenantScope` only; ignores the caller tenant; returns `null` for unknown/cross-tenant source, missing scope, blank config, or lookup failure) and DI-registered. The handler runs admission first (AssertTrusted → tenant/scope agreement → ownership), then resolves the **authoritative** provider and fails closed (`UnauthorizedSourceException`) when it is missing/blank, before any provider call or write. Provenance now stores the resolved provider. Spoofing is impossible by construction (no caller provider input).
+
+**Part B — durable terminal checkpoint.** Domain `SyncCheckpointState { Active, Completed }`. `SyncCheckpoints` gains a `State` column (`varchar(32)`, default `"Active"`) via migration `20261012103502_FTW2R3-CheckpointState`; the raw CAS upsert now writes `State`. M1 ports: `IngestionCheckpointRef` carries `State`; `SaveCheckpointAsync(..., state)`; the adapter maps it (no EF type leaks to Application). The handler now **always** writes the checkpoint inside the single transaction: a continuation page → `Active`; a terminal page → `Completed` — both with the ORIGINAL observed-version CAS (stale writers rejected, rollback on failure/cancellation).
+
+**Restart contract (defined; for architect confirmation).** Only an `Active` checkpoint is resumable. A cursor-less invocation whose checkpoint is `Completed` (or absent) starts a **fresh** synchronization from the beginning and never replays the historical cursor; the completed marker is never auto-reset or replayed. Completion of the synchronization (`Completed` checkpoint) is distinct from the run step's own `Completed` outcome. **Migration compatibility:** existing checkpoint rows default to `Active` and remain resumable continuations.
+
+**Tests (real PostgreSQL).** Provider resolver (5): resolved / unknown / cross-tenant / blank / missing-scope. Handler: provenance uses the resolved provider; missing provider fails closed (zero provider calls/writes); trusted/scope mismatch; durable terminal completion; no implicit replay after completion + fresh restart; stale terminal writer rejected + rollback; resumable continuation; stale CAS; plus the existing admission/idempotency/nullable/duplicate/changed guarantees. `RunCustomerSyncHandlerTests` was split into two `partial` files to respect the 600-line test budget.
+
+**Verification:** full Debug **297/297** and Release **297/297** (BuildingBlocks 17, SyncContracts 55, Integration **79**, Architecture 146); Application builds independently; `git diff --check` clean.
+
+**Files:** new `IAccountingSourceProviderResolver.cs`, `EfAccountingSourceProviderResolver.cs`, `SyncCheckpointState.cs`, `20261012103502_FTW2R3-CheckpointState.{cs,Designer.cs}`, `AccountingSourceProviderResolverTests.cs`, `RunCustomerSyncHandlerTests.Completion.cs`; edited command/handler, M1 ports, adapter, checkpoint entity/repository, DbContext(+snapshot), AccountingSources composition, handler/partial tests, this `RECOVERY.md`. No endpoint/worker/provider/auth.
+
+**Risks / open:** the restart contract is newly defined and should be architect-confirmed; raw SQL still duplicates the checkpoint schema (now incl. `State`); the task exceeded its 45-minute budget (finished ~68 min) due to the file-size guard split.
+
 ## W3-ARCH-M3M4 APPLICATION ORCHESTRATION CHECKPOINT — FT-W3-ARCH-M3M4 (2026-10-12)
 
 **Task:** `FT-W3-ARCH-M3M4-APPLICATION-ORCHESTRATION`. **Status:** `PASS` — customer ingestion orchestration moved from Infrastructure to Application, composition switched to it, the M2 session-lifetime defect fixed. `OPEN-DEFECTS.md` untouched; no defect VERIFIED.
