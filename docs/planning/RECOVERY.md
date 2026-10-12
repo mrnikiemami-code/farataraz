@@ -24,6 +24,28 @@
 
 ---
 
+## WAVE 2 DOMAIN POLICY — FT-REBASELINE-W2-DOMAIN-POLICY-001 — COMPLETE, AWAITING ARCHITECT REVIEW (2026-10-12)
+
+**Task:** `FT-REBASELINE-W2-DOMAIN-POLICY-001`. **Status:** W2 implementation complete; submitted for independent architect review. W3 **not** started. `OPEN-DEFECTS.md` / `ARCHITECT-JOURNAL.md` untouched; no defect VERIFIED.
+
+**Baseline / sync:** `74c2a40` (origin/master, fetched + fast-forwarded). Worktree clean at start.
+
+**Extracted into `Ingestion.Domain` (new `Synchronization/IngestionSyncPolicy.cs`, 4 pure methods, one cohesive policy type):** C5 `EnsureExplicitRestartHasNoCursor` (`InvalidSyncCursorException`); C6 `EnsureContinuationAllowed` (`SyncAlreadyCompletedException`); C8 `ResumeFromPersistedCursor` (`InvalidSyncCursorException`); C11 `EnsureUnchangedOrIdempotent` (`UnsupportedChangedRecordException`). **Retained in Application** (per AD-3/AD-4 and the architect's C7 note): tenant `AssertTrusted`; trusted-scope agreement; `IsOwnedByAsync` ownership admission; provider resolution from persisted config; checkpoint read (I/O order); C7 "Active ⇒ resumable / absent ⇒ first sync" orchestration; C9 batch bound; C10 defensive page-shape check (contract-enforced by `SyncBatch`); C12 provenance + `DateTime.UtcNow`; C13 CAS orchestration; C14 run lifecycle; C15 transaction boundary. Rules were moved **only** because they are independent of I/O, tenant trust, provider, time, MediatR and persistence.
+
+**Graph change:** `Ingestion.Domain` now declares an inward `ProjectReference` to `Ingestion.Contracts` (permitted by architect decision 2; Domain → Contracts only, reverse forbidden and asserted). `ArchitecturePolicy` Domain rules unchanged and green; no guard weakened or allowlisted.
+
+**Parity evidence:** the observable sequence of external operations is unchanged (restart validity → checkpoint read → continuation rule → one provider page → single transaction). Same exception types and conditions preserved: `SyncAlreadyCompletedException` (Completed & !Restart, `SourceId` intact), `InvalidSyncCursorException` (restart-with-cursor; caller-vs-persisted conflict), `UnsupportedChangedRecordException` (any fingerprint inequality incl. stored-null vs non-null, `ExternalId` intact). `null == null` remains an idempotent duplicate. Atomic records+checkpoint+run transaction and original observed-version CAS untouched; cancellation unwrapped. **All 85 PostgreSQL integration tests unchanged and green.**
+
+**Tests added:** `tests/FaraTaraz.SyncContracts.Tests/IngestionSyncPolicyTests.cs` — 16 branch tests (C5/C6/C8/C11 incl. every null-fingerprint combination and exception payload) + 1 purity test asserting the real `FaraTaraz.Modules.Ingestion.Domain` assembly references only BuildingBlocks/MasterData/Ingestion.Contracts and no MediatR/EFCore/Npgsql/Adapters, and that Contracts does not reference Domain. SyncContracts 55 → **72**.
+
+**Verification:** full Debug **331/331** and Release **331/331** (BuildingBlocks 17, SyncContracts 72, Architecture 157, Integration 85 real PostgreSQL); zero warnings/errors; `git diff --check` clean.
+
+**Files:** new `src/Modules/Ingestion/Ingestion.Domain/Synchronization/IngestionSyncPolicy.cs`, `tests/FaraTaraz.SyncContracts.Tests/IngestionSyncPolicyTests.cs`; edited `Ingestion.Domain/FaraTaraz.Modules.Ingestion.Domain.csproj`, `Ingestion.Application/SynchronizeCustomers/Commands/RunCustomerSyncHandler.cs`, this `RECOVERY.md`. No schema/migration, no endpoint/worker/provider/auth, no D4–D12 cleanup.
+
+**Unresolved risk:** `CustomerSyncIntent` remains Application-owned, so the restart flag crosses into Domain as a `bool`; if a future restart semantic is added, revisit whether the intent belongs in Domain/Contracts. C7 and C10 remain Application-side by architectural decision.
+
+---
+
 ## WAVE 1 AUDIT — FT-REBASELINE-W1-ARCHITECTURE-TRUTH-001 — COMPLETE, AWAITING ARCHITECT REVIEW (2026-10-12)
 
 **Task:** `FT-REBASELINE-W1-ARCHITECTURE-TRUTH-001` (READ-ONLY ARCHITECTURE AUDIT). **Status:** Wave 1 complete; submitted for independent architect review. `W2` is **not** started. `OPEN-DEFECTS.md` / `ARCHITECT-JOURNAL.md` untouched; no defect VERIFIED.

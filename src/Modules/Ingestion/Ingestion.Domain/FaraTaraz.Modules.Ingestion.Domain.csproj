@@ -3,6 +3,12 @@
   <ItemGroup>
     <ProjectReference Include="..\..\..\BuildingBlocks\FaraTaraz.BuildingBlocks.csproj" />
     <ProjectReference Include="..\..\MasterData\FaraTaraz.Modules.MasterData.csproj" />
+    <!--
+      Inward-only: the Domain may reuse the provider-neutral sync CONTRACT types (SyncRequest,
+      SyncCursor, cursor-scope exceptions) when expressing a pure domain decision. The reverse
+      dependency (Contracts -> Domain) is forbidden and guarded by ArchitecturePolicy.
+    -->
+    <ProjectReference Include="..\Ingestion.Contracts\FaraTaraz.Modules.Ingestion.Contracts.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

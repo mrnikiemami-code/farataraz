@@ -102,31 +102,26 @@ public sealed class RunCustomerSyncHandler : IRequestHandler<RunCustomerSyncComm
         var capabilityName = _customers.CapabilityName;
 
         // 5. Observe the persisted checkpoint (resume point + CAS guard) and drive ONE bounded page.
-        // Explicit restart never reuses a historical cursor.
-        if (command.Intent == CustomerSyncIntent.Restart && command.Request.Cursor is not null)
-        {
-            throw new InvalidSyncCursorException("An explicit restart must not supply a cursor.");
-        }
+        // The restart/cursor/terminality decisions are pure Domain policy (IngestionSyncPolicy);
+        // this method keeps the I/O order: restart validity → checkpoint read → continuation rule.
+        var isExplicitRestart = command.Intent == CustomerSyncIntent.Restart;
+
+        IngestionSyncPolicy.EnsureExplicitRestartHasNoCursor(isExplicitRestart, command.Request.Cursor);
 
         var observed = await _checkpoints
             .ReadAsync(command.Request.SourceId, capabilityName, cancellationToken)
             .ConfigureAwait(false);
 
+        // A completed synchronization is TERMINAL. A normal step must reject it before any
+        // provider call or write; only an explicit restart may pass it, and that restart is
+        // transitioned through the observed-version CAS below (the marker is never deleted and
+        // its version is never reset).
+        IngestionSyncPolicy.EnsureContinuationAllowed(
+            isExplicitRestart, observed?.State, command.Request.SourceId);
+
         IngestionCheckpointRef? resumable = null;
 
-        if (observed is { State: SyncCheckpointState.Completed })
-        {
-            // A completed synchronization is TERMINAL. A normal step must reject it before any
-            // provider call or write; only an explicit restart may pass it, and that restart is
-            // transitioned through the observed-version CAS below (the marker is never deleted and
-            // its version is never reset).
-            if (command.Intent != CustomerSyncIntent.Restart)
-            {
-                throw new SyncAlreadyCompletedException(command.Request.SourceId);
-            }
-        }
-        else if (observed is { State: SyncCheckpointState.Active }
-                 && command.Intent != CustomerSyncIntent.Restart)
+        if (observed is { State: SyncCheckpointState.Active } && !isExplicitRestart)
         {
             resumable = observed;
         }
@@ -166,13 +161,13 @@ public sealed class RunCustomerSyncHandler : IRequestHandler<RunCustomerSyncComm
 
                 if (probe is not null)
                 {
-                    // Identity exists: classify by VALUE (which may be null); a stored null
-                    // fingerprint is never treated as absent.
-                    var incomingFingerprint = record.Version?.ContentFingerprint;
-                    if (!string.Equals(probe.ContentFingerprint, incomingFingerprint, StringComparison.Ordinal))
-                    {
-                        throw new UnsupportedChangedRecordException(record.RecordId.ExternalId);
-                    }
+                    // Identity exists: the changed-vs-idempotent decision is pure Domain policy.
+                    // A stored null fingerprint is never treated as absent, and null == null is an
+                    // idempotent duplicate.
+                    IngestionSyncPolicy.EnsureUnchangedOrIdempotent(
+                        probe.ContentFingerprint,
+                        record.Version?.ContentFingerprint,
+                        record.RecordId.ExternalId);
 
                     continue; // identical duplicate (including null == null): idempotent
                 }
@@ -238,16 +233,7 @@ public sealed class RunCustomerSyncHandler : IRequestHandler<RunCustomerSyncComm
             return request;
         }
 
-        var persistedCursor = new SyncCursor(
-            persisted.CursorToken, new SyncCursorScope(request.SourceId, capabilityName));
-
-        if (request.Cursor is not null &&
-            !string.Equals(request.Cursor.Token, persistedCursor.Token, StringComparison.Ordinal))
-        {
-            throw new InvalidSyncCursorException(
-                "Caller-supplied cursor conflicts with the persisted checkpoint; refusing to resume.");
-        }
-
-        return new SyncRequest(request.SourceId, request.Mode, persistedCursor, request.BatchSize);
+        // Domain policy (C8): the caller-supplied cursor, if any, must agree with the persisted one.
+        return IngestionSyncPolicy.ResumeFromPersistedCursor(request, persisted.CursorToken, capabilityName);
     }
 }
