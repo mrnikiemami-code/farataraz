@@ -24,6 +24,24 @@
 
 ---
 
+## WAVE 1 AUDIT — FT-REBASELINE-W1-ARCHITECTURE-TRUTH-001 — COMPLETE, AWAITING ARCHITECT REVIEW (2026-10-12)
+
+**Task:** `FT-REBASELINE-W1-ARCHITECTURE-TRUTH-001` (READ-ONLY ARCHITECTURE AUDIT). **Status:** Wave 1 complete; submitted for independent architect review. `W2` is **not** started. `OPEN-DEFECTS.md` / `ARCHITECT-JOURNAL.md` untouched; no defect VERIFIED.
+
+**Baseline / sync:** `7ca9a3c` (origin/master, fetched + fast-forwarded). `FT-ARCH-GUARD-TRUTH-004` was **not** running (clean worktree, no branch/stash) → no conflict; it is superseded by this rebaseline mission.
+
+**Deliverable:** new `docs/architecture/ARCHITECTURE-W1-AUDIT-2026-10-12.md` (single review document). It contains: the 12-project inventory (path/assembly/namespace/layer/deps/packages/DI), both sync handlers' decision traces, the D1–D12 evidence matrix, the business-rule ownership matrix (C1–C15/Q1–Q4/I1–I8), the execution + trust-boundary map with 7 missing/unresolved edges, constitution/ADR reconciliation (R1–R10), target project graph + responsibility matrix, the reuse-vs-rewrite decision, the finite W2–W5 plan with exit criteria/rollback/external deps and an explicit two-branch terminal exit condition, the retention list, and AD-1–AD-8 open architect decisions.
+
+**Key findings (evidence-based).** D1 CONFIRMED (no delivery: `FaraTaraz.Host` is a library with no entry point; `ISyncablePort<SourceCustomer>` registered only in tests; no `TenantContext` producer). D2 CONFIRMED-thin/PARTIAL-pure. D3 CONFIRMED relocation vs ADR-010 §11 wording. D4 CONFIRMED duplication (runtime-covered by 85 PG tests). D5 CONFIRMED (Query is a non-persisting preview, **not** a duplicate writer; `IApplicationUseCase` dead). D6 CONFIRMED (5 core touchpoints per capability). D7 CONFIRMED (bare assembly). D8 CONFIRMED (dead `Clock`/diagnostics/error primitives). D9 CONFIRMED (string run-state). D10 PARTIAL (not proven). D11 CONFIRMED (stale `typeof(SyncRequest).Assembly` anchors; fictitious `src/Infrastructure` path). D12 CONFIRMED (6 real boundaries + 1 dead model). No FALSE findings; no irreconcilable cycles.
+
+**Decision proposed:** **REUSE / bounded controlled reconstruction** — no rewrite trigger (a)–(d) is met. Next: architect approves AD-1…AD-8 and authorizes **W2 only**.
+
+**Verification:** documentation-only change. Debug+Release architecture tests re-run green (see commit evidence); `git diff --check` clean. No production code, tests, migrations, project moves or deletions.
+
+**Files:** new `docs/architecture/ARCHITECTURE-W1-AUDIT-2026-10-12.md`; edited this `RECOVERY.md`. **STOP after Wave 1 — do not start W2.**
+
+---
+
 
 ## CURRENT RECOVERY POINTER — 2026-10-12 (architect verified)
 
