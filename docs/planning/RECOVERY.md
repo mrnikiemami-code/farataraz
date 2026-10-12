@@ -24,6 +24,32 @@
 
 ---
 
+## WAVE 3 APPLICATION & GUARD CLEANUP — FT-REBASELINE-W3-APPLICATION-GUARD-CLEANUP-001 — COMPLETE, AWAITING ARCHITECT REVIEW (2026-10-13)
+
+**Task:** `FT-REBASELINE-W3-APPLICATION-GUARD-CLEANUP-001`. **Status:** W3 implementation complete; submitted for independent architect review. W4 **not** started. `OPEN-DEFECTS.md` / `ARCHITECT-JOURNAL.md` untouched; no defect VERIFIED.
+
+**Baseline / sync:** `816f1ad` (origin/master, fetched + fast-forwarded). W2 behavior baseline `60d40ea` preserved.
+
+**1. Application authority (preserved).** `RunCustomerSyncCommand` remains the ONLY durable write path; `SynchronizeCustomersQuery` remains a READ-ONLY preview. Admission was **deliberately NOT shared**: `OwnershipPathAuthorizationGuard` rule 2 is per-file — the file invoking `ExecuteInTransactionAsync` must itself contain the real `AssertTrusted(` and `IsOwnedByAsync(` calls, so extracting admission would break the guard and obscure call order. New `tests/.../QueryPreviewNoWriteTests.cs` proves the preview (a) has no write/persistence port in its constructor or fields, and (b) dispatches successfully in a container with **no write store, checkpoint store or DbContext registered** (pure read). Both handlers keep fail-closed trusted-tenant + ownership checks before any provider call.
+
+**2. Verified dead abstractions removed (usage evidence = zero production consumers, only self-references/tests).** `IApplicationUseCase` (marker, unused); `Ingestion.Domain` `Clock`/`ISystemClock`/`SystemClock` (unused); `BuildingBlocks.Diagnostics` (`DiagnosticContext`, `DiagnosticsLoggingExtensions`) and `BuildingBlocks.Errors` (`ErrorDescriptor`, `ErrorCode`, `ErrorCategory`, `ErrorSeverity`) — all referenced only by their own definitions plus `BuildingBlocks.Tests`. Removed the now-unused `Microsoft.Extensions.Logging.Abstractions` package from `BuildingBlocks` (its only consumer was the deleted diagnostics extension). Their tests were removed with them (not to make CI green). **Retained** `ConnectionConfigurationException` (used by both Infrastructure compositions) and all tenant/identity types. No clock injection or new error abstraction added (per AD-4).
+
+**3. D11 guard truth restored (no guard weakened).** `PhysicalStructureTests`: the two Domain-labelled tests now anchor the REAL `FaraTaraz.Modules.Ingestion.Domain` assembly (`typeof(SyncCheckpointState).Assembly`); added an explicit Contracts anchor test; `MediatR_handlers_live_only_in_the_Application_layer` now covers both real Domain and Contracts. `LayerDependencyGraphTests`: removed the fictitious `src/Infrastructure/FaraTaraz.Infrastructure.csproj` path, keeping the two real Infrastructure projects. `ReferenceGraphTests` and `DependencyDirectionTests`: corrected the `typeof(SyncRequest).Assembly` = Contracts mislabel, added the real Domain assembly, and asserted its truthful assembly references. Removed the stale `BuildingBlocks/Application` single-file-leaf allowlist entry (folder deleted). `ArchitecturePolicyTests`: added a real on-disk **negative fixture** (Domain → Application) rejected by the same policy the live inventory is checked against.
+
+**4. Compatibility.** No schema/migration, no tenant identity/source-record/provider-provenance/transaction/CAS change, no `AccountingSources` rename, no taxonomy relocation, no delivery/worker/endpoint/provider/auth.
+
+**Finding retained (not expanded).** `Ingestion.Domain.csproj` declares a `MasterData` `ProjectReference` that **no Domain code uses** (compiler-pruned from the assembly). It is tolerated by `ArchitecturePolicy` and **retained** pending an architect graph decision rather than silently removed; `ReferenceGraphTests` now asserts the truthful assembly-level set and documents the declared-but-unused edge.
+
+**Docs to reconcile (architect-owned).** `structure.md` §2 (BuildingBlocks "`IApplicationUseCase` marker") and §3 (`BuildingBlocks/Application/`, `BuildingBlocks/Diagnostics/`, `BuildingBlocks/Errors/` rows) are now stale after the removals; left to the architect per AD-6.
+
+**Verification:** full Debug **328/328** and Release **328/328** (BuildingBlocks **9** (was 17; 8 tests for the deleted dead APIs removed), SyncContracts 72, Architecture **162**, Integration 85 real PostgreSQL); zero warnings/errors; `git diff --check` clean.
+
+**Files:** deleted `BuildingBlocks/Application/IApplicationUseCase.cs`, `BuildingBlocks/Diagnostics/{DiagnosticContext,DiagnosticsLoggingExtensions}.cs`, `BuildingBlocks/Errors/{ErrorCategory,ErrorCode,ErrorDescriptor,ErrorSeverity}.cs`, `Ingestion.Domain/Synchronization/Clock.cs`, `BuildingBlocks.Tests/{DiagnosticDiagnosticsTests,ErrorContractTests}.cs`; new `tests/.../QueryPreviewNoWriteTests.cs`; edited `BuildingBlocks.csproj` and `tests/.../{ArchitecturePolicyTests,DependencyDirectionTests,LayerDependencyGraphTests,PhysicalStructureTests,ReferenceGraphTests}.cs`, this `RECOVERY.md`.
+
+**Unresolved risk:** the declared-but-unused `Ingestion.Domain → MasterData` reference; `structure.md` §2/§3 drift; W4 remains BLOCKED on real identity/job authority (ADR-011 Proposed) and a real provider.
+
+---
+
 ## WAVE 2 DOMAIN POLICY — FT-REBASELINE-W2-DOMAIN-POLICY-001 — COMPLETE, AWAITING ARCHITECT REVIEW (2026-10-12)
 
 **Task:** `FT-REBASELINE-W2-DOMAIN-POLICY-001`. **Status:** W2 implementation complete; submitted for independent architect review. W3 **not** started. `OPEN-DEFECTS.md` / `ARCHITECT-JOURNAL.md` untouched; no defect VERIFIED.

@@ -12,6 +12,7 @@ using FaraTaraz.BuildingBlocks.Tenancy;
 using FaraTaraz.Modules.AccountingSources;
 using FaraTaraz.Modules.Ingestion.Application.SynchronizeCustomers.Queries;
 using FaraTaraz.Modules.Ingestion.Contracts.Synchronization;
+using FaraTaraz.Modules.Ingestion.Domain.Synchronization;
 using FaraTaraz.Modules.MasterData;
 using Xunit;
 
@@ -48,7 +49,6 @@ public class PhysicalStructureTests
     private static readonly string[] AllowedSingleFileLeaves =
     {
         Path.Combine("BuildingBlocks", "Accounting"),
-        Path.Combine("BuildingBlocks", "Application"),
         Path.Combine("BuildingBlocks", "Identifiers"),
         // Fail-closed connection configuration exception (FT-CONFIG-001): a shared foundation
         // boundary that legitimately holds exactly one translation unit.
@@ -214,7 +214,10 @@ public class PhysicalStructureTests
     [Fact]
     public void Ingestion_Domain_does_not_reference_MediatR()
     {
-        var domain = typeof(SyncRequest).Assembly;
+        // D11 correction: typeof(SyncRequest) now resolves to Ingestion.Contracts, so the real
+        // Domain assembly is anchored explicitly.
+        var domain = typeof(SyncCheckpointState).Assembly;
+        Assert.Equal("FaraTaraz.Modules.Ingestion.Domain", domain.GetName().Name);
 
         var referenced = domain.GetReferencedAssemblies().Select(a => a.Name);
 
@@ -224,9 +227,22 @@ public class PhysicalStructureTests
     }
 
     [Fact]
+    public void Ingestion_Contracts_does_not_reference_MediatR()
+    {
+        var contracts = typeof(SyncRequest).Assembly;
+        Assert.Equal("FaraTaraz.Modules.Ingestion.Contracts", contracts.GetName().Name);
+
+        var referenced = contracts.GetReferencedAssemblies().Select(a => a.Name);
+
+        Assert.DoesNotContain(
+            referenced,
+            n => n is not null && n.StartsWith("MediatR", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void Ingestion_Domain_does_not_reference_Ingestion_Application()
     {
-        var domain = typeof(SyncRequest).Assembly;
+        var domain = typeof(SyncCheckpointState).Assembly;
         var application = typeof(SynchronizeCustomersQuery).Assembly;
 
         var referenced = domain.GetReferencedAssemblies().Select(a => a.Name);
@@ -301,8 +317,12 @@ public class PhysicalStructureTests
     public void MediatR_handlers_live_only_in_the_Application_layer()
     {
         var application = typeof(SynchronizeCustomersQuery).Assembly;
-        var domain = typeof(SyncRequest).Assembly;
-        var platformModules = new[] { domain, typeof(ExternalCustomerId).Assembly, typeof(IAccountingProvider).Assembly };
+        var domain = typeof(SyncCheckpointState).Assembly;
+        var contracts = typeof(SyncRequest).Assembly;
+        var platformModules = new[]
+        {
+            domain, contracts, typeof(ExternalCustomerId).Assembly, typeof(IAccountingProvider).Assembly
+        };
 
         foreach (var module in platformModules)
         {

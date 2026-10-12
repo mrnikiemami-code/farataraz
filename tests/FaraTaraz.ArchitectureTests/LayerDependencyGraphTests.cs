@@ -62,12 +62,11 @@ public class LayerDependencyGraphTests
         // A declared reference to an Infrastructure project (even one the code does not use) must
         // be rejected by the ownership classification. The live Application.csproj has none, so the
         // real module-scoped Infrastructure projects (the W2 Infrastructure projects) exercise this
-        // classifier, alongside the flat FaraTaraz.Infrastructure representative path. Each module
-        // Infrastructure assembly name ends with ".Infrastructure" even though its path segment is
-        // "Ingestion.Infrastructure" / "AccountingSources.Infrastructure".
+        // classifier. Each module Infrastructure assembly name ends with ".Infrastructure" even
+        // though its path segment is "Ingestion.Infrastructure" /
+        // "AccountingSources.Infrastructure".
         var infrastructurePaths = new[]
         {
-            Path.Combine(RepoRoot, "src", "Infrastructure", "FaraTaraz.Infrastructure.csproj"),
             Path.Combine(
                 RepoRoot,
                 "src",

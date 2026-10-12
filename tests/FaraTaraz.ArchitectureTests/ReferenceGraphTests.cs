@@ -7,6 +7,7 @@ using FaraTaraz.BuildingBlocks.Tenancy;
 using FaraTaraz.Modules.AccountingSources;
 using FaraTaraz.Modules.Ingestion.Application.SynchronizeCustomers.Queries;
 using FaraTaraz.Modules.Ingestion.Contracts.Synchronization;
+using FaraTaraz.Modules.Ingestion.Domain.Synchronization;
 using FaraTaraz.Modules.MasterData;
 using Xunit;
 
@@ -14,11 +15,11 @@ using Xunit;
 /// Asserts the documented project reference graph for the modular monolith:
 ///   BuildingBlocks           -> (none)
 ///   MasterData               -> BuildingBlocks
-///   Ingestion.Domain         -> BuildingBlocks, MasterData
-///   Ingestion.Application    -> BuildingBlocks, Ingestion.Domain, AccountingSources
-///   AccountingSources        -> BuildingBlocks, Ingestion.Domain
-///   Mock (adapter)           -> BuildingBlocks, MasterData, Ingestion.Domain,
-///                               AccountingSources
+///   Ingestion.Contracts      -> BuildingBlocks, MasterData
+///   Ingestion.Domain         -> BuildingBlocks, Ingestion.Contracts (MasterData declared but unused)
+///   Ingestion.Application    -> BuildingBlocks, Ingestion.Contracts, Ingestion.Domain, AccountingSources
+///   AccountingSources        -> BuildingBlocks, Ingestion.Contracts
+///   Mock (adapter)           -> BuildingBlocks, Ingestion.Contracts, MasterData, AccountingSources
 ///
 /// Dependency direction is inward: platform modules never depend on a concrete adapter,
 /// the foundation depends on nothing platform-wide, the Application layer depends on the
@@ -29,7 +30,8 @@ public class ReferenceGraphTests
 {
     private static readonly Assembly BuildingBlocks = typeof(Tenant).Assembly;
     private static readonly Assembly MasterData = typeof(ExternalCustomerId).Assembly;
-    private static readonly Assembly IngestionDomain = typeof(SyncRequest).Assembly;
+    private static readonly Assembly IngestionContracts = typeof(SyncRequest).Assembly;
+    private static readonly Assembly IngestionDomain = typeof(SyncCheckpointState).Assembly;
     private static readonly Assembly IngestionApplication = typeof(SynchronizeCustomersQuery).Assembly;
     private static readonly Assembly AccountingSources = typeof(IAccountingProvider).Assembly;
     private static readonly Assembly Mock = typeof(MockAccountingProvider).Assembly;
@@ -53,9 +55,19 @@ public class ReferenceGraphTests
             FaraTarazReferences(MasterData));
 
     [Fact]
-    public void IngestionDomain_depends_only_on_BuildingBlocks_and_MasterData()
+    public void IngestionContracts_depends_only_on_BuildingBlocks_and_MasterData()
         => Assert.Equal(
             new[] { "FaraTaraz.BuildingBlocks", "FaraTaraz.Modules.MasterData" },
+            FaraTarazReferences(IngestionContracts));
+
+    [Fact]
+    public void IngestionDomain_assembly_depends_only_on_BuildingBlocks_and_IngestionContracts()
+        // Assembly-level (compiler-pruned) references. Note: Ingestion.Domain.csproj also declares
+        // an audit-visible MasterData ProjectReference that no Domain code uses today; that
+        // declared edge is tolerated by ArchitecturePolicy and retained pending an architect graph
+        // decision (see RECOVERY) rather than silently removed in this task.
+        => Assert.Equal(
+            new[] { "FaraTaraz.BuildingBlocks", "FaraTaraz.Modules.Ingestion.Contracts" },
             FaraTarazReferences(IngestionDomain));
 
     [Fact]

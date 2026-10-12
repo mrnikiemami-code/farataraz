@@ -6,15 +6,11 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
-  <ItemGroup>
-    <!--
-      Structured diagnostics (DiagnosticContext + ILogger extension) build on the standard
-      Microsoft logging abstraction. This is not a new logging framework; it only supplies the
-      ILogger/ILoggerProvider types so Diagnostics can emit structured, searchable events.
-      Version pinned to match the existing Microsoft.Extensions.DependencyInjection 8.0.0.
-    -->
-    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
-  </ItemGroup>
+  <!--
+    The foundation now carries no package dependency: the unused diagnostics/error scaffolding
+    (DiagnosticContext, ILogger extension, ErrorDescriptor model) was removed in Wave 3 as a
+    verified-dead abstraction, so Microsoft.Extensions.Logging.Abstractions is no longer needed.
+  -->
 
   <!--
     TenantContext trust-minting (internal constructor + FromAuthenticatedPrincipal) is restricted

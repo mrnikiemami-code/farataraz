@@ -87,6 +87,31 @@ public class ArchitecturePolicyTests
     }
 
     [Fact]
+    public void Negative_fixture_domain_referencing_application_is_rejected()
+    {
+        // The corrected D11 Domain boundary: a Domain project that depends on an Application
+        // project must be rejected by the same policy the real inventory is checked against.
+        var root = WriteFixture(
+            ("src/Modules/Alpha/Alpha.Domain/FaraTaraz.Modules.Alpha.Domain.csproj",
+                new[] { @"..\Alpha.Application\FaraTaraz.Modules.Alpha.Application.csproj" }),
+            ("src/Modules/Alpha/Alpha.Application/FaraTaraz.Modules.Alpha.Application.csproj",
+                Array.Empty<string>()));
+
+        try
+        {
+            var violations = ArchitecturePolicy.Violations(root, ProjectDependencyGraph.Build(root));
+
+            Assert.Contains(violations, v =>
+                v.Contains("Alpha.Domain", StringComparison.Ordinal) &&
+                v.Contains("Application", StringComparison.Ordinal));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
     public void Negative_fixture_application_referencing_infrastructure_is_rejected()
     {
         var root = WriteFixture(

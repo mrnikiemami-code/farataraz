@@ -7,6 +7,7 @@ using FaraTaraz.BuildingBlocks.Tenancy;
 using FaraTaraz.Modules.AccountingSources;
 using FaraTaraz.Modules.Ingestion.Application.SynchronizeCustomers.Queries;
 using FaraTaraz.Modules.Ingestion.Contracts.Synchronization;
+using FaraTaraz.Modules.Ingestion.Domain.Synchronization;
 using FaraTaraz.Modules.MasterData;
 using Xunit;
 
@@ -22,7 +23,8 @@ public class DependencyDirectionTests
     private static readonly Assembly[] PlatformModules =
     {
         typeof(ExternalCustomerId).Assembly,        // MasterData
-        typeof(SyncRequest).Assembly,              // Ingestion.Domain
+        typeof(SyncRequest).Assembly,              // Ingestion.Contracts
+        typeof(SyncCheckpointState).Assembly,      // Ingestion.Domain (real assembly, D11 fix)
         typeof(SynchronizeCustomersQuery).Assembly, // Ingestion.Application
         typeof(IAccountingProvider).Assembly       // AccountingSources
     };
