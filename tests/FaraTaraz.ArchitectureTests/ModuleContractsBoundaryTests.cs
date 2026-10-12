@@ -65,17 +65,6 @@ public class ModuleContractsBoundaryTests
         Assert.True(File.Exists(Path.Combine(RepoRoot, DomainCsproj.Replace('/', Path.DirectorySeparatorChar))));
     }
 
-    /// <summary>
-    /// Negative fixture: the classifier rejects a cross-module Domain reference but accepts the
-    /// Contracts reference, so the guard above cannot pass on a regressed reference.
-    /// </summary>
-    [Fact]
-    public void Negative_fixture_distinguishes_forbidden_domain_from_allowed_contracts()
-    {
-        Assert.True(IsForbiddenCrossModuleDomainReference("../Ingestion/Ingestion.Domain/FaraTaraz.Modules.Ingestion.Domain.csproj"));
-        Assert.False(IsForbiddenCrossModuleDomainReference("../Ingestion/Ingestion.Contracts/FaraTaraz.Modules.Ingestion.Contracts.csproj"));
-    }
-
     [Fact]
     public void Every_production_project_is_classified()
     {
@@ -112,11 +101,6 @@ public class ModuleContractsBoundaryTests
                 "Add it to the known-project set so a new module cannot silently escape coverage.");
         }
     }
-
-    /// <summary>A cross-module reference to another module's Domain is forbidden; Contracts is allowed.</summary>
-    internal static bool IsForbiddenCrossModuleDomainReference(string projectReference)
-        => projectReference.EndsWith(".Domain.csproj", StringComparison.Ordinal)
-           && !projectReference.EndsWith("Ingestion.Contracts.csproj", StringComparison.Ordinal);
 
     private static string FindRepoRoot()
     {

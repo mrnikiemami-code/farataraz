@@ -160,15 +160,36 @@ to 13.x/14.x (RPL1.5) without a new explicit architecture and licensing decision
 
 `FaraTaraz.ArchitectureTests` enforces this structure:
 
+- `ArchitecturePolicy` + `ArchitecturePolicyTests` — the **inventory-wide** policy. It classifies
+  **every** production project under `src/` into a layer (BuildingBlocks, Domain, Contracts,
+  Application, Infrastructure, Composition, Host, Adapter) and applies the dependency/package
+  rules to the whole inventory, so a new module cannot escape coverage by not being listed. It
+  also asserts MediatR `IRequestHandler` appears only in Application projects (source-level scan
+  covering Infrastructure projects the test assembly cannot load). Effective proof is a **real
+  negative fixture**: a temporary, on-disk project graph with a forbidden reference is fed to the
+  same policy and must be rejected, while the allowed Contracts/inward graph passes.
 - `ReferenceGraphTests` — exact per-assembly dependency set for every module and the adapter.
 - `DependencyDirectionTests` — no platform module depends on a concrete adapter; foundation
   depends on nothing platform-wide.
 - `ProviderLeakageTests` — no provider concept leaks into the platform.
 - `SyncContractGuards` — async port shape, source-record identity, no `TenantId` in
   `SyncRequest`, and no persistence packages in `BuildingBlocks` or any module.
+- `ModuleContractsBoundaryTests` — AccountingSources depends on `Ingestion.Contracts` only, never
+  on `Ingestion.Domain`; the contract assembly has no outward dependency.
+- `HostAuthorityTests` — the host is composition-only (no handlers, no adapter/Infrastructure
+  reference, Infrastructure reachable only through a `*.Composition` seam).
 - `CQRSProofTests` — the use case is dispatched through `ISender`, delegates to the
   capability port, and rejects an untrusted `TenantContext`.
 - `PlanningIntegrityTests` — required docs/ADR files exist.
+
+**What the guards enforce vs. what they cannot.** The policy proves the *declared project graph*
+(every `ProjectReference`/`PackageReference`, transitively) and the *presence* of the CQRS edge.
+It cannot, by itself, prove runtime behavior. The following stay **behavioral/integration**
+responsibilities, verified against real PostgreSQL in `FaraTaraz.Infrastructure.IntegrationTests`
+(not a static guard): tenant authority originating only from a trusted execution context;
+source-ownership (`IsOwnedByAsync`) checked before any provider call or write; provider
+provenance persisted from source authority; the observed-version checkpoint CAS and rollback;
+and explicit completion / changed-record (fail-closed) semantics.
 
 Any change that alters the reference graph, a namespace, or the CQRS direction must update the
 relevant guard.

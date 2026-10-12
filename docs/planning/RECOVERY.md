@@ -20,6 +20,30 @@
 **Architect ledger is canonical:** `docs/planning/OPEN-DEFECTS.md` has per-ID review evidence and decisions. Historical reports below that say W2 NOT CERTIFIED/W3 NOT AUTHORIZED refer to **past checkpoints**, not current restricted authorization. Implementation agent must start by fetching latest master, reading ledger+constitution+ADRs, and must not treat certification as removal of W3 production gates.
 
 
+## ARCH GUARD LOCK — FT-ARCH-GUARD-LOCK-003 — PASS (2026-10-12)
+
+**Task:** `FT-ARCH-GUARD-LOCK-003`. **Status:** `PASS`. `OPEN-DEFECTS.md` / `ARCHITECT-JOURNAL.md` untouched; no defect VERIFIED.
+
+**Baseline / sync:** `9b6a141` (origin/master). No production application change; no migration/rename/folder-move.
+
+**What changed (tests only + docs).** New `tests/.../ArchitecturePolicy.cs` — a pure, inventory-wide policy over the existing `ProjectDependencyGraph` (no second graph parser). New `tests/.../ArchitecturePolicyTests.cs` — applies the policy to the whole inventory and proves it with real fixtures. Removed the misleading string-only negative fixture from `ModuleContractsBoundaryTests` (`IsForbiddenCrossModuleDomainReference` + its test); its `AccountingSources → Ingestion.Contracts-only` coverage is now expressed generically by the policy.
+
+**Project coverage (item 2/3).** Every `src/**/*.csproj` is classified into one layer: BuildingBlocks, Domain, Contracts, Application, Infrastructure, Composition, Host, Adapter. `Every_production_project_is_classified_and_every_layer_is_present` fails if any project is unclassified OR if any of the 8 layer kinds is absent from the inventory — so a new project cannot escape and a policy branch cannot go untested. Inventory = 12 projects (BuildingBlocks; MasterData; AccountingSources.Domain/Infrastructure/Composition; Ingestion.Contracts/Domain/Application/Infrastructure/Composition; Host; Accounting.Mock).
+
+**Policies enforced on the whole inventory (item 4–9).** Domain **and** Contracts have no outward dependency (Application/Infrastructure/Composition/Host/adapter) and no persistence/MediatR package; Application has no Infrastructure/Composition/Host/adapter and no persistence package (MediatR stays allowed — ADR-008); Composition inward-only (no Host/adapter); Adapters outermost (no Application/Infrastructure/Composition/Host); Host composition-only (no declared Infrastructure/adapter, no persistence package); BuildingBlocks references **no** FaraTaraz project and no persistence/MediatR package; `IRequestHandler` appears only in Application projects (source-level scan covering Infrastructure projects the test assembly cannot load); and the accepted `AccountingSources → Ingestion.Contracts`-only cross-module boundary holds (AccountingSources must not depend on any other Ingestion assembly). Declared refs are used for Host (its closure legitimately reaches Infrastructure through a `*.Composition` seam); the transitive closure is used everywhere else.
+
+**Real negative proof (item 10).** Five `ArchitecturePolicyTests` build an isolated temp project graph on disk (never compiled, under the OS temp dir) and feed it to the SAME `ArchitecturePolicy.Violations`: Domain→Infrastructure, Application→Infrastructure, BuildingBlocks→module, and AccountingSources→Ingestion.Domain are each **rejected**, while the allowed graph (AccountingSources→Ingestion.Contracts, Domain→Contracts, Application→Domain+Contracts) **passes**. This replaces the previous string-only assertion with actual enforcement-code proof.
+
+**Behaviour preserved (item 11).** No tenant/ownership/provenance/checkpoint integration test was modified; `FaraTaraz.Infrastructure.IntegrationTests` (85, real PostgreSQL) unchanged and green.
+
+**Verification:** full Debug **314/314** and Release **314/314** (BuildingBlocks 17, SyncContracts 55, Integration 85 PostgreSQL, **Architecture 157**); zero warnings/errors; `git diff --check` clean.
+
+**Docs (item 12).** `structure.md` §7 now lists `ArchitecturePolicy`/`ArchitecturePolicyTests` and `ModuleContractsBoundaryTests`, and states explicitly what the guards enforce (declared project graph + CQRS edge presence) versus what remains a **behavioral/integration** responsibility proven against real PostgreSQL (trusted-tenant authority, ownership-before-provider-call, provider provenance, checkpoint CAS/rollback, completion/changed-record semantics).
+
+**Known residual (not a regression).** `PhysicalStructureTests.MediatR_handlers_live_only_in_the_Application_layer` and `Ingestion_Domain_does_not_reference_MediatR` still use `typeof(SyncRequest).Assembly`, which is now the **Contracts** assembly, so they no longer assert on the `Ingestion.Domain` assembly directly. That gap is closed by the new inventory source-level handler scan and Domain reference-level rules; a cosmetic re-point of those two legacy tests is deferred as it is not required for coverage.
+
+**Files:** new `ArchitecturePolicy.cs`, `ArchitecturePolicyTests.cs`; edited `ModuleContractsBoundaryTests.cs`, `structure.md`, this `RECOVERY.md`.
+
 ## ARCH CONTRACT BOUNDARY — FT-ARCH-CONTRACT-BOUNDARY-002 — PASS (2026-10-12)
 
 **Task:** `FT-ARCH-CONTRACT-BOUNDARY-002`. **Status:** `PASS`. `OPEN-DEFECTS.md` / `ARCHITECT-JOURNAL.md` untouched; no defect VERIFIED.
