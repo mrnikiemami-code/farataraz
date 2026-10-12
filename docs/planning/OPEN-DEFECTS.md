@@ -42,6 +42,16 @@ Other production gates (`FT-SEC-004` authentic tenant authority, `FT-SEC-007` de
 
 ---
 
+## FT-ARCH-REMEDIATION M1 architect acceptance — 2026-10-12
+
+**M1 PORT CONTRACTS ACCEPTED (design scope only).** Independent GitHub source review at `cb3bcdf4bbc29c94bf395cd4ad08a3037484e136` verified Application-owned `IIngestionWriteStore`, `IIngestionWriteSession`, `IIngestionCheckpointStore`, `IngestionRecordProbe` and typed `IngestionRunOutcome`; no runtime adapter, Coordinator replacement, schema or DI modification. Linux CI [38231845438](https://github.com/mrnikiemami-code/farataraz/actions/runs/38231845438) independently checked: Debug **271/271**, Release **271/271** (17 BuildingBlocks, 55 SyncContracts, 57 PostgreSQL Integration, 142 Architecture), zero failures/skips. No existing defect is closed.
+
+**M2 authorization is limited to a thin Infrastructure adapter over existing W2 repositories and IngestionUnitOfWork**; no orchestration move, guard weakening, production caller, schema/migration, authentication, or adapter/provider wiring. Require real PostgreSQL integration equivalence for atomic commit, rollback, stale CAS, cancellation, tenant scope, nullable fingerprint, and idempotency. The port shape alone does NOT establish trusted authority or transaction semantics. Existing runtime path and `OwnershipPathAuthorizationGuard` remain unchanged in M2; migration of admission guard belongs to separately reviewed M3/M4.
+
+FT-ARCH-REMEDIATION broader work and W3-R3 remain gated pending further architect review.
+
+---
+
 ## Ownership and acceptance authority (mandatory)
 
 **Accountable reviewer and ledger maintainer: ChatGPT acting as FaraTaraz architecture reviewer in the user's conversation.** OpenCode/Cursor/implementation agents are implementers, **not** independent approvers. The reviewer must personally inspect changed GitHub source, diffs, relevant negative guards/tests and CI evidence; decide whether each issue is VERIFIED, still OPEN, or BLOCKED; and **personally update this file on `master`** with the decision, SHA, evidence and date. An implementer report of PASS, local tests, or a self-declared “verified” status cannot close an issue.
