@@ -1,5 +1,14 @@
 # FaraTaraz — Open Defects and Architecture Acceptance Ledger
 
+## FT-ARCH-FOUNDATION-REPAIR-001 Phase 2 — independent partial acceptance (2026-10-12)
+
+**PHASE 2 ONLY ACCEPTED; WHOLE TASK PARTIAL.** Independently inspected implementation `d97b3445539dbfadcc063024bce64068e3e21025` and verified master equals that commit, sibling physical directories `AccountingSources.Domain`, `AccountingSources.Infrastructure`, `AccountingSources.Composition`, updated project paths/guard paths, and removal of nested Domain `Compile Remove` exclusions. Linux CI [38244400931](https://github.com/mrnikiemami-code/farataraz/actions/runs/38244400931) matches SHA and passed Debug/Release **303/303** each (17 BuildingBlocks, 55 SyncContracts, 146 Architecture, 85 PostgreSQL integration; zero failures). No new negative architecture fixtures or Contracts assembly in this slice. Existing Domain csproj still directly references `Ingestion.Domain`; assembly names remain unchanged. No certification of complete modular boundaries, MediatR guard completeness, documentation alignment or production readiness.
+
+**Next priority:** bounded extraction of actual shared synchronization Contracts to remove AccountingSources→Ingestion.Domain while keeping real Domain rules in Domain and capability port ownership with AccountingSources, with explicit contract-ownership map and negative graph tests. Do not rename assemblies as a cosmetic prerequisite. Remaining guard coverage, source drift, trust producer, production delivery and data policy items remain OPEN. Executor must not edit this architect-owned ledger.
+
+---
+
+
 ## FT-W3-R3 final completion contract — independent acceptance (2026-10-12)
 
 **ACCEPTED FOR BOUNDED, NON-PRODUCTION W3-R3 ENGINE CORRECTNESS.** Independently inspected implementation commit `eb42e71c4ec289baf45bb00d67ccef2eefc27d88` on master, including `RunCustomerSyncCommand`, Application handler, terminal/restart PostgreSQL tests and provider resolver cancellation handling. CI [38238605815](https://github.com/mrnikiemami-code/farataraz/actions/runs/38238605815) independently verified Debug **303/303**, Release **303/303** (17 BuildingBlocks + 55 SyncContracts + 146 Architecture + 85 PostgreSQL Integration each; zero failures/skips). `CustomerSyncIntent.Continue` rejects Completed checkpoints before provider/write; `Restart` is explicit and rejects caller cursor, starts fresh with originally observed checkpoint-version CAS; Active resumes, absent starts first sync; valid page completion controls terminal state; OCE propagates. This resolves the specific M5/R3 completion contract blockers noted above, not all production gates. No production provider/worker/auth, changed/voided policy, or complete architectural guard certification implied.
