@@ -260,6 +260,57 @@ public sealed class EfIngestionWriteStoreTests
             () => captured!.StartRunAsync(source, "Customers", SyncMode.Full));
     }
 
+    [Fact]
+    public async Task Session_is_unusable_after_a_failing_callback()
+    {
+        var db = new IntegrationTestDb();
+        await db.ApplyMigrationsAsync();
+
+        var tenant = Guid.NewGuid().ToString("N");
+        var source = Source(Guid.NewGuid().ToString("N"));
+
+        await using var ctx = db.Ingestion();
+        var store = Store(db, ctx, tenant, Scope(tenant));
+
+        IIngestionWriteSession? captured = null;
+        await Assert.ThrowsAsync<InvalidOperationException>(() => store.ExecuteInTransactionAsync<int>(async (session, ct) =>
+        {
+            captured = session;
+            await session.StartRunAsync(source, "Customers", SyncMode.Full, ct);
+            throw new InvalidOperationException("boom");
+        }));
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => captured!.StartRunAsync(source, "Customers", SyncMode.Full));
+    }
+
+    [Fact]
+    public async Task Session_is_unusable_after_cancellation()
+    {
+        var db = new IntegrationTestDb();
+        await db.ApplyMigrationsAsync();
+
+        var tenant = Guid.NewGuid().ToString("N");
+        var source = Source(Guid.NewGuid().ToString("N"));
+
+        await using var ctx = db.Ingestion();
+        var store = Store(db, ctx, tenant, Scope(tenant));
+
+        using var cts = new CancellationTokenSource();
+        IIngestionWriteSession? captured = null;
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => store.ExecuteInTransactionAsync<int>(async (session, ct) =>
+        {
+            captured = session;
+            await session.StartRunAsync(source, "Customers", SyncMode.Full, ct);
+            cts.Cancel();
+            ct.ThrowIfCancellationRequested();
+            return 0;
+        }, cts.Token));
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => captured!.StartRunAsync(source, "Customers", SyncMode.Full));
+    }
+
     [Theory]
     [InlineData(IngestionRunOutcome.Failed, "Failed")]
     [InlineData(IngestionRunOutcome.Cancelled, "Cancelled")]

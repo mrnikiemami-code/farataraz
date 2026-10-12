@@ -21,7 +21,7 @@ using FaraTaraz.Modules.Ingestion.Domain.Synchronization;
 /// never be split into independent commits. Tenant authority comes exclusively from the trusted
 /// <see cref="DatabaseTenantScope"/>; the port surface carries no caller-supplied tenant id.
 /// </summary>
-public sealed class EfIngestionWriteStore : IIngestionWriteStore, IIngestionCheckpointStore
+public sealed class EfIngestionWriteStore : IIngestionWriteStore, IIngestionCheckpointStore, IIngestionTrustedTenantScope
 {
     private readonly IngestionUnitOfWork _unitOfWork;
     private readonly SourceRecordRepository _records;
@@ -59,6 +59,9 @@ public sealed class EfIngestionWriteStore : IIngestionWriteStore, IIngestionChec
     }
 
     /// <inheritdoc />
+    public TenantId? TrustedTenantId => _scope.TenantId;
+
+    /// <inheritdoc />
     public async Task<TResult> ExecuteInTransactionAsync<TResult>(
         Func<IIngestionWriteSession, CancellationToken, Task<TResult>> work,
         CancellationToken cancellationToken = default)
@@ -68,16 +71,24 @@ public sealed class EfIngestionWriteStore : IIngestionWriteStore, IIngestionChec
         // Fail closed before opening the transaction when no trusted tenant scope is bound.
         var tenant = RequireTrustedTenant();
         var session = new Session(this, tenant);
-        TResult result = default!;
 
-        await _unitOfWork.ExecuteAsync(async innerCt =>
+        try
         {
-            result = await work(session, innerCt).ConfigureAwait(false);
-        }, cancellationToken).ConfigureAwait(false);
+            TResult result = default!;
+            await _unitOfWork.ExecuteAsync(async innerCt =>
+            {
+                result = await work(session, innerCt).ConfigureAwait(false);
+            }, cancellationToken).ConfigureAwait(false);
 
-        // From this point the session must not be usable again (its transaction has committed).
-        session.MarkCompleted();
-        return result;
+            return result;
+        }
+        finally
+        {
+            // The session is unusable once its transaction has ENDED. Mark it completed on EVERY
+            // exit — success, callback exception, persistence failure, rollback, stale CAS or
+            // cancellation — so a captured session can never be reused (M2 session-lifetime fix).
+            session.MarkCompleted();
+        }
     }
 
     private TenantId RequireTrustedTenant()

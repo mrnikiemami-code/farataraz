@@ -63,16 +63,14 @@ public static class IngestionInfrastructureComposition
         // (FT-DATA-002): records, run state and checkpoint movement commit together or not at all.
         services.AddScoped<IngestionUnitOfWork>();
 
-        // First bounded W3 ingestion-engine orchestration slice: admission (trusted tenant +
-        // fail-closed source ownership) then atomic persistence. No delivery surface/worker.
-        services.AddScoped<IngestionRunCoordinator>();
-
         // M2: Infrastructure implementation of the Application-owned persistence ports. One adapter
-        // instance per scope backs both ports so the session shares the single UnitOfWork/DbContext.
+        // instance per scope backs all ports so the session shares the single UnitOfWork/DbContext.
         services.AddScoped<EfIngestionWriteStore>();
         services.AddScoped<FaraTaraz.Modules.Ingestion.Application.Ports.IIngestionWriteStore>(
             sp => sp.GetRequiredService<EfIngestionWriteStore>());
         services.AddScoped<FaraTaraz.Modules.Ingestion.Application.Ports.IIngestionCheckpointStore>(
+            sp => sp.GetRequiredService<EfIngestionWriteStore>());
+        services.AddScoped<FaraTaraz.Modules.Ingestion.Application.Ports.IIngestionTrustedTenantScope>(
             sp => sp.GetRequiredService<EfIngestionWriteStore>());
 
         return services;

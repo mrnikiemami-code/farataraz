@@ -9,6 +9,30 @@
 **Architect ledger is canonical:** `docs/planning/OPEN-DEFECTS.md` has per-ID review evidence and decisions. Historical reports below that say W2 NOT CERTIFIED/W3 NOT AUTHORIZED refer to **past checkpoints**, not current restricted authorization. Implementation agent must start by fetching latest master, reading ledger+constitution+ADRs, and must not treat certification as removal of W3 production gates.
 
 
+## W3-ARCH-M3M4 APPLICATION ORCHESTRATION CHECKPOINT — FT-W3-ARCH-M3M4 (2026-10-12)
+
+**Task:** `FT-W3-ARCH-M3M4-APPLICATION-ORCHESTRATION`. **Status:** `PASS` — customer ingestion orchestration moved from Infrastructure to Application, composition switched to it, the M2 session-lifetime defect fixed. `OPEN-DEFECTS.md` untouched; no defect VERIFIED.
+
+**Baseline / sync:** `3e7b297` (origin/master).
+
+**Moved use case.** New `src/Modules/Ingestion/Ingestion.Application/SynchronizeCustomers/Commands/RunCustomerSyncCommand.cs` (command + `IngestionRunResult`, moved out of Infrastructure) and `RunCustomerSyncHandler.cs` (MediatR handler). It depends only on inward Domain/AccountingSources contracts and the M1 persistence ports — **Application builds independently with 0 warnings and references no Infrastructure/EF/Npgsql/repository**. Fixed order: `AssertTrusted` → **tenant/scope agreement** → `IsOwnedByAsync` (must be TRUE) → checkpoint read → one bounded provider page → `IIngestionWriteStore.ExecuteInTransactionAsync` single atomic write (records + checkpoint CAS + run completion), passing the ORIGINAL observed version (no silent stale retry). Terminal-checkpoint retain semantics and `ProviderId` provenance are unchanged.
+
+**New port & tenant agreement.** `Ports/IIngestionTrustedTenantScope.cs` exposes the tenant the adapter resolved from the trusted `DatabaseTenantScope`; the handler fails closed (`UnauthorizedTenantException`) when the trusted `TenantContext` disagrees, BEFORE any provider call or write. This closes the cross-tenant hazard of admitting ownership for one tenant while the adapter writes under another.
+
+**M2 session-lifetime fix.** `EfIngestionWriteStore.ExecuteInTransactionAsync` now marks the session completed in a `finally`, so it is unusable after success, callback exception, persistence failure, rollback, stale CAS or cancellation. Covered by two new real-PostgreSQL tests.
+
+**Composition / DI.** `IngestionRunCoordinator.cs` **deleted** (no parallel orchestration path); its DI registration removed. The adapter is registered scoped for `IIngestionWriteStore` + `IIngestionCheckpointStore` + `IIngestionTrustedTenantScope` (one instance). `RunCustomerSyncHandler` is registered by the existing MediatR assembly scan.
+
+**Tests.** `RunCustomerSyncHandlerTests` (17, real PostgreSQL through the REAL M2 adapter): success atomic commit; untrusted tenant; **trusted/scope mismatch fail-closed**; not-owned; ownership lookup failure; persistence-failure rollback; stale CAS rollback; cancellation; duplicate; changed fail-closed; null-fingerprint vs missing; resume cursor; first page; cursor conflict; scope mismatch; terminal retain; resumed stale CAS. `EfIngestionWriteStoreTests` (12) add session-unusable-after-failure/cancellation. The 16 removed coordinator tests were adapted 1:1 into the 17 handler tests (no net safety loss).
+
+**Guards (unchanged).** The Application handler invokes the write-port entry `ExecuteInTransactionAsync` and makes real `AssertTrusted(`/`IsOwnedByAsync(` calls → guard Rule 2 satisfied; Rule 1 (write surface boundary-only) still enforced by the adapter. No guard weakened; no lexical ordering claim.
+
+**Verification:** Application independent build 0 warnings; full Debug **288/288** and Release **288/288** (BuildingBlocks 17, SyncContracts 55, Integration **70**, Architecture 146); `git diff --check` clean.
+
+**Files:** new `IIngestionTrustedTenantScope.cs`, `RunCustomerSyncCommand.cs`, `RunCustomerSyncHandler.cs`, `RunCustomerSyncHandlerTests.cs`; edited `EfIngestionWriteStore.cs`, `IngestionInfrastructureComposition.cs`, `EfIngestionWriteStoreTests.cs`; deleted `IngestionRunCoordinator.cs`, `IngestionRunCoordinatorTests.cs`; this `RECOVERY.md`. No schema/migration, no endpoint/worker/provider/auth.
+
+**Remaining:** terminal-checkpoint semantics (awaiting W3-R3 ruling); `ProviderId` authority correction; production delivery/auth boundary (FT-SEC-004/ADR-011); no provider adapter wires `ISyncablePort<Customer>` so the handler is not yet resolvable in production.
+
 ## W3-ARCH-M2 GUARD REDESIGN + PERSISTENCE ADAPTER CHECKPOINT — FT-W3-ARCH-M2 (2026-10-12)
 
 **Task:** `FT-W3-ARCH-M2-GUARD-AND-ADAPTER`. **Status:** `PASS` — ownership write-path guard safely redesigned AND the M1 persistence ports implemented in Infrastructure. Orchestration not moved; `OPEN-DEFECTS.md` untouched; no defect VERIFIED.
