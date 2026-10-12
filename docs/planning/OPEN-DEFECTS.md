@@ -1,5 +1,16 @@
 # FaraTaraz — Open Defects and Architecture Acceptance Ledger
 
+## FT-W3-ARCH-M5-R3 independent conditional review — 2026-10-12
+
+**PARTIAL / NOT FULLY ACCEPTED.** Implementer commit `d553c2edfeb20ec8658f3ba055f11002e6d0110e` merged at `fe7310b9f69ce2665010688f6b2371705a872036`; GitHub CI [38237577911](https://github.com/mrnikiemami-code/farataraz/actions/runs/38237577911) independently checked Debug **297/297** and Release **297/297** with zero failures/skips. ProviderId was removed from command and is now fetched from persisted AccountingSource provider configuration behind a trusted-scoped resolver; checkpoint State Active/Completed was added with migration and optimistic CAS. Security and durability improvements are present, but production activation remains blocked.
+
+**MUST FIX before declaring W3-R3 complete:** current `RunCustomerSyncHandler` treats a persisted Completed checkpoint as null for resume and silently launches a new sync when called without cursor; a caller-provided cursor on Completed is also allowed through to provider. Define explicit restart intent, prohibit implicit restart and stale-cursor replay, and verify denied invocations cause zero provider calls and writes. Terminal transition must validate coherent page shape (IsComplete vs NextCursor); currently `NextCursor == null` alone marks Completed. Stale comments saying terminal checkpoint is retained without write must be removed. PostgreSQL negative tests are required.
+
+**Additional audit:** Provider resolver ignores input tenant (uses trusted scope), with bare catch swallowing all exceptions including cancellation; preserve cancellation propagation and fail-closed trusted-tenant agreement. Consider exact typed error for infrastructure failures. **Governance:** executor reported ~68 minutes > 60-minute hard stop, record violation and require checkpoint-and-stop rather than prolonging next tasks. No defect marked VERIFIED. W2 non-executable accepted; W3 engine non-production only.
+
+---
+
+
 ## FT-ARCH-REMEDIATION M3/M4 independent acceptance — 2026-10-12
 
 **M3/M4 ACCEPTED FOR APPROVED NON-PRODUCTION APPLICATION ORCHESTRATION SCOPE.** Independent GitHub source review of `134d84a09cd5bb2c30274b90a50d92aa2c73e15a` verified `RunCustomerSyncHandler` and command in Ingestion.Application, original Infrastructure coordinator removal, scoped M1/M2 ports and trusted tenant/scope agreement before ownership lookup/provider/write. Adapter session invalidated in `finally` on success and failure. CI [38236380648](https://github.com/mrnikiemami-code/farataraz/actions/runs/38236380648) verified Debug **288/288**, Release **288/288**, zero failed/skipped (17 BuildingBlocks, 55 SyncContracts, 146 Architecture, 70 PostgreSQL Integration per configuration).
