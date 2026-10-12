@@ -3,8 +3,8 @@ namespace FaraTaraz.SyncContracts.Tests;
 using System.Collections.Generic;
 using FaraTaraz.Adapters.Accounting.Mock;
 using FaraTaraz.BuildingBlocks.Accounting;
-using FaraTaraz.Modules.Ingestion.Domain.SourceModel;
-using FaraTaraz.Modules.Ingestion.Domain.Synchronization;
+using FaraTaraz.Modules.Ingestion.Contracts.SourceModel;
+using FaraTaraz.Modules.Ingestion.Contracts.Synchronization;
 
 /// <summary>
 /// Deterministic Mock providers for the conformance harness and contract tests.

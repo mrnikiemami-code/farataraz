@@ -74,6 +74,8 @@ namespace. Do not split a namespace across folders or place two namespaces in on
 | `Modules/AccountingSources/AccountingSources.Domain/Providers/` | `FaraTaraz.Modules.AccountingSources.Providers` |
 | `Modules/AccountingSources/AccountingSources.Domain/Capabilities/` | `FaraTaraz.Modules.AccountingSources.Capabilities` |
 | `Modules/AccountingSources/AccountingSources.Domain/Authorization/` | `FaraTaraz.Modules.AccountingSources.Authorization` |
+| `Modules/Ingestion/Ingestion.Contracts/Synchronization/` | `FaraTaraz.Modules.Ingestion.Contracts.Synchronization` |
+| `Modules/Ingestion/Ingestion.Contracts/SourceModel/` | `FaraTaraz.Modules.Ingestion.Contracts.SourceModel` |
 | `Modules/Ingestion/Ingestion.Domain/SourceModel/` | `FaraTaraz.Modules.Ingestion.Domain.SourceModel` |
 | `Modules/Ingestion/Ingestion.Domain/Synchronization/` | `FaraTaraz.Modules.Ingestion.Domain.Synchronization` |
 | `Modules/Ingestion/Ingestion.Application/SynchronizeCustomers/Queries/` | `FaraTaraz.Modules.Ingestion.Application.SynchronizeCustomers.Queries` |
@@ -95,11 +97,12 @@ depend inward. No platform module depends on a concrete adapter, and `Core` (now
 ```
 BuildingBlocks           -> (none)
 MasterData               -> BuildingBlocks
+Ingestion.Contracts      -> BuildingBlocks, MasterData
 Ingestion.Domain         -> BuildingBlocks, MasterData
-AccountingSources        -> BuildingBlocks, Ingestion.Domain
-Ingestion.Application    -> BuildingBlocks, Ingestion.Domain, AccountingSources
-Accounting.Mock (adapter)-> BuildingBlocks, MasterData, Ingestion.Domain, AccountingSources
-Host                     -> BuildingBlocks, MasterData, AccountingSources, Ingestion.Domain, Ingestion.Application
+AccountingSources        -> BuildingBlocks, Ingestion.Contracts
+Ingestion.Application    -> BuildingBlocks, Ingestion.Contracts, Ingestion.Domain, AccountingSources
+Accounting.Mock (adapter)-> BuildingBlocks, MasterData, Ingestion.Contracts, AccountingSources
+Host                     -> BuildingBlocks, MasterData, AccountingSources, Ingestion.Contracts, Ingestion.Domain, Ingestion.Application
 ```
 
 Enforced by `ReferenceGraphTests` (exact per-assembly reference set) and

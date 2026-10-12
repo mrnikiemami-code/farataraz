@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using FaraTaraz.BuildingBlocks.Identifiers;
 using FaraTaraz.BuildingBlocks.Tenancy;
+using FaraTaraz.Modules.Ingestion.Contracts.Synchronization;
 using FaraTaraz.Modules.Ingestion.Domain.Synchronization;
 using Microsoft.EntityFrameworkCore;
 

@@ -6,8 +6,8 @@ using System.Threading.Tasks;
 using MediatR;
 using FaraTaraz.BuildingBlocks.Tenancy;
 using FaraTaraz.Modules.AccountingSources;
-using FaraTaraz.Modules.Ingestion.Domain.SourceModel;
-using FaraTaraz.Modules.Ingestion.Domain.Synchronization;
+using FaraTaraz.Modules.Ingestion.Contracts.SourceModel;
+using FaraTaraz.Modules.Ingestion.Contracts.Synchronization;
 
 /// <summary>
 /// Application authority for the customer sync query.

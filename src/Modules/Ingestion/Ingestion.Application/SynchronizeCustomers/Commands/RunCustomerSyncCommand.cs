@@ -2,7 +2,7 @@ namespace FaraTaraz.Modules.Ingestion.Application.SynchronizeCustomers.Commands;
 
 using FaraTaraz.BuildingBlocks.Accounting;
 using FaraTaraz.BuildingBlocks.Tenancy;
-using FaraTaraz.Modules.Ingestion.Domain.Synchronization;
+using FaraTaraz.Modules.Ingestion.Contracts.Synchronization;
 using MediatR;
 
 /// <summary>Intent of a customer synchronization step (task W3-R3).</summary>

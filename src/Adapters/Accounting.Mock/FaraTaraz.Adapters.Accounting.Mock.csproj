@@ -4,6 +4,7 @@
     <ProjectReference Include="..\..\BuildingBlocks\FaraTaraz.BuildingBlocks.csproj" />
     <ProjectReference Include="..\..\Modules\MasterData\FaraTaraz.Modules.MasterData.csproj" />
     <ProjectReference Include="..\..\Modules\Ingestion\Ingestion.Domain\FaraTaraz.Modules.Ingestion.Domain.csproj" />
+    <ProjectReference Include="..\..\Modules\Ingestion\Ingestion.Contracts\FaraTaraz.Modules.Ingestion.Contracts.csproj" />
     <ProjectReference Include="..\..\Modules\AccountingSources\AccountingSources.Domain\FaraTaraz.Modules.AccountingSources.csproj" />
   </ItemGroup>
 

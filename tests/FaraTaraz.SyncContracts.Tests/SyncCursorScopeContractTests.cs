@@ -1,7 +1,7 @@
 namespace FaraTaraz.SyncContracts.Tests;
 
 using FaraTaraz.BuildingBlocks.Identifiers;
-using FaraTaraz.Modules.Ingestion.Domain.Synchronization;
+using FaraTaraz.Modules.Ingestion.Contracts.Synchronization;
 using Xunit;
 
 /// <summary>

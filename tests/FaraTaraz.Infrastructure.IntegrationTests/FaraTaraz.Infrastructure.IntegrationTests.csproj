@@ -23,6 +23,7 @@
     <ProjectReference Include="..\..\src\Modules\AccountingSources\AccountingSources.Domain\FaraTaraz.Modules.AccountingSources.csproj" />
     <ProjectReference Include="..\..\src\Modules\AccountingSources\AccountingSources.Infrastructure\FaraTaraz.Modules.AccountingSources.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\Modules\Ingestion\Ingestion.Domain\FaraTaraz.Modules.Ingestion.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Ingestion\Ingestion.Contracts\FaraTaraz.Modules.Ingestion.Contracts.csproj" />
     <ProjectReference Include="..\..\src\Modules\Ingestion\Ingestion.Infrastructure\FaraTaraz.Modules.Ingestion.Infrastructure.csproj" />
   </ItemGroup>
 

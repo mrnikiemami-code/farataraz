@@ -61,6 +61,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FaraTaraz.Modules.Ingestion
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FaraTaraz.Modules.AccountingSources.Composition", "src\Modules\AccountingSources\AccountingSources.Composition\FaraTaraz.Modules.AccountingSources.Composition.csproj", "{BC7B618B-6052-413D-AE21-2A3E087A0A3E}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Ingestion.Contracts", "Ingestion.Contracts", "{2B93B27E-0492-2C09-44CB-6E717947464F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FaraTaraz.Modules.Ingestion.Contracts", "src\Modules\Ingestion\Ingestion.Contracts\FaraTaraz.Modules.Ingestion.Contracts.csproj", "{43055FCC-BB75-435D-A5AD-D953419F0CE3}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -251,6 +255,18 @@ Global
 		{BC7B618B-6052-413D-AE21-2A3E087A0A3E}.Release|x64.Build.0 = Release|Any CPU
 		{BC7B618B-6052-413D-AE21-2A3E087A0A3E}.Release|x86.ActiveCfg = Release|Any CPU
 		{BC7B618B-6052-413D-AE21-2A3E087A0A3E}.Release|x86.Build.0 = Release|Any CPU
+		{43055FCC-BB75-435D-A5AD-D953419F0CE3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{43055FCC-BB75-435D-A5AD-D953419F0CE3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{43055FCC-BB75-435D-A5AD-D953419F0CE3}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{43055FCC-BB75-435D-A5AD-D953419F0CE3}.Debug|x64.Build.0 = Debug|Any CPU
+		{43055FCC-BB75-435D-A5AD-D953419F0CE3}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{43055FCC-BB75-435D-A5AD-D953419F0CE3}.Debug|x86.Build.0 = Debug|Any CPU
+		{43055FCC-BB75-435D-A5AD-D953419F0CE3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{43055FCC-BB75-435D-A5AD-D953419F0CE3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{43055FCC-BB75-435D-A5AD-D953419F0CE3}.Release|x64.ActiveCfg = Release|Any CPU
+		{43055FCC-BB75-435D-A5AD-D953419F0CE3}.Release|x64.Build.0 = Release|Any CPU
+		{43055FCC-BB75-435D-A5AD-D953419F0CE3}.Release|x86.ActiveCfg = Release|Any CPU
+		{43055FCC-BB75-435D-A5AD-D953419F0CE3}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -283,5 +299,7 @@ Global
 		{36C55045-B376-4757-9CC8-F0D7CF29AD5A} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{7E942FBB-D6E3-4F34-9998-0B49618DDD3D} = {AD089A1E-BDEB-F09F-ED14-4341B5B9A8AC}
 		{BC7B618B-6052-413D-AE21-2A3E087A0A3E} = {824BD787-6347-621E-0385-BF321C9D0B65}
+		{2B93B27E-0492-2C09-44CB-6E717947464F} = {AD089A1E-BDEB-F09F-ED14-4341B5B9A8AC}
+		{43055FCC-BB75-435D-A5AD-D953419F0CE3} = {2B93B27E-0492-2C09-44CB-6E717947464F}
 	EndGlobalSection
 EndGlobal

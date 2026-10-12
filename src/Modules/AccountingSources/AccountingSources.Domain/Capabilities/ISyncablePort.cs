@@ -1,6 +1,6 @@
 namespace FaraTaraz.Modules.AccountingSources.Capabilities;
 
-using FaraTaraz.Modules.Ingestion.Domain.Synchronization;
+using FaraTaraz.Modules.Ingestion.Contracts.Synchronization;
 
 /// <summary>
 /// A capability port that can be synchronized in bounded, resumable pages.

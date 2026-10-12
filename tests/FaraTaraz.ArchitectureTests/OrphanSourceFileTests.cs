@@ -24,6 +24,7 @@ public class OrphanSourceFileTests
         "BuildingBlocks",
         "Modules/MasterData",
         "Modules/AccountingSources/AccountingSources.Domain",
+        "Modules/Ingestion/Ingestion.Contracts",
         "Modules/Ingestion/Ingestion.Domain",
         "Modules/Ingestion/Ingestion.Application",
         "Modules/AccountingSources/AccountingSources.Infrastructure",

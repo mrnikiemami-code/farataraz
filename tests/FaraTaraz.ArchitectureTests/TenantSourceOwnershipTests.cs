@@ -10,8 +10,8 @@ using FaraTaraz.BuildingBlocks.Identifiers;
 using FaraTaraz.BuildingBlocks.Tenancy;
 using FaraTaraz.Modules.AccountingSources;
 using FaraTaraz.Modules.Ingestion.Application.SynchronizeCustomers.Queries;
-using FaraTaraz.Modules.Ingestion.Domain.SourceModel;
-using FaraTaraz.Modules.Ingestion.Domain.Synchronization;
+using FaraTaraz.Modules.Ingestion.Contracts.SourceModel;
+using FaraTaraz.Modules.Ingestion.Contracts.Synchronization;
 using Xunit;
 
 /// <summary>

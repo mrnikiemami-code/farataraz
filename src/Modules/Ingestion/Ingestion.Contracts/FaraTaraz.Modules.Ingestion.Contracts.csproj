@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Transport-neutral synchronization CONTRACT surface of the Ingestion module.
+
+    It owns only the sync contract types that genuinely cross the module boundary (the capability
+    ports in AccountingSources, the provider adapters and the ingestion consumers): SyncRequest,
+    SyncBatch, cursors/modes, the sync failure taxonomy and the source models/source-record
+    identity. It has no Application, Infrastructure, Host, adapter, MediatR, EF or Npgsql
+    dependency, and it is the ONLY Ingestion assembly AccountingSources may reference.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\BuildingBlocks\FaraTaraz.BuildingBlocks.csproj" />
+    <ProjectReference Include="..\..\MasterData\FaraTaraz.Modules.MasterData.csproj" />
+  </ItemGroup>
+
+</Project>

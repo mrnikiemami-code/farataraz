@@ -5,7 +5,7 @@ using System.Linq;
 using System.Reflection;
 using System.Xml.Linq;
 using FaraTaraz.Modules.AccountingSources;
-using FaraTaraz.Modules.Ingestion.Domain.Synchronization;
+using FaraTaraz.Modules.Ingestion.Contracts.Synchronization;
 using FaraTaraz.BuildingBlocks.Identifiers;
 using Xunit;
 

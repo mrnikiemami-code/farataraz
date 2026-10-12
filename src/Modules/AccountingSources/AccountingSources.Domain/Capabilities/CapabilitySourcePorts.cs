@@ -1,6 +1,6 @@
 namespace FaraTaraz.Modules.AccountingSources.Capabilities;
 
-using FaraTaraz.Modules.Ingestion.Domain.SourceModel;
+using FaraTaraz.Modules.Ingestion.Contracts.SourceModel;
 
 /// <summary>Customers capability port.</summary>
 public interface ICustomerSource : ISyncablePort<SourceCustomer>

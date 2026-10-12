@@ -1,7 +1,7 @@
 namespace FaraTaraz.Modules.AccountingSources.Capabilities;
 
 using FaraTaraz.BuildingBlocks.Accounting;
-using FaraTaraz.Modules.Ingestion.Domain.SourceModel;
+using FaraTaraz.Modules.Ingestion.Contracts.SourceModel;
 
 /// <summary>
 /// Explicit capability resolution helpers.

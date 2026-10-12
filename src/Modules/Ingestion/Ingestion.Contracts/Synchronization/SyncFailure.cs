@@ -1,4 +1,4 @@
-namespace FaraTaraz.Modules.Ingestion.Domain.Synchronization;
+namespace FaraTaraz.Modules.Ingestion.Contracts.Synchronization;
 
 /// <summary>
 /// Provider-independent failure taxonomy sufficient for a future retry policy (W3).

@@ -2,7 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\BuildingBlocks\FaraTaraz.BuildingBlocks.csproj" />
-    <ProjectReference Include="..\..\Ingestion\Ingestion.Domain\FaraTaraz.Modules.Ingestion.Domain.csproj" />
+    <ProjectReference Include="..\..\Ingestion\Ingestion.Contracts\FaraTaraz.Modules.Ingestion.Contracts.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

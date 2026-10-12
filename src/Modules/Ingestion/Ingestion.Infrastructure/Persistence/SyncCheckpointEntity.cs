@@ -49,7 +49,7 @@ public sealed class SyncCheckpointEntity
 }
 
 /// <summary>
-/// Storage mapping of <see cref="FaraTaraz.Modules.Ingestion.Domain.Synchronization.SyncCheckpointState"/>
+/// Storage mapping of <see cref="FaraTaraz.Modules.Ingestion.Contracts.Synchronization.SyncCheckpointState"/>
 /// to its persisted string form (task M5/R3).
 /// </summary>
 internal static class SyncCheckpointStates

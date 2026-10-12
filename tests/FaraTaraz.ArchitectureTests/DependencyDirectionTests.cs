@@ -6,7 +6,7 @@ using FaraTaraz.Adapters.Accounting.Mock;
 using FaraTaraz.BuildingBlocks.Tenancy;
 using FaraTaraz.Modules.AccountingSources;
 using FaraTaraz.Modules.Ingestion.Application.SynchronizeCustomers.Queries;
-using FaraTaraz.Modules.Ingestion.Domain.Synchronization;
+using FaraTaraz.Modules.Ingestion.Contracts.Synchronization;
 using FaraTaraz.Modules.MasterData;
 using Xunit;
 

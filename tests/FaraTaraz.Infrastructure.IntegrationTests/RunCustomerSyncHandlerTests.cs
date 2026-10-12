@@ -1,4 +1,4 @@
-﻿namespace FaraTaraz.Infrastructure.IntegrationTests;
+namespace FaraTaraz.Infrastructure.IntegrationTests;
 
 using System;
 using System.Threading;
@@ -10,7 +10,8 @@ using FaraTaraz.Modules.AccountingSources.Authorization;
 using FaraTaraz.Modules.AccountingSources.Capabilities;
 using FaraTaraz.Modules.Ingestion.Application.Ports;
 using FaraTaraz.Modules.Ingestion.Application.SynchronizeCustomers.Commands;
-using FaraTaraz.Modules.Ingestion.Domain.SourceModel;
+using FaraTaraz.Modules.Ingestion.Contracts.SourceModel;
+using FaraTaraz.Modules.Ingestion.Contracts.Synchronization;
 using FaraTaraz.Modules.Ingestion.Domain.Synchronization;
 using FaraTaraz.Modules.Ingestion.Infrastructure.Persistence;
 using FaraTaraz.Modules.MasterData;

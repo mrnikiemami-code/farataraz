@@ -1,4 +1,4 @@
-namespace FaraTaraz.Modules.Ingestion.Domain.Synchronization;
+namespace FaraTaraz.Modules.Ingestion.Contracts.Synchronization;
 
 using System.Linq;
 using System.Security.Cryptography;

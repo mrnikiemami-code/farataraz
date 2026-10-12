@@ -3,8 +3,8 @@ namespace FaraTaraz.Modules.Ingestion.Application.SynchronizeCustomers.Queries;
 using System.Collections.Generic;
 using MediatR;
 using FaraTaraz.BuildingBlocks.Tenancy;
-using FaraTaraz.Modules.Ingestion.Domain.SourceModel;
-using FaraTaraz.Modules.Ingestion.Domain.Synchronization;
+using FaraTaraz.Modules.Ingestion.Contracts.SourceModel;
+using FaraTaraz.Modules.Ingestion.Contracts.Synchronization;
 
 /// <summary>
 /// Application-level query that retrieves exactly ONE bounded synchronization page for one

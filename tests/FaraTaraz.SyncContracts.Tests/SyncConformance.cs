@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using FaraTaraz.BuildingBlocks.Accounting;
 using FaraTaraz.Modules.AccountingSources;
-using FaraTaraz.Modules.Ingestion.Domain.Synchronization;
+using FaraTaraz.Modules.Ingestion.Contracts.Synchronization;
 
 /// <summary>
 /// Reusable, adapter-agnostic conformance assertions for the synchronization contract.

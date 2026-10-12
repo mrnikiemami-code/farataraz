@@ -2,8 +2,8 @@ namespace FaraTaraz.Adapters.Accounting.Mock;
 
 using FaraTaraz.BuildingBlocks.Identifiers;
 using FaraTaraz.Modules.MasterData;
-using FaraTaraz.Modules.Ingestion.Domain.SourceModel;
-using FaraTaraz.Modules.Ingestion.Domain.Synchronization;
+using FaraTaraz.Modules.Ingestion.Contracts.SourceModel;
+using FaraTaraz.Modules.Ingestion.Contracts.Synchronization;
 
 /// <summary>
 /// Deterministic fixture builders for Mock synchronization scenarios.

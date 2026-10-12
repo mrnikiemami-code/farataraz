@@ -3,7 +3,7 @@ namespace FaraTaraz.SyncContracts.Tests;
 using FaraTaraz.BuildingBlocks.Accounting;
 using FaraTaraz.Modules.AccountingSources;
 using Xunit;
-using FaraTaraz.Modules.Ingestion.Domain.SourceModel;
+using FaraTaraz.Modules.Ingestion.Contracts.SourceModel;
 
 public sealed class AccountingSourcesCapabilitySafetyTests
 {
@@ -61,10 +61,10 @@ public sealed class AccountingSourcesCapabilitySafetyTests
     {
         public AccountingCapability SupportedCapabilities => AccountingCapability.Customers;
         public string CapabilityName => "Customers";
-        public FaraTaraz.Modules.Ingestion.Domain.Synchronization.SyncModeSupport SyncModeSupport
+        public FaraTaraz.Modules.Ingestion.Contracts.Synchronization.SyncModeSupport SyncModeSupport
             => throw new NotSupportedException();
-        public Task<FaraTaraz.Modules.Ingestion.Domain.Synchronization.SyncBatch<SourceCustomer>> SyncAsync(
-            FaraTaraz.Modules.Ingestion.Domain.Synchronization.SyncRequest request,
+        public Task<FaraTaraz.Modules.Ingestion.Contracts.Synchronization.SyncBatch<SourceCustomer>> SyncAsync(
+            FaraTaraz.Modules.Ingestion.Contracts.Synchronization.SyncRequest request,
             CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
     }

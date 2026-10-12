@@ -1,6 +1,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 using FaraTaraz.BuildingBlocks.Identifiers;
+using FaraTaraz.Modules.Ingestion.Contracts.Synchronization;
 using FaraTaraz.Modules.Ingestion.Domain.Synchronization;
 
 namespace FaraTaraz.Modules.Ingestion.Application.Ports;

@@ -1,4 +1,4 @@
-namespace FaraTaraz.Modules.Ingestion.Domain.Synchronization;
+namespace FaraTaraz.Modules.Ingestion.Contracts.Synchronization;
 
 /// <summary>
 /// Declares which synchronization modes a capability genuinely supports.

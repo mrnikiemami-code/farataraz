@@ -11,7 +11,7 @@ using FaraTaraz.BuildingBlocks.Accounting;
 using FaraTaraz.BuildingBlocks.Tenancy;
 using FaraTaraz.Modules.AccountingSources;
 using FaraTaraz.Modules.Ingestion.Application.SynchronizeCustomers.Queries;
-using FaraTaraz.Modules.Ingestion.Domain.Synchronization;
+using FaraTaraz.Modules.Ingestion.Contracts.Synchronization;
 using FaraTaraz.Modules.MasterData;
 using Xunit;
 
@@ -55,7 +55,7 @@ public class PhysicalStructureTests
         Path.Combine("BuildingBlocks", "Configuration"),
         Path.Combine("Modules", "MasterData"),
         Path.Combine("Modules", "AccountingSources", "AccountingSources.Domain", "Providers"),
-        Path.Combine("Modules", "Ingestion", "Ingestion.Domain", "SourceModel"),
+        Path.Combine("Modules", "Ingestion", "Ingestion.Contracts", "SourceModel"),
         // Module-local DI registration (no business rules) is a justified single-file leaf.
         Path.Combine("Modules", "Ingestion", "Ingestion.Application", "Composition"),
         // Module-owned composition seams (D-1): one translation unit per module that only wires
@@ -85,6 +85,8 @@ public class PhysicalStructureTests
         ["Modules/Ingestion/Ingestion.Domain"] = "FaraTaraz.Modules.Ingestion.Domain",
         ["Modules/Ingestion/Ingestion.Application"] =
             "FaraTaraz.Modules.Ingestion.Application",
+        // Cross-module synchronization CONTRACT surface (task FT-ARCH-CONTRACT-BOUNDARY-002).
+        ["Modules/Ingestion/Ingestion.Contracts"] = "FaraTaraz.Modules.Ingestion.Contracts",
         // Module-owned composition seams (D-1): DI wiring only, referenced by the Host instead
         // of the concrete Infrastructure assembly.
         ["Modules/Ingestion/Ingestion.Composition"] = "FaraTaraz.Modules.Ingestion.Composition",

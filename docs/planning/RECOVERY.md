@@ -20,6 +20,24 @@
 **Architect ledger is canonical:** `docs/planning/OPEN-DEFECTS.md` has per-ID review evidence and decisions. Historical reports below that say W2 NOT CERTIFIED/W3 NOT AUTHORIZED refer to **past checkpoints**, not current restricted authorization. Implementation agent must start by fetching latest master, reading ledger+constitution+ADRs, and must not treat certification as removal of W3 production gates.
 
 
+## ARCH CONTRACT BOUNDARY — FT-ARCH-CONTRACT-BOUNDARY-002 — PASS (2026-10-12)
+
+**Task:** `FT-ARCH-CONTRACT-BOUNDARY-002`. **Status:** `PASS`. `OPEN-DEFECTS.md` / `ARCHITECT-JOURNAL.md` untouched; no defect VERIFIED.
+
+**Baseline / sync:** `28a1d29` (origin/master).
+
+**New project:** `src/Modules/Ingestion/Ingestion.Contracts/` (`FaraTaraz.Modules.Ingestion.Contracts`). **Type inventory (moved out of `Ingestion.Domain`):** `SyncRequest` (+`InvalidSyncRequestException`), `SyncBatch<T>`, `SyncCursor`/`SyncCursorScope`/`SyncCursors`, `SyncMode`, `SyncModeSupport`, `SyncFailure.cs` (`SyncFailureCategory`, `SyncProviderException`, `SyncTransientException`, `SyncPermanentException`, `SyncModeNotSupportedException`, `InvalidSyncCursorException`, `SyncCursorScopeMismatchException`), `SourceRecordId` (+`InvalidSourceRecordIdException`), `SourceRecordVersion`, `SourceContentFingerprint`, `SourceModel/*` (SourceCustomer..SourcePaymentRecord + SourceProvenance). **Retained in `Ingestion.Domain`:** `Clock` (`ISystemClock`/`SystemClock`), `SyncCheckpointState`, `UnsupportedChangedRecordException`, `SyncAlreadyCompletedException` (ingestion-internal; not needed by AccountingSources).
+
+**Dependency graph before → after:** `AccountingSources → BuildingBlocks, Ingestion.Domain` **became** `AccountingSources → BuildingBlocks, Ingestion.Contracts` (**the forbidden `AccountingSources.Domain → Ingestion.Domain` edge is removed**). `Ingestion.Application → +Ingestion.Contracts`; `Ingestion.Infrastructure → +Ingestion.Contracts`; `Accounting.Mock → Contracts` (Domain edge dropped); `Host → +Ingestion.Contracts`. `Ingestion.Domain` no longer references Contracts (its retained types are self-contained). No cycles.
+
+**Enforcement (Phase F/G).** New `tests/.../ModuleContractsBoundaryTests.cs`: AccountingSources.Domain does NOT reference `Ingestion.Domain` (declared + transitive closure); `Ingestion.Contracts` closure excludes Application/Infrastructure/Host/Adapters and carries no MediatR/EF/Npgsql package; a **negative fixture** classifier distinguishes a forbidden cross-module Domain reference from the allowed Contracts reference; and **every production project under `src/` must be classified** (a new project cannot silently escape). Existing guards updated for the new project (`PhysicalStructureTests` namespace roots + single-file leaf, `OrphanSourceFileTests`, `ReferenceGraphTests` exact-reference sets) — none weakened.
+
+**Verification:** full Debug **307/307** and Release **307/307** (BuildingBlocks 17, SyncContracts 55, Integration 85, Architecture 150); `git diff --check` clean.
+
+**Architect note (relocation to confirm).** `SyncFailureCategory`/`SyncProviderException` moved from `Ingestion.Domain` to `Ingestion.Contracts` because the contract-facing exceptions (`InvalidSyncCursorException`, `SyncCursorScopeMismatchException`, `SyncModeNotSupportedException`) derive from `SyncProviderException` and are thrown by the capability-port contract. ADR-010 §11 says the failure taxonomy "remains a Domain contract that Infrastructure records, not decides" — the semantic is preserved, but the **assembly relocated**; flagging for explicit architect confirmation rather than silent override.
+
+**Files:** new `Ingestion.Contracts/{csproj,Synchronization/*(9),SourceModel/SourceModel.cs}` + `ModuleContractsBoundaryTests.cs`; edited `Ingestion.Domain` (4 retained files), `Ingestion.Application`/`Ingestion.Infrastructure`/`AccountingSources.Domain`/`Accounting.Mock`/`Host`/3 test csprojs, usings across src+tests, `PhysicalStructureTests`, `OrphanSourceFileTests`, `ReferenceGraphTests`, `structure.md`, this `RECOVERY.md`. No endpoint/worker/provider/auth; behaviour preserved.
+
 ## ARCH FOUNDATION REPAIR — FT-ARCH-FOUNDATION-REPAIR-001 — PARTIAL (2026-10-12)
 
 **Task:** `FT-ARCH-FOUNDATION-REPAIR-001`. **Status:** `PARTIAL` — Phase 2 (physical nesting repair) delivered and fully tested; Phases 1/3/4(full)/5 not completed within the bounded window. `OPEN-DEFECTS.md` / `ARCHITECT-JOURNAL.md` untouched; no defect VERIFIED.

@@ -6,7 +6,7 @@ using FaraTaraz.Adapters.Accounting.Mock;
 using FaraTaraz.BuildingBlocks.Tenancy;
 using FaraTaraz.Modules.AccountingSources;
 using FaraTaraz.Modules.Ingestion.Application.SynchronizeCustomers.Queries;
-using FaraTaraz.Modules.Ingestion.Domain.Synchronization;
+using FaraTaraz.Modules.Ingestion.Contracts.Synchronization;
 using FaraTaraz.Modules.MasterData;
 using Xunit;
 
@@ -65,6 +65,7 @@ public class ReferenceGraphTests
             {
                 "FaraTaraz.BuildingBlocks",
                 "FaraTaraz.Modules.AccountingSources",
+                "FaraTaraz.Modules.Ingestion.Contracts",
                 "FaraTaraz.Modules.Ingestion.Domain"
             },
             FaraTarazReferences(IngestionApplication));
@@ -72,7 +73,7 @@ public class ReferenceGraphTests
     [Fact]
     public void AccountingSources_depends_on_BuildingBlocks_and_IngestionDomain()
         => Assert.Equal(
-            new[] { "FaraTaraz.BuildingBlocks", "FaraTaraz.Modules.Ingestion.Domain" },
+            new[] { "FaraTaraz.BuildingBlocks", "FaraTaraz.Modules.Ingestion.Contracts" },
             FaraTarazReferences(AccountingSources));
 
     [Fact]
@@ -84,7 +85,7 @@ public class ReferenceGraphTests
             {
                 "FaraTaraz.BuildingBlocks",
                 "FaraTaraz.Modules.AccountingSources",
-                "FaraTaraz.Modules.Ingestion.Domain",
+                "FaraTaraz.Modules.Ingestion.Contracts",
                 "FaraTaraz.Modules.MasterData"
             },
             FaraTarazReferences(Mock));

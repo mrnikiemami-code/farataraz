@@ -3,7 +3,7 @@ namespace FaraTaraz.SyncContracts.Tests;
 using FaraTaraz.BuildingBlocks.Accounting;
 using FaraTaraz.BuildingBlocks.Identifiers;
 using FaraTaraz.Modules.AccountingSources;
-using FaraTaraz.Modules.Ingestion.Domain.Synchronization;
+using FaraTaraz.Modules.Ingestion.Contracts.Synchronization;
 
 /// <summary>
 /// Provider-agnostic description of one capability's synchronization behavior, used by the

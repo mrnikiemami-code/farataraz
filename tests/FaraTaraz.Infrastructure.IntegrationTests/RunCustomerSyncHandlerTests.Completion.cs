@@ -1,4 +1,4 @@
-﻿namespace FaraTaraz.Infrastructure.IntegrationTests;
+namespace FaraTaraz.Infrastructure.IntegrationTests;
 
 using System;
 using System.Threading;
@@ -10,7 +10,8 @@ using FaraTaraz.Modules.AccountingSources.Authorization;
 using FaraTaraz.Modules.AccountingSources.Capabilities;
 using FaraTaraz.Modules.Ingestion.Application.Ports;
 using FaraTaraz.Modules.Ingestion.Application.SynchronizeCustomers.Commands;
-using FaraTaraz.Modules.Ingestion.Domain.SourceModel;
+using FaraTaraz.Modules.Ingestion.Contracts.SourceModel;
+using FaraTaraz.Modules.Ingestion.Contracts.Synchronization;
 using FaraTaraz.Modules.Ingestion.Domain.Synchronization;
 using FaraTaraz.Modules.Ingestion.Infrastructure.Persistence;
 using FaraTaraz.Modules.MasterData;
@@ -178,7 +179,7 @@ public sealed partial class RunCustomerSyncHandlerTests
         var record = Customer(source, "C1", "fp1");
 
         // A terminal page can never carry a continuation cursor, and a non-terminal page always
-        // carries one — the SyncBatch factories enforce this by construction, so an inconsistent
+        // carries one � the SyncBatch factories enforce this by construction, so an inconsistent
         // page can never reach the handler's defensive validation.
         Assert.True(SyncBatch<SourceCustomer>.Complete(new[] { record }).IsComplete);
         Assert.Null(SyncBatch<SourceCustomer>.Complete(new[] { record }).NextCursor);

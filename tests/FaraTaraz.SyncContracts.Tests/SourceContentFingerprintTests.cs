@@ -2,7 +2,7 @@ namespace FaraTaraz.SyncContracts.Tests;
 
 using System.Security.Cryptography;
 using System.Text;
-using FaraTaraz.Modules.Ingestion.Domain.Synchronization;
+using FaraTaraz.Modules.Ingestion.Contracts.Synchronization;
 using Xunit;
 
 /// <summary>
