@@ -1,5 +1,12 @@
 # FaraTaraz — Architect Continuity Journal
 
+## W4 CONNECTIVITY DECISION — LOCAL AND REMOTE OPTIONS — 2026-10-13
+
+**User confirmed:** three Asan systems currently reside on customer PCs; Asan has reportedly been connected to WordPress, suggesting an external integration route but NOT proving a public HTTP API or server accessibility. **Design for both** direct local connection now and future central remote API **or** local bridge/agent, chosen by actual vendor evidence. No local/remote conditionals in Domain/Application; provider-neutral capability ports and adapter/connection configuration only. First deployment local Windows Worker; same core/Worker reusable centrally if network connectivity and tenant/source grants permit. Architect design record `docs/architecture/ARCHITECTURE-W4-CONNECTIVITY-DECISION-2026-10-13.md` at commit `ac1fd4ad9d7a9b24bffb7dae88033e0fda1bb536`. Next gate: inspect actual Asan APIs and WordPress connector plus define real trusted worker provisioning/job authority before implementation. No fake remote endpoint/provider or untrusted TenantContext; W4 implementation still blocked. W1–W3 accepted; latest implementation `115e799`.
+
+---
+
+
 ## W4 DEPLOYMENT DECISION — LOCAL-FIRST, CENTRAL-READY — 2026-10-13
 
 **User decision:** initial production deployment is a **.NET background Worker installed on each customer's Windows PC** with direct accounting-software access. Future deployment can move the **same Worker/application/domain/provider-adapter codebase** to a central server; API remains a separate future authenticated delivery adapter, not a parallel business implementation. Architecture must permit configuration-based deployment switching where provider connectivity allows. **A central move cannot be guaranteed as a config-only toggle if accounting software is LAN-only; local connector/agent or approved secure remote access may be necessary.** Also data migration, grants, secrets, backups and tenant isolation need explicit cutover. Binding architect decision: `docs/architecture/ARCHITECTURE-W4-DEPLOYMENT-DECISION-2026-10-13.md`, commit `584517835dbfef77b7e0ec6aa3f04a366dd10a97`. Worker-first/API-ready decision in `ARCHITECTURE-W4-DUAL-DELIVERY-DECISION-2026-10-13.md` remains binding.
