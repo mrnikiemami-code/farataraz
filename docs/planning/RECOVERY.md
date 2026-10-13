@@ -24,6 +24,28 @@
 
 ---
 
+## W4-B2 OWNERSHIP CANCELLATION — FT-W4-B2-OWNERSHIP-CANCELLATION-001 — IMPLEMENTED, AWAITING ARCHITECT (2026-10-13)
+
+**Task:** `FT-W4-B2-OWNERSHIP-CANCELLATION-001` (bounded implementation). **Status:** implemented; submitted for independent architect review. Architect-owned `OPEN-DEFECTS.md` / `ARCHITECT-JOURNAL.md` untouched; no defect VERIFIED.
+
+**Baseline / sync:** `488dbbc` (origin/master, fetched + fast-forwarded; worktree clean).
+
+**The fix (2 files).** `EfAccountingSourceOwnership.IsOwnedByAsync` now has an explicit `catch (OperationCanceledException) { throw; }` before the existing general fail-closed `catch { return false; }`, so caller cancellation is never converted into an "unauthorized source" result. Trusted-scope authority, ignoring of the caller tenant id, the ownership lookup, `false` for missing/foreign sources and fail-closed `false` for non-cancellation database errors are all preserved. No public interface and no exception taxonomy changed.
+
+**Required additional correction (behaviour-neutral, same file, flagged for architect).** The mandated acceptance test could not pass against the original query shape: empirically, EF Core's server-side `EXISTS` (`AnyAsync(predicate, ct)`) did **not** surface an already-cancelled token on this path (3/3 runs returned a normal result), so the documented cancellation contract was unreachable and untestable. The lookup was therefore changed to the scoped existence projection the provider resolver already uses — `Where(...).Select(e => e.Id).FirstOrDefaultAsync(ct)` returning `owner is not null`. It is behaviour-identical for authorization (does the trusted tenant own the source), preserves fail-closed semantics, and genuinely observes and propagates cancellation. Probe evidence: with the original shape the cancellation test failed ("No exception was thrown"); with the projection it passes.
+
+**Cancellation test (new) and result.** `AccountingSourcesPersistenceTests.Ownership_oracle_propagates_cancellation_with_a_trusted_scope` — real PostgreSQL, real seeded source, trusted scope, already-cancelled token ⇒ `OperationCanceledException` propagates. **PASS** (stable across 3 consecutive runs). **Mutant proof:** removing the `catch (OperationCanceledException)` makes it **FAIL** ("No exception was thrown"), proving the test actually guards the fix.
+
+**Existing ownership behaviour (unchanged, all PASS):** `Ownership_oracle_authorizes_source_for_own_trusted_tenant`; `Ownership_oracle_denies_source_for_different_trusted_tenant` (foreign); `Ownership_oracle_fails_closed_without_trusted_scope` (missing scope). No security assertion was weakened.
+
+**Verification:** full Debug **336/336** and Release **336/336** (BuildingBlocks 9, SyncContracts 72, Architecture 162, Integration **93** real PostgreSQL); zero warnings/errors; `git diff --check` clean.
+
+**Files:** edited `AccountingSources.Infrastructure/Authorization/EfAccountingSourceOwnership.cs`, `tests/FaraTaraz.Infrastructure.IntegrationTests/AccountingSourcesPersistenceTests.cs`, this `RECOVERY.md`. No schema/migration, no Host/Worker/API, no packages, no ADR change, no change to `TenantContext`/`DatabaseTenantScope`/activation contracts or Ingestion Application handlers.
+
+**STOP_FOR_ARCHITECT.** Next architectural objective (not started): the cryptographically verified, restricted installation-grant authority boundary — explicitly NOT a public `TenantContext.Establish(IAuthenticatedPrincipal)` and NOT a fake authenticated principal.
+
+---
+
 ## W4-B1 DISABLED-SOURCE ADMISSION — FT-W4-B1-DISABLED-SOURCE-ADMISSION — IMPLEMENTED, AWAITING ARCHITECT (2026-10-13)
 
 **Task:** `FT-W4-B1-DISABLED-SOURCE-ADMISSION` (bounded implementation). **Status:** implemented; submitted for independent architect review. Architect-owned `OPEN-DEFECTS.md` / `ARCHITECT-JOURNAL.md` untouched; no defect VERIFIED.

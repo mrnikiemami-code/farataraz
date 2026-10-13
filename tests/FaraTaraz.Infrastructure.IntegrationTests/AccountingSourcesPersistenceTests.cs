@@ -107,6 +107,28 @@ public sealed class AccountingSourcesPersistenceTests
     }
 
     [Fact]
+    public async Task Ownership_oracle_propagates_cancellation_with_a_trusted_scope()
+    {
+        var db = new IntegrationTestDb();
+        await db.ApplyMigrationsAsync();
+
+        var tenantId = Guid.NewGuid().ToString("N");
+        var sourceId = Guid.NewGuid().ToString("N");
+        await SeedTenantSourceAsync(db, Tenant(tenantId), Source(sourceId));
+
+        await using var ctx = db.AccountingSources();
+        // A real, owned source AND a trusted scope: the only reason this can fail is cancellation,
+        // which must propagate rather than be converted into a fail-closed "not owned" result.
+        var oracle = new EfAccountingSourceOwnership(ctx, TrustedTenant(Tenant(tenantId)));
+
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => oracle.IsOwnedByAsync(Tenant(tenantId), Source(sourceId), cts.Token));
+    }
+
+    [Fact]
     public async Task Ownership_oracle_denies_unknown_source_for_trusted_tenant()
     {
         var db = new IntegrationTestDb();
