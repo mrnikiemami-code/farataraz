@@ -1,5 +1,17 @@
 # FaraTaraz — Architect Continuity Journal
 
+## W4-C1-R1 INDEPENDENT ACCEPTANCE — 2026-10-13
+
+**ACCEPTED, stage A only**, implementation `6550deb137082810fe1021ea89d1f1766d7ba84c`. Reviewed seven changed files and current test helpers; numeric kinds, actual P-256 identity, canonical nested/outer base64url and masked count tests corrected. Exact-SHA CI 38390735521 raw logs show **391/391 Debug and Release**, including 55 authority and 93 real PostgreSQL tests each. Four review findings closed in architect ledger commit `a78550f41523a15292285c1cfa93bc9a361b78cd`.
+
+Review used GitHub source and CI logs, not independent local .NET reruns. Mutation proof and local worktree status are executor evidence; remote master was independently compared and matched implementation before documentation writes.
+
+C1 must not be rerun as a new implementation task. Next architectural objective is stage-B job authorization/possession and subsequent restricted trust binding; **C2/AMD-1 NOT AUTHORIZED**, ADR-011 remains Proposed. Preserve clean ownership: crypto and installation policy in authority Infrastructure, shared trust primitives only in BuildingBlocks, admission in Application, delivery through ISender, Host composition-only. No claim of runtime authority, Worker, real Asan or production readiness.
+
+Original R1 reportedly exceeded the hard timebox (approximately 62 minutes vs 40); keep the process deviation, require PARTIAL checkpoint at future hard stops. Duplicate recovery invocation reportedly took 4 minutes without changes.
+
+---
+
 ## W4-C1 REVIEW — CHANGES REQUIRED (2026-10-13)
 
 Independent exact-SHA source/CI review of `b6057c5a3694abef6e89b2b62ba108c3854aa8cb` (17 scoped files). Stage-A isolation and capability-owned crypto placement are preserved. CI 38383469828 checked out exact SHA and passed **362/362 Debug and Release**, including 26 authority and 93 real PostgreSQL tests each. No local .NET runtime was available to independently execute additional probes; findings are source-grounded, with numeric-kind exception behavior checked against .NET documentation.
