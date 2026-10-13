@@ -1,5 +1,16 @@
 # FaraTaraz — Open Defects and Architecture Acceptance Ledger
 
+## FT-W4-B1-DISABLED-SOURCE-ADMISSION — INDEPENDENT ACCEPTANCE (2026-10-13)
+
+**ACCEPTED** at implementation SHA `c5d9149d6140cac6244320811660909c148dd2b8`. Independently inspected exact GitHub commit (14 changed files: 5 new, 9 modified), actual `EfAccountingSourceActivation`, Command/Query handlers, real PostgreSQL integration tests and `EfAccountingSourceOwnership`. GitHub Actions [38348875212](https://github.com/mrnikiemami-code/farataraz/actions/runs/38348875212) exact-SHA SUCCESS; raw job logs verify **335/335 Debug and 335/335 Release** (9 BuildingBlocks +72 SyncContracts +162 Architecture +**92 real PG integration** each; zero failures/skips). 7 new PostgreSQL tests. Production uses trusted `DatabaseTenantScope`, never caller tenantId; shared Application ownership → activation → provider admission. Disabled source rejected in both handlers before provider access; command test asserts zero provider calls and zero record/run/checkpoint writes, query test zero provider calls and record/run writes. Foreign/missing ownership check runs first; Enabled and Syncing remain eligible; fixtures previously seeding Disabled were corrected explicitly, not relaxed. No Worker/Host/TenantContext/Schema/packages/ADR changes. Architecture preserved.
+
+**NEW OPEN DEFECT (not part of accepted scope):** `EfAccountingSourceOwnership.IsOwnedByAsync` currently has an unfiltered `catch` that swallows `OperationCanceledException` and returns false, contradicting expected cancellation propagation. Recommend narrowly scoped follow-up to insert an explicit `catch (OperationCanceledException) { throw; }` before fail-closed other-failure catch, with cancellation test and unchanged fail-closed DB error behavior. Do not change this as part of accepted B1; preserve W4-B1 baseline.
+
+**Remaining W4 delivery blockers:** cryptographically constrained trusted context producer (public `TenantContext.Establish(IAuthenticatedPrincipal)` REJECTED); real company activation issuer, verified Asan provider/credential store, Worker and lease. ADR-011 Proposed, no W4 production readiness.
+
+---
+
+
 ## FT-REBASELINE-W4-ACTIVATION-TRUST-CONTRACT-002 — architect review (2026-10-13)
 
 **DESIGN ACCEPTED IN PART; PUBLIC TRUST ESTABLISHMENT REJECTED; FIRST CODE SLICE AUTHORIZED AS A SEPARATE TASK.** Independently inspected exact executor SHA `eeb8e7a22a0761cdd7306a9180e85fcf646105f7`; exactly two docs-only files (`ARCHITECTURE-W4-ACTIVATION-TRUST-CONTRACT-2026-10-13.md`, `RECOVERY.md`). Exact-SHA GitHub Actions [38346868301](https://github.com/mrnikiemami-code/farataraz/actions/runs/38346868301) SUCCESS; raw log confirms 328/328 Debug and 328/328 Release, including 85 real PostgreSQL integration per configuration.
