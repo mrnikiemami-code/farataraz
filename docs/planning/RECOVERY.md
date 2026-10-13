@@ -41,6 +41,30 @@
 
 ---
 
+## W4-C2A JOB SCOPE + INSTALLATION POSSESSION — FT-W4-C2A-JOB-SCOPE-AND-INSTALLATION-POSSESSION-001 — IMPLEMENTED, AWAITING ARCHITECT (2026-10-13)
+
+**Task:** `FT-W4-C2A-JOB-SCOPE-AND-INSTALLATION-POSSESSION-001` (bounded stage-B core). **Status:** implemented; submitted for review. `OPEN-DEFECTS.md` / `ARCHITECT-JOURNAL.md` untouched.
+
+**Baseline / sync:** `c5f61e3` (origin/master, fast-forwarded; worktree clean) — the expected architect checkpoint (C1 accepted).
+
+**What was built (stage B core only, existing authority project).** `GrantJobRequest` (immutable internal: expected installation id + `AccountingSourceId` + capability; nonempty enforced at construction; carries **no** tenant and no issuer/audience). `GrantAuthorityExpectations` (pinned expected issuer/audience as an input, never job-supplied). `GrantJobPolicy.Evaluate(claims, request, expectations, evaluationTime)` — one entrypoint, fixed order: issuer → audience → installation identity → validity window → **ordinal** source/capability membership (no normalization that could broaden scope). `PossessionMessage` — ONE canonical encoding, every field four-byte big-endian length-prefixed UTF-8 in a fixed order behind a protocol identifier, nonce length-prefixed too, so distinct tuples cannot collide. `GrantPossessionSession.Begin` (challenge = 32 random bytes from `RandomNumberGenerator`, internal only; message binds protocol/grant/tenant/installation/source/capability/nonce; installation SPKI copied from accepted claims) with `CopyChallenge`/`CopySignedMessage` returning fresh copies, and `Complete(signature, ct)` verifying ES256/P1363 (exactly 64 bytes) against that SPKI with P-256 identity and complete SPKI consumption. `GrantPossessionResult`/`GrantPossessionFailure` — internal, job-bound, explicitly **not** `AuthorizedJobGrant` and unable to mint `TenantContext`.
+
+**Guarantees.** One completion attempt per session via `Interlocked` CAS; a failed attempt also consumes the session; a proof for another session/job/installation cannot verify (the nonce and every bound field are in the signed message); returned challenge/message are copies so caller mutation cannot alter retained state; cancellation propagates and is checked before returning success, so cancellation never yields a successful proof. **No signer is implemented** (a future OS signer consumes these exact challenge bytes); tests sign with ephemeral P-256 keys.
+
+**Explicitly NOT done (unchanged blockers).** No `TenantContext`/`DatabaseTenantScope` minting or binding, no `AuthorizedJobGrant`, no DI wiring, no AMD-1 or production friend access, no OS key storage, activation, renewal, leases or provider. Offline freshness/revocation and restricted trust binding remain unresolved; a supplied/system evaluation time is documented as **not** trusted offline time and is not an "offline verified" flag.
+
+**Tests.** 23 new tests (authority 55 → **78**): eligibility positive; wrong issuer/audience/installation; exact boundary times (999/1000/1999/2000); same-tenant non-granted source and capability; ordinal case-sensitivity; empty request/expectation rejection; correct key success with exact job binding; wrong private key; malformed lengths (0/63/65); single-attempt consumption after success and after failure; cross-session proof rejection; deterministic message-difference for changed source/capability/installation and length-prefix ambiguity; concurrent attempts (8 parallel ⇒ exactly 1 success, 7 `SessionConsumed`); copy-mutation isolation; cancellation; and an internal/public-surface assertion.
+
+**Negative proof (restored before commit).** Forcing the signature check to pass makes `Wrong_private_key_fails` FAIL; restoring makes it PASS.
+
+**Verification:** authority **78/78**, architecture **162/162**, build 0 warnings/0 errors, `git diff --check` clean. New files only (no existing production file changed, no new folder ⇒ no guard remapping). Full Debug/Release matrix delegated to exact-SHA CI.
+
+**Files:** NEW `src/Modules/InstallationAuthority/InstallationAuthority.Infrastructure/Grants/{GrantJobRequest, GrantAuthorityExpectations, GrantJobEligibilityFailure, GrantJobPolicy, PossessionMessage, GrantPossessionFailure, GrantPossessionResult, GrantPossessionSession}.cs`; NEW `tests/FaraTaraz.InstallationAuthority.Tests/{TestGrantFactory, GrantJobPolicyTests, GrantPossessionSessionTests}.cs`; this `RECOVERY.md`.
+
+**STOP_FOR_ARCHITECT** — no automatic next task.
+
+---
+
 ## W4-C1-R1 STRICT VALIDATION CLOSURE — FT-W4-C1-R1-STRICT-VALIDATION-CLOSURE-001 — IMPLEMENTED, AWAITING ARCHITECT (2026-10-13)
 
 **Task:** `FT-W4-C1-R1-STRICT-VALIDATION-CLOSURE-001` (bounded implementation; closes C1-PARSE-001, C1-CURVE-001, C1-ENCODING-001, C1-TEST-001). **Status:** implemented; submitted for review. `OPEN-DEFECTS.md` / `ARCHITECT-JOURNAL.md` untouched.
