@@ -24,6 +24,26 @@
 
 ---
 
+## WAVE 4 WORKER/TRUST DESIGN — FT-REBASELINE-W4-WORKER-TRUST-DESIGN-001 — COMPLETE (DESIGN ONLY), AWAITING ARCHITECT (2026-10-13)
+
+**Task:** `FT-REBASELINE-W4-WORKER-TRUST-DESIGN-001` (ANALYZE + DESIGN ONLY, read-only source). **Status:** design complete; submitted for architect review. **No production code, tests, project references, packages, schema or ADR status changed.** `OPEN-DEFECTS.md` / `ARCHITECT-JOURNAL.md` untouched.
+
+**Baseline / sync:** `fda7c28` (origin/master, fetched + fast-forwarded; worktree clean).
+
+**Deliverable:** new `docs/architecture/ARCHITECTURE-W4-WORKER-TRUST-DESIGN-2026-10-13.md` — source-grounded execution/trust map, missing production registrations, minimal local Worker architecture, exact trust boundary, Asan evidence classification, decision matrix (D1–D12), security acceptance-test plan (T1–T9, runnable vs blocked), 7 rejected alternatives that would violate the invariants, blockers B1–B6 and one recommended next slice.
+
+**Key source findings.** No delivery entrypoint and no hosting package exists anywhere in `src/` (no `Microsoft.Extensions.Hosting`/`BackgroundService`); `TenantContext` minting is internal with test-only friends (no producer); `ISyncablePort<SourceCustomer>` is registered only in `CqrsTestSupport`; `AccountingSourceEntity` has **no** credential column; `AccountingSourceStatus` (Disabled/Enabled/Syncing/Error) is persisted but **never consulted** by ownership or provider resolution; there is **no execution lease** (concurrency relies on checkpoint CAS + unique idempotency only); no real Asan/Sepidar/Holoo/Mahak connector, HTTP client or vendor SDK exists (vendor names appear only in doc comments, the provider-leakage guard and one test literal).
+
+**Blockers.** **B1** no real provisioning/trust authority (issuer + verification material) — the grant-verification seam (§2.4) cannot be honestly implemented; ADR-011 stays Proposed. **B2** no Asan connectivity facts (local mechanism, auth, data model; remote route unverified — WordPress integration is USER-REPORTED and does not prove an API). Plus B3–B6 (local PostgreSQL lifecycle, Windows service install/upgrade, scheduling policy, observability).
+
+**Recommendation:** slice **W4-A "trustless-safe Worker skeleton with a fail-closed verifiable-grant seam and execution lease"** (4–7 h, ≤45-min subtasks), gated on architect approval of the trust shape and B1/B2; explicit measurable acceptance criteria are in the document's §8.
+
+**Files:** new `docs/architecture/ARCHITECTURE-W4-WORKER-TRUST-DESIGN-2026-10-13.md`; edited this `RECOVERY.md`. Documentation only.
+
+**STOP_FOR_ARCHITECT — W4 not implemented; no next task dispatched.**
+
+---
+
 ## WAVE 3 APPLICATION & GUARD CLEANUP — FT-REBASELINE-W3-APPLICATION-GUARD-CLEANUP-001 — COMPLETE, AWAITING ARCHITECT REVIEW (2026-10-13)
 
 **Task:** `FT-REBASELINE-W3-APPLICATION-GUARD-CLEANUP-001`. **Status:** W3 implementation complete; submitted for independent architect review. W4 **not** started. `OPEN-DEFECTS.md` / `ARCHITECT-JOURNAL.md` untouched; no defect VERIFIED.
