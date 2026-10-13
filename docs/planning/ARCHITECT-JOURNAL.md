@@ -1,5 +1,14 @@
 # FaraTaraz — Architect Continuity Journal
 
+## W4 DEPLOYMENT DECISION — LOCAL-FIRST, CENTRAL-READY — 2026-10-13
+
+**User decision:** initial production deployment is a **.NET background Worker installed on each customer's Windows PC** with direct accounting-software access. Future deployment can move the **same Worker/application/domain/provider-adapter codebase** to a central server; API remains a separate future authenticated delivery adapter, not a parallel business implementation. Architecture must permit configuration-based deployment switching where provider connectivity allows. **A central move cannot be guaranteed as a config-only toggle if accounting software is LAN-only; local connector/agent or approved secure remote access may be necessary.** Also data migration, grants, secrets, backups and tenant isolation need explicit cutover. Binding architect decision: `docs/architecture/ARCHITECTURE-W4-DEPLOYMENT-DECISION-2026-10-13.md`, commit `584517835dbfef77b7e0ec6aa3f04a366dd10a97`. Worker-first/API-ready decision in `ARCHITECTURE-W4-DUAL-DELIVERY-DECISION-2026-10-13.md` remains binding.
+
+**Next:** scoped W4 read-only delivery/security design task (real provider access, customer enrollment/tenant/source authority, service identity, scheduling, local DB, central connectivity, install/upgrade). Do not invent authentication, provider or claim production certification. W1–W3 accepted, implementation baseline `115e799`; W4 not yet implemented. ADR-011 remains Proposed.
+
+---
+
+
 ## W4 DELIVERY DIRECTION LOCKED — 2026-10-13
 
 **User decision:** FaraTaraz runs initially as a background Worker, **but must architecturally support both Worker and future authenticated API**. Single shared MediatR Application/Domain path; distinct trustworthy authority producers at delivery boundary. Do not build API now, do not embed worker-specific logic in Domain or Host, do not allow caller-controlled TenantContext. Binding design record: `docs/architecture/ARCHITECTURE-W4-DUAL-DELIVERY-DECISION-2026-10-13.md`, architect commit `da23292789e69a2fbb776e4017c55e7c29abcc6f`. This resolves delivery-shape question **only**; ADR-011 remains Proposed, concrete provisioned tenant/source grant, service identity and real provider are unresolved. **NEXT:** scoped W4 design/authority-contract task, read-only; independent architect approval before code. W1–W3 accepted, latest implementation `115e799`; no W4 implementation started.
