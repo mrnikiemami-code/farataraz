@@ -24,6 +24,28 @@
 
 ---
 
+## W4-B3 VERIFIED-GRANT AUTHORITY DESIGN — FT-W4-B3-VERIFIED-GRANT-AUTHORITY-DESIGN-001 — DESIGN COMPLETE (REVISION 2), AWAITING ARCHITECT (2026-10-13)
+
+**Task:** `FT-W4-B3-VERIFIED-GRANT-AUTHORITY-DESIGN-001` (bounded security architecture design; **design only**). **Status:** design complete, revised after the binding responsibility-ownership constraints; submitted for independent architect review. Architect-owned `OPEN-DEFECTS.md` / `ARCHITECT-JOURNAL.md` untouched. No production/test code, no builds or full suites (docs-only task).
+
+**Baseline / sync:** local == remote == `b7247f171030e42931ec3b34f611aaa463567beb` (origin/master fast-forwarded; worktree clean) — exactly the expected recovery checkpoint.
+
+**Deliverable:** `docs/architecture/ARCHITECTURE-W4-VERIFIED-GRANT-AUTHORITY-2026-10-13.md`, marked **PROPOSED — AWAITING INDEPENDENT ARCHITECT ACCEPTANCE**.
+
+**Revision history.** Revision 1 placed the JWS verifier, key store and offline policy inside `BuildingBlocks`. That placement was **withdrawn**: the binding constraints require Infrastructure to own cryptographic verification, key storage and issuer communication, and reject moving the whole verifier into `BuildingBlocks` or piling security into the Worker.
+
+**The conflict (stated, not concealed).** `TenantContext` must stay low (Application/Domain reference it) so minting must stay in `BuildingBlocks`; a non-forgeable "verification succeeded" value can only be constructed inside the assembly that defines it; crypto must live in Infrastructure; and the friend list is pinned to test assemblies. Those four cannot hold simultaneously with a purely public surface. **AMD-1 (recommended): exactly one production `InternalsVisibleTo`** from `BuildingBlocks` to the single named trust-authority assembly, used only to construct the sealed evidence type, with the friend guard updated by architect decision and still fail-closed against every other production assembly. Alternatives AMD-0/2/3/4/5 are documented and rejected.
+
+**Selected design (under AMD-1).** Mining-free minimal boundary in `BuildingBlocks.Tenancy`: `GrantJobScope` (public value type), `TrustedInstallationGrant` (public record, **internal ctor**), `TrustEstablishmentResult`, `TenantContextEstablisher` (the only minting call site), scoped write-once `TrustedTenantHolder`, `AddTrustedTenantBoundary()` (no key/URL/store parameter). Crypto/key/issuer/offline policy and the public `InstallationJobAuthority` service in ONE new project `src/Modules/InstallationAuthority/InstallationAuthority.Infrastructure` (necessity argued: no existing project can own installation authority without violating the responsibility map). Domain/Application/Host untouched; Worker sequences two components and dispatches via `ISender` with no policy.
+
+**Frozen V1 contract:** ES256 only, JWS Compact with P1363 fixed-width 64-byte signatures (not DER), exact header/payload field set, pinned compiled key store with `kid` rotation and no grant-supplied keys/URLs, strict bounds/duplicate/replay parsing, tenant+installation+source+capability binding, `nbf ≤ now < exp` with a ≤30-day offline window measured from the last server-authenticated instant, mandatory fresh verifier-generated proof of possession via the OS-held installation key, cancellation propagation, and an honest statement that mutable local timestamps are not a trusted clock and offline revocation cannot be immediate.
+
+**Files:** new `docs/architecture/ARCHITECTURE-W4-VERIFIED-GRANT-AUTHORITY-2026-10-13.md`; edited this `RECOVERY.md`. Documentation only.
+
+**STOP_FOR_ARCHITECT** — no W4 implementation started; no automatic next task.
+
+---
+
 ## W4-B2 OWNERSHIP CANCELLATION — FT-W4-B2-OWNERSHIP-CANCELLATION-001 — IMPLEMENTED, AWAITING ARCHITECT (2026-10-13)
 
 **Task:** `FT-W4-B2-OWNERSHIP-CANCELLATION-001` (bounded implementation). **Status:** implemented; submitted for independent architect review. Architect-owned `OPEN-DEFECTS.md` / `ARCHITECT-JOURNAL.md` untouched; no defect VERIFIED.
