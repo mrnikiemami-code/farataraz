@@ -25,9 +25,11 @@ src/
 │   ├── MasterData/          external + canonical identity
 │   ├── AccountingSources/
 │   │   └── AccountingSources.Domain/   provider declaration, capability ports, authorization
-│   └── Ingestion/
-│       ├── Ingestion.Domain/        sync contracts + source models (no MediatR)
-│       └── Ingestion.Application/   CQRS use cases (MediatR) + module Composition
+│   ├── Ingestion/
+│   │   ├── Ingestion.Domain/        sync contracts + source models (no MediatR)
+│   │   └── Ingestion.Application/   CQRS use cases (MediatR) + module Composition
+│   └── InstallationAuthority/
+│       └── InstallationAuthority.Infrastructure/  stage-A grant signature verification (W4-C1)
 ├── Host/                    composition root — wires modules, zero business authority
 └── Adapters/
     └── Accounting.Mock/     deterministic Mock provider (test/verification only)
@@ -35,6 +37,7 @@ src/
 tests/
 ├── FaraTaraz.BuildingBlocks.Tests/
 ├── FaraTaraz.SyncContracts.Tests/       Mock conformance + CQRS dispatch
+├── FaraTaraz.InstallationAuthority.Tests/  grant signature/claim verification (W4-C1)
 └── FaraTaraz.ArchitectureTests/         structural + contract guards
 ```
 

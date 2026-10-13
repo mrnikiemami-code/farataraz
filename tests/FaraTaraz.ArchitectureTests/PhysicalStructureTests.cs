@@ -94,6 +94,8 @@ public class PhysicalStructureTests
             "FaraTaraz.Modules.AccountingSources.Composition",
         // Module-owned Infrastructure (persistence) projects (ADR-010, structure.md §10.3).
         ["Modules/AccountingSources/AccountingSources.Infrastructure"] = "FaraTaraz.Modules.AccountingSources.Infrastructure",
+        // Installation-authority Infrastructure (W4-C1): stage-A grant verification core.
+        ["Modules/InstallationAuthority/InstallationAuthority.Infrastructure"] = "FaraTaraz.Modules.InstallationAuthority.Infrastructure",
         ["Modules/Ingestion/Ingestion.Infrastructure"] = "FaraTaraz.Modules.Ingestion.Infrastructure",
         ["Adapters/Accounting.Mock"] = "FaraTaraz.Adapters.Accounting.Mock",
         // Host project folder (relative to src/): the composition root assembly.

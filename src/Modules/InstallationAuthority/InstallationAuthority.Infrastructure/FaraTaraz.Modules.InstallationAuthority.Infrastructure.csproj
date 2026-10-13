@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Installation-authority Infrastructure (W4-C1): stage A of the verified installation-grant
+    design — strict JWS Compact parsing and ES256 signature verification producing immutable
+    signature-validated claims.
+
+    This project owns cryptographic verification and (in later, separately authorized slices)
+    pinned key storage, issuer communication and job authorization. It contains NO business rule,
+    NO persistence, NO TenantContext minting and NO composition of platform capabilities.
+    It depends only INWARD on BuildingBlocks (shared identifiers).
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\BuildingBlocks\FaraTaraz.BuildingBlocks.csproj" />
+  </ItemGroup>
+
+  <!--
+    The verification core stays internal. Its own test assembly is the only production-adjacent
+    friend; grants internal visibility to tests only. No production assembly can see these types.
+  -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="FaraTaraz.InstallationAuthority.Tests" />
+  </ItemGroup>
+
+</Project>

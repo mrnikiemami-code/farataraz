@@ -76,6 +76,7 @@ public class ModuleContractsBoundaryTests
             "FaraTaraz.Modules.AccountingSources.Infrastructure.csproj",
             "FaraTaraz.Modules.AccountingSources.Composition.csproj",
             "FaraTaraz.Modules.Ingestion.Contracts.csproj",
+            "FaraTaraz.Modules.InstallationAuthority.Infrastructure.csproj",
             "FaraTaraz.Modules.Ingestion.Domain.csproj",
             "FaraTaraz.Modules.Ingestion.Application.csproj",
             "FaraTaraz.Modules.Ingestion.Infrastructure.csproj",

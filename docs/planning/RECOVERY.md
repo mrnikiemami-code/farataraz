@@ -24,6 +24,30 @@
 
 ---
 
+## W4-C1 GRANT SIGNATURE CLAIMS — FT-W4-C1-GRANT-SIGNATURE-CLAIMS-001 — IMPLEMENTED, AWAITING ARCHITECT (2026-10-13)
+
+**Task:** `FT-W4-C1-GRANT-SIGNATURE-CLAIMS-001` (bounded implementation, stage A only). **Status:** implemented; submitted for independent architect review. `OPEN-DEFECTS.md` / `ARCHITECT-JOURNAL.md` untouched; no defect VERIFIED.
+
+**Baseline / sync:** `7b738f0` (origin/master, fetched + fast-forwarded; worktree clean) — exactly the expected checkpoint.
+
+**What was built (stage A only).** New capability-owned core `src/Modules/InstallationAuthority/InstallationAuthority.Infrastructure/Grants/`: `JwsCompact` (bounded ASCII validation, exactly-three-segment split, strict base64url), `GrantClaimsReader` (strict JSON with exact header/payload property sets, duplicate rejection at every level, bounded depth/size/counts, claim types and ranges), `GrantVerifier` (ES256 only, P1363 64-byte signatures, verification over the ORIGINAL encoded `header.payload` bytes — never reserialised), `ValidatedGrantClaims` (internal sealed, private readonly fields, deep copies, index accessors only, fresh-copy SPKI accessor), `TrustedAuthorityKeySet` (internal, deep-copied P-256 SPKI store, `Unprovisioned` fail-closed default), `GrantVerificationFailure`/`GrantVerificationResult` (internal). New test project `tests/FaraTaraz.InstallationAuthority.Tests/` with an ephemeral test-only ES256 signer.
+
+**Stage boundary respected.** No `TenantContext`/`DatabaseTenantScope` minting or binding, no `AuthorizedJobGrant`, no job authorizer, no possession/renewal/activation/offline/lease, no `InternalsVisibleTo` added to `BuildingBlocks`, no change to BuildingBlocks/Application/Host/Worker, no delivery, no PostgreSQL dependency. Signature-valid is **not** reported as authorized: expiry, requested-job membership and possession remain stage B.
+
+**Public/internal API and dependency map.** The verification core is entirely **internal**; the only `InternalsVisibleTo` is from the authority project to its own test assembly. The project references only `FaraTaraz.BuildingBlocks` (shared identifiers) — asserted by a test that the assembly has no EF/Npgsql/MediatR reference and no `TenantContext`/`DatabaseTenantScope` type.
+
+**Trust key provisioning (blocker).** No approved company verification key was supplied; none was invented and no test key is compiled into production. `TrustedAuthorityKeySet.Unprovisioned` is the fail-closed production default (every grant ⇒ `UnknownKey`). Real key provisioning and wiring are deferred to stage B and require company key material.
+
+**Tests and negative proof.** 26 crypto/parsing tests pass (valid claims + defensive-copy proof, tampered payload/signature, unknown `kid`, wrong algorithm/type, DER/wrong-length signature, grant-supplied `jku`, inconsistent `signingKeyId`, duplicate properties incl. nested scope, missing/wrong-type claims, timestamp ranges/order, offline bounds, invalid installation-key encoding, malformed encoding/JSON, four-segment/size/depth/limit rejection, unprovisioned store fail-closed, cancellation propagation, and the assembly-purity assertion). **Negative proof:** bypassing the signature check makes both tampering tests FAIL; restoring the check makes them PASS (rebuilt with a forced timestamp after restore).
+
+**Verification:** focused authority tests 26/26; architecture 162/162 (three guards updated to classify the genuinely new project — no guard weakened, no broad allowlist); build 0 warnings/0 errors; `git diff --check` clean. Full Debug/Release matrix is delegated to exact-SHA CI.
+
+**Files:** NEW `src/Modules/InstallationAuthority/InstallationAuthority.Infrastructure/{csproj,Grants/{JwsCompact,GrantClaimsReader,GrantVerifier,ValidatedGrantClaims,TrustedAuthorityKeySet,GrantVerificationFailure,GrantVerificationResult}.cs}`; NEW `tests/FaraTaraz.InstallationAuthority.Tests/{csproj,TestGrantSigner.cs,GrantVerifierTests.cs}`; edited `FaraTaraz.sln`, `tests/FaraTaraz.ArchitectureTests/{PhysicalStructureTests,OrphanSourceFileTests,ModuleContractsBoundaryTests}.cs`, `docs/architecture/structure.md` (physical inventory only), this `RECOVERY.md`.
+
+**STOP_FOR_ARCHITECT** — C2 (job authorization, possession, offline policy, restricted minting, AMD-1) remains NOT AUTHORIZED; no automatic next task.
+
+---
+
 ## W4-B3-R3 AUTHORITY BOUNDARY CORRECTION — FT-W4-B3-R3-AUTHORITY-BOUNDARY-CORRECTION-001 — DESIGN REVISION 3, AWAITING ARCHITECT (2026-10-13)
 
 **Task:** `FT-W4-B3-R3-AUTHORITY-BOUNDARY-CORRECTION-001` (DESIGN ONLY). **Status:** revision 3 of the verified-grant authority design; submitted for independent architect review. `OPEN-DEFECTS.md` / `ARCHITECT-JOURNAL.md` untouched. No code, projects, packages, guard or ADR-status changes; no builds or full suites.

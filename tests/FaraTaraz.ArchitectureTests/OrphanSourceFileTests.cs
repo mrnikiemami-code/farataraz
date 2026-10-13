@@ -30,6 +30,7 @@ public class OrphanSourceFileTests
         "Modules/AccountingSources/AccountingSources.Infrastructure",
         "Modules/AccountingSources/AccountingSources.Composition",
         "Modules/Ingestion/Ingestion.Infrastructure",
+        "Modules/InstallationAuthority/InstallationAuthority.Infrastructure",
         "Modules/Ingestion/Ingestion.Composition",
         "Adapters/Accounting.Mock",
         "Host/FaraTaraz.Host",
