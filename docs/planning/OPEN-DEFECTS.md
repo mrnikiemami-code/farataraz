@@ -1,5 +1,20 @@
 # FaraTaraz — Open Defects and Architecture Acceptance Ledger
 
+## FT-W4-C1-R1-STRICT-VALIDATION-CLOSURE-001 — ACCEPTED, STAGE A ONLY (2026-10-13)
+
+Independent exact-SHA source review of `6550deb137082810fe1021ea89d1f1766d7ba84c`: seven allowed files; named P-256 helper, strict canonical base64url decoder, numeric-kind checks and repaired isolated tests. Live master matched this SHA before architect writes. Exact-SHA Actions [38390735521](https://github.com/mrnikiemami-code/farataraz/actions/runs/38390735521) raw logs confirm **391/391 Debug and 391/391 Release** (9 foundation, 72 sync, 162 architecture, **55 authority**, **93 real PostgreSQL**), zero failed/skipped.
+
+**C1-PARSE-001 CLOSED:** Number ValueKind guards before Int64/Int32 conversion; wrong-kind tests use otherwise-valid signed payloads.
+**C1-CURVE-001 CLOSED:** both imported company and installation SPKIs require named P-256 identity through P256Curve.IsP256 and complete SPKI consumption; helper tests reject other curves including secp256k1 where platform-supported. No claim that the optional secp256k1 branch ran is made from aggregate CI logs.
+**C1-ENCODING-001 CLOSED:** every decoder call validates base64url alphabet, impossible lengths and unused pad bits; no standard-base64 decoder delegation; original JWS signing input unchanged.
+**C1-TEST-001 CLOSED:** count cases now use valid installation keys; direct defensive-copy coverage and exact friend/reference/public-surface assertions reviewed. Scope-count/signature mutant results are executor-reported and were not independently rerun by the architect.
+
+**W4-C1 ACCEPTED ONLY for signature verification and structural claims validation.** No possession, current-time admission, job scope authorization, runtime trust producer, Worker or Asan readiness is certified. No BuildingBlocks/Application/Host changes or production friend access. Unprovisioned company key store remains fail-closed. AMD-1 and C2 remain NOT AUTHORIZED; ADR-011 Proposed.
+
+Executor duplicate invocation performed no new implementation or empty commit, which is appropriate. Original execution reportedly took approximately 62 minutes against the 40-minute hard stop: process deviation remains recorded, separate from technical acceptance. No automatic next task; no repeated C1 repair.
+
+---
+
 ## FT-W4-C1-GRANT-SIGNATURE-CLAIMS-001 — CHANGES REQUIRED (2026-10-13)
 
 Independent source review of exact implementation `b6057c5a3694abef6e89b2b62ba108c3854aa8cb`: 17 scoped files; capability-owned internal stage-A core, no BuildingBlocks/Host/Application changes or production trust friend. CI [38383469828](https://github.com/mrnikiemami-code/farataraz/actions/runs/38383469828) checked out this exact SHA; raw logs show **362/362 Debug and 362/362 Release** (9 foundation, 72 sync, 162 architecture, 26 authority, 93 PostgreSQL). Green CI does not close the findings below. **C1 NOT ACCEPTED; C2/AMD-1 remain NOT AUTHORIZED.**
