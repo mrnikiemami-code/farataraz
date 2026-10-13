@@ -1,5 +1,12 @@
 # FaraTaraz — Architect Continuity Journal
 
+## W4-002 ARCHITECT CHECKPOINT — 2026-10-13
+
+Independent GitHub review of executor `eeb8e7a22a0761cdd7306a9180e85fcf646105f7`: design doc + RECOVERY only; exact-SHA CI 38346868301 SUCCESS, 328/328 Debug and Release (9+72+162+85 incl PG). Company-issued time-limited single-use codes and signed scoped installation grants retained. **CRITICAL REJECTION:** do not implement public `TenantContext.Establish(IAuthenticatedPrincipal)`: public principal interface is trivially forgeable in-process; static architectural guard is insufficient. No Worker InternalsVisibleTo either. Cryptographically verified grant establishment and scoped DI boundary require a new independently approved safe design. Public-key thumbprint match ≠ proof of private key possession. JWS ES256 encoding, activation atomicity and offline clock/tampering semantics require precision when implemented. Approved FIRST bounded implementation slice **FT-W4-B1-DISABLED-SOURCE-ADMISSION** only: shared Application/AccountingSources active-status check in both handlers, PG tests and fixture corrections. See OPEN-DEFECTS architect review commit `445d3a0b98bdcb71fd2d0187ef86621e98f26250`. W4 Worker/authority implementation not authorized; ADR-011 Proposed. W1–W3 accepted.
+
+---
+
+
 ## W4 ACTIVATION AUTHORITY — USER-APPROVED V1 — 2026-10-13
 
 User approved the first-release company-installed customer-local Windows Worker with **company-operated online enrollment**, **short-lived one-time activation code**, **signed installation grant**, installation-bound key, **30-day maximum offline operation** with online renewal and revocation policy, and later central re-enrollment. Binding architecture record: `docs/architecture/ARCHITECTURE-W4-ACTIVATION-AUTHORITY-DECISION-2026-10-13.md`, commit `42c1eec797839f49f7475f23055568c6a135a063`. The company is the actual issuer (B1 issuer ownership resolved as product direction, not implementation). A license alone does not grant arbitrary Tenant/Source authority: provisioned scope, cryptographic verification, installation key possession and shared Application ownership/disabled-source admission remain mandatory. Never publicly mint TenantContext, trust JSON IDs, install signing private key on client or promise instant offline revocation. ADR-011 remains Proposed until implemented and tested. Next W4 step: narrow grant protocol/trust-establishment architecture design and bounded tests; real Asan provider facts remain unknown. W1–W3 accepted; no W4 production implementation authorized yet.
