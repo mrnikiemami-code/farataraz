@@ -1,5 +1,22 @@
 # RECOVERY — FaraTaraz / FMCA
 
+## CURRENT ARCHITECT CHECKPOINT — W4-C1 ACCEPTED (2026-10-13)
+
+**READ THIS FIRST.** This checkpoint supersedes older active/awaiting-review wording below without deleting history.
+
+- Latest independently accepted implementation: `6550deb137082810fe1021ea89d1f1766d7ba84c` (C1-R1). W1–W3, W4-B1/B2 and W4-C1 stage A accepted.
+- Independent review recorded in OPEN-DEFECTS.md commit `a78550f41523a15292285c1cfa93bc9a361b78cd` and ARCHITECT-JOURNAL.md commit `1d65ffeeca1f939932659235b7df327a5eb434d2`. Later documentation commits are not new implementation.
+- Exact implementation-SHA Actions 38390735521 SUCCESS: **391/391 Debug and Release**, 55 authority / 162 architecture / 93 real PostgreSQL per configuration.
+- C1-PARSE-001, C1-CURVE-001, C1-ENCODING-001, C1-TEST-001 CLOSED. Do not repeat C1 implementation, create empty commits, or infer rejection from older historical CHANGES REQUIRED sections.
+- Stage A verifies ES256 signatures and structurally validates immutable claims only. It creates no TenantContext or job authority. Company keys still unprovisioned; default fails closed.
+- **C2 and AMD-1 NOT AUTHORIZED. ADR-011 Proposed. Automatic next task NONE; STOP_FOR_ARCHITECT.**
+- Next objective: bounded stage-B possession/job authorization followed by independently approved restricted trust binding. Before any coding task, reconcile Revision 3's unresolved atomic publication/consumption and exact Application scope admission contracts. Do not mint fake principals or add a public unrestricted trust factory.
+- Maintain clean architecture ownership and capability-first cohesive files. No installation policy/crypto in BuildingBlocks or Worker; Host composition-only. Do not expand to real Asan, Worker/lease or activation service without their own authorized slices.
+- User timebox: target 30–35 minutes, hard stop 40. Original R1 reportedly took about 62 minutes; this is a process violation, not technical rejection. At the cap checkpoint PARTIAL, do not continue to chase green.
+- New session: fetch live origin/master, inspect local status/diff without destructive reset, read this checkpoint plus latest ledger/journal and actual code. Architect owns acceptance/ledger/journal; executor updates recovery under its assigned task. No automatic dispatch.
+
+---
+
 ## ACTIVE MISSION — FIVE-WAVE ARCHITECTURE REBASELINE (2026-10-12)
 
 **USER-APPROVED CURRENT GOAL:** Stop piecemeal architectural patch cycles. Independently establish one coherent, executable FaraTaraz modular clean architecture, decide evidence-based reuse vs full rewrite, and implement a **five-wave controlled reconstruction plan** only after the Wave 1 design gate. This mission supersedes the previously proposed `FT-ARCH-GUARD-TRUTH-004` as the next standalone task **unless it was already started**; reconcile the executor's local status before directing any new work. No automatic executor dispatch. No source deletion or production trust assumptions.
