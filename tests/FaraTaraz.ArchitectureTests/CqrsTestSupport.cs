@@ -45,9 +45,24 @@ public static class CqrsTestSupport
 
         services.AddScoped<ISyncablePort<SourceCustomer>>(_ => customers);
         services.AddScoped<IAccountingSourceOwnership>(_ => ownership);
+        services.AddScoped<IAccountingSourceActivation>(_ => new ActiveSourceActivation());
 
         var serviceProvider = services.BuildServiceProvider();
         return serviceProvider.GetRequiredService<ISender>();
+    }
+
+    /// <summary>
+    /// Deterministic "active source" activation fake for the CQRS proofs. NOT a production
+    /// implementation. The owned-but-Disabled admission is proven against real PostgreSQL in
+    /// <c>FaraTaraz.Infrastructure.IntegrationTests</c>.
+    /// </summary>
+    public sealed class ActiveSourceActivation : IAccountingSourceActivation
+    {
+        public Task<bool> IsActiveAsync(
+            TenantId tenantId,
+            AccountingSourceId sourceId,
+            CancellationToken cancellationToken = default)
+            => Task.FromResult(true);
     }
 
     /// <summary>

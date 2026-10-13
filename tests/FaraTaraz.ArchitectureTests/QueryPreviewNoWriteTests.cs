@@ -78,9 +78,10 @@ public class QueryPreviewNoWriteTests
     [Fact]
     public async Task Query_preview_dispatches_with_zero_persistence_registrations()
     {
-        // CqrsTestSupport.BuildSender registers ONLY the capability port, the ownership oracle and
-        // MediatR. There is no IIngestionWriteStore, no IIngestionCheckpointStore and no DbContext
-        // in the container, so a successful dispatch proves the preview performs no persistence.
+        // CqrsTestSupport.BuildSender registers ONLY the capability port, the ownership oracle, the
+        // active-source activation gate and MediatR. There is no IIngestionWriteStore, no
+        // IIngestionCheckpointStore and no DbContext in the container, so a successful dispatch
+        // proves the preview performs no persistence.
         var port = new CqrsTestSupport.CountingCustomerPort(CqrsTestSupport.Customers5());
         var ownership = new CqrsTestSupport.InMemoryOwnershipFake();
         ownership.Owns(TenantId, CqrsTestSupport.SourceIds.Source);

@@ -18,7 +18,9 @@ using MediatR;
 ///
 /// <b>Admission first, then one atomic unit of work.</b> Order is fixed:
 /// <c>AssertTrusted</c> → tenant/scope agreement → <c>IsOwnedByAsync</c> (must be TRUE) →
-/// checkpoint read → one bounded provider page → transactional write (records + checkpoint + run).
+/// <c>IsActiveAsync</c> (must be TRUE; an owned-but-Disabled source is refused) →
+/// provider resolution → checkpoint read → one bounded provider page → transactional write
+/// (records + checkpoint + run).
 /// It depends only on inward Domain/AccountingSources contracts and the M1 persistence ports —
 /// never on Infrastructure, EF, Npgsql or concrete repositories.
 ///
@@ -35,15 +37,17 @@ public sealed class RunCustomerSyncHandler : IRequestHandler<RunCustomerSyncComm
     private readonly IIngestionCheckpointStore _checkpoints;
     private readonly IIngestionTrustedTenantScope _trustedTenant;
     private readonly IAccountingSourceOwnership _ownership;
+    private readonly IAccountingSourceActivation _activation;
     private readonly IAccountingSourceProviderResolver _providerResolver;
     private readonly ISyncablePort<SourceCustomer> _customers;
 
-    /// <summary>Wraps the persistence ports, the ownership + provider oracles and the customer capability port.</summary>
+    /// <summary>Wraps the persistence ports, the ownership + activation oracles, the provider resolver and the customer capability port.</summary>
     public RunCustomerSyncHandler(
         IIngestionWriteStore writes,
         IIngestionCheckpointStore checkpoints,
         IIngestionTrustedTenantScope trustedTenant,
         IAccountingSourceOwnership ownership,
+        IAccountingSourceActivation activation,
         IAccountingSourceProviderResolver providerResolver,
         ISyncablePort<SourceCustomer> customers)
     {
@@ -51,6 +55,7 @@ public sealed class RunCustomerSyncHandler : IRequestHandler<RunCustomerSyncComm
         _checkpoints = checkpoints ?? throw new ArgumentNullException(nameof(checkpoints));
         _trustedTenant = trustedTenant ?? throw new ArgumentNullException(nameof(trustedTenant));
         _ownership = ownership ?? throw new ArgumentNullException(nameof(ownership));
+        _activation = activation ?? throw new ArgumentNullException(nameof(activation));
         _providerResolver = providerResolver ?? throw new ArgumentNullException(nameof(providerResolver));
         _customers = customers ?? throw new ArgumentNullException(nameof(customers));
     }
@@ -83,6 +88,18 @@ public sealed class RunCustomerSyncHandler : IRequestHandler<RunCustomerSyncComm
             throw new UnauthorizedSourceException(
                 command.Request.SourceId,
                 "The trusted Tenant does not own the requested AccountingSource.");
+        }
+
+        // 3b. Fail-closed ACTIVE-source admission BEFORE provider resolution, provider call or write.
+        //     Ownership and activation are distinct: an owned-but-Disabled source is still owned, so
+        //     it is reported as a distinct disabled-source failure, never as "unauthorized".
+        var active = await _activation
+            .IsActiveAsync(command.Tenant.TenantId, command.Request.SourceId, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (!active)
+        {
+            throw new AccountingSourceDisabledException(command.Request.SourceId);
         }
 
         // 4. Resolve the AUTHORITATIVE provider identity from the source's persisted configuration.

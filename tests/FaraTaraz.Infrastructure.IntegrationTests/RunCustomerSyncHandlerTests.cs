@@ -64,7 +64,8 @@ public sealed partial class RunCustomerSyncHandlerTests
         string bindingTenant,
         IAccountingSourceOwnership ownership,
         ISyncablePort<SourceCustomer> capability,
-        IAccountingSourceProviderResolver? providerResolver = null)
+        IAccountingSourceProviderResolver? providerResolver = null,
+        IAccountingSourceActivation? activation = null)
     {
         var scope = Scope(bindingTenant);
         var store = new EfIngestionWriteStore(
@@ -75,7 +76,9 @@ public sealed partial class RunCustomerSyncHandlerTests
             scope);
 
         return new RunCustomerSyncHandler(
-            store, store, store, ownership, providerResolver ?? FakeProviderResolver.Resolving("Mock"), capability);
+            store, store, store, ownership,
+            activation ?? FakeActivation.Active(),
+            providerResolver ?? FakeProviderResolver.Resolving("Mock"), capability);
     }
 
     private static Task<IngestionRunResult> RunAsync(
@@ -569,31 +572,4 @@ public sealed partial class RunCustomerSyncHandlerTests
         Assert.Equal(0, await CountRunsAsync(db, tenant, source));
     }
 
-    private sealed class FakeProviderResolver : IAccountingSourceProviderResolver
-    {
-        private readonly ProviderId? _provider;
-
-        private FakeProviderResolver(ProviderId? provider) => _provider = provider;
-
-        public static FakeProviderResolver Resolving(string provider) => new(new ProviderId(provider));
-        public static FakeProviderResolver Missing() => new(null);
-
-        public Task<ProviderId?> ResolveProviderAsync(
-            TenantId tenantId, AccountingSourceId sourceId, CancellationToken cancellationToken = default)
-            => Task.FromResult(_provider);
-    }
-
-    private sealed class FakeOwnership : IAccountingSourceOwnership
-    {
-        private readonly Func<Task<bool>> _impl;
-
-        private FakeOwnership(Func<Task<bool>> impl) => _impl = impl;
-
-        public static FakeOwnership OwnsAll() => new(() => Task.FromResult(true));
-        public static FakeOwnership OwnsNone() => new(() => Task.FromResult(false));
-        public static FakeOwnership Fails() => new(() => throw new InvalidOperationException("ownership lookup failed"));
-
-        public Task<bool> IsOwnedByAsync(TenantId tenantId, AccountingSourceId sourceId, CancellationToken cancellationToken = default)
-            => _impl();
-    }
 }

@@ -27,13 +27,16 @@ public sealed class SynchronizeCustomersHandler
 {
     private readonly ISyncablePort<SourceCustomer> _customers;
     private readonly IAccountingSourceOwnership _ownership;
+    private readonly IAccountingSourceActivation _activation;
 
     public SynchronizeCustomersHandler(
         ISyncablePort<SourceCustomer> customers,
-        IAccountingSourceOwnership ownership)
+        IAccountingSourceOwnership ownership,
+        IAccountingSourceActivation activation)
     {
         _customers = customers ?? throw new ArgumentNullException(nameof(customers));
         _ownership = ownership ?? throw new ArgumentNullException(nameof(ownership));
+        _activation = activation ?? throw new ArgumentNullException(nameof(activation));
     }
 
     public async Task<SyncBatch<SourceCustomer>> Handle(
@@ -57,6 +60,17 @@ public sealed class SynchronizeCustomersHandler
             throw new UnauthorizedSourceException(
                 command.Request.SourceId,
                 "The trusted Tenant does not own the requested AccountingSource.");
+        }
+
+        // 2b. Fail-closed ACTIVE-source admission before any provider work. The read-only preview
+        //     must not read a disabled source either, so the shared gate applies here too.
+        var active = await _activation
+            .IsActiveAsync(command.Tenant.TenantId, command.Request.SourceId, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (!active)
+        {
+            throw new AccountingSourceDisabledException(command.Request.SourceId);
         }
 
         // 3. Drive exactly ONE bounded page. The caller continues via SyncBatch.NextCursor.

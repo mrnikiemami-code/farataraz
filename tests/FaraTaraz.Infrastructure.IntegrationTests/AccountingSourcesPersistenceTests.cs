@@ -41,7 +41,7 @@ public sealed class AccountingSourcesPersistenceTests
             TenantId = tenantId.Value,
             Provider = "Mock",
             DisplayName = $"Source {sourceId.Value}",
-            Status = 0,
+            Status = (int)AccountingSourceStatus.Enabled,
             Tenant = tenant!,
         });
         await seed.SaveChangesAsync();
@@ -164,7 +164,7 @@ public sealed class AccountingSourcesPersistenceTests
             TenantId = tenantId,
             Provider = "Mock",
             DisplayName = "Duplicate",
-            Status = 0,
+            Status = (int)AccountingSourceStatus.Enabled,
         });
 
         await Assert.ThrowsAnyAsync<Microsoft.EntityFrameworkCore.DbUpdateException>(() => ctx.SaveChangesAsync());

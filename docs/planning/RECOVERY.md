@@ -24,6 +24,33 @@
 
 ---
 
+## W4-B1 DISABLED-SOURCE ADMISSION — FT-W4-B1-DISABLED-SOURCE-ADMISSION — IMPLEMENTED, AWAITING ARCHITECT (2026-10-13)
+
+**Task:** `FT-W4-B1-DISABLED-SOURCE-ADMISSION` (bounded implementation). **Status:** implemented; submitted for independent architect review. Architect-owned `OPEN-DEFECTS.md` / `ARCHITECT-JOURNAL.md` untouched; no defect VERIFIED.
+
+**Baseline / sync:** `01fd214` (origin/master, fetched + fast-forwarded; worktree clean). The architect's rejection of the public `TenantContext.Establish(IAuthenticatedPrincipal)` seam was respected — **nothing** in `TenantContext`/`DatabaseTenantScope`/trust factories/`InternalsVisibleTo` was touched.
+
+**What changed.** New distinct activation contract in AccountingSources:
+- `AccountingSources.Domain/Authorization/IAccountingSourceActivation.cs` — `IsActiveAsync(TenantId, AccountingSourceId, CancellationToken)`; distinct from `IAccountingSourceOwnership` so ownership semantics stay unchanged and a disabled source is never reported as "unauthorized".
+- `AccountingSources.Domain/Authorization/AccountingSourceDisabledException.cs` — distinct owned-but-disabled failure.
+- `AccountingSources.Infrastructure/Authorization/EfAccountingSourceActivation.cs` — uses the trusted `DatabaseTenantScope` only (ignores the caller tenant id), returns `false` for a missing row or unbound scope, treats `Syncing`/`Error` as active (transient runtime states must not block the next bounded step), and **does not catch** persistence errors (a DB failure is never mislabeled as "disabled"; cancellation propagates).
+- One registration line in `AccountingSourcesInfrastructureComposition`.
+- Both Application handlers now enforce: `AssertTrusted → trusted-scope agreement → ownership → ACTIVE status → provider resolution → provider call`.
+
+**Trusted-scope evidence.** The implementation reads only `DatabaseTenantScope` (bound from the trusted execution context by the existing module composition) and the `(TenantId, Id)`-unique `AccountingSources` table; the caller-supplied `tenantId` is ignored, so an arbitrary caller cannot activate another tenant's source. Foreign/missing source ⇒ `IsActiveAsync` returns `false`, but ownership is checked first and denies with `UnauthorizedSourceException` before activation is consulted.
+
+**Tests.** New `tests/.../AccountingSourceActivationAdmissionTests.cs` (7 real-PostgreSQL tests): activation oracle disabled/enabled/Syncing semantics; fail-closed for missing source/foreign tenant/absent scope; **Command path** disabled refusal with **zero provider calls and zero writes** (records, runs, checkpoints all 0); **Query path** disabled refusal with zero calls and no writes; missing/foreign denied by ownership with **activation never consulted** (recording fake asserts 0 calls); and Enabled success on both paths. Fixture correction: three existing seeds that used `Status = 0` (= `Disabled`) now use the explicit `AccountingSourceStatus.Enabled` (they intended active sources). `RunCustomerSyncHandlerTests` gained an activation fake and its three test doubles moved to `RunCustomerSyncHandlerTests.Support.cs` to stay inside the file-size budget (no assertion weakened); `CqrsTestSupport.BuildSender` registers an active-source fake so the query preview proofs still resolve.
+
+**Verification:** full Debug **335/335** and Release **335/335** (BuildingBlocks 9, SyncContracts 72, Architecture 162, Integration **92** real PostgreSQL); zero warnings/errors; `git diff --check` clean.
+
+**Limitation carried (not changed, out of scope):** `EfAccountingSourceOwnership` uses a bare `catch` that swallows `OperationCanceledException` even though its own XML doc says cancellation must propagate; the new activation implementation deliberately does **not** repeat that and rethrows nothing broadly (it has no catch). Flagged for a separate architect decision — ownership semantics were required to stay unchanged here.
+
+**Files:** new `AccountingSources.Domain/Authorization/{IAccountingSourceActivation,AccountingSourceDisabledException}.cs`, `AccountingSources.Infrastructure/Authorization/EfAccountingSourceActivation.cs`, `tests/.../AccountingSourceActivationAdmissionTests.cs`, `tests/.../RunCustomerSyncHandlerTests.Support.cs`; edited `AccountingSourcesInfrastructureComposition.cs`, both Ingestion Application handlers, `tests/.../{CqrsTestSupport,QueryPreviewNoWriteTests,AccountingSourceProviderResolverTests,AccountingSourcesPersistenceTests,RunCustomerSyncHandlerTests}.cs`, this `RECOVERY.md`. No schema/migration, no Host/Worker/API, no packages, no ADR change.
+
+**STOP_FOR_ARCHITECT.**
+
+---
+
 ## WAVE 4 ACTIVATION/TRUST CONTRACT — FT-REBASELINE-W4-ACTIVATION-TRUST-CONTRACT-002 — COMPLETE (DESIGN ONLY), AWAITING ARCHITECT (2026-10-13)
 
 **Task:** `FT-REBASELINE-W4-ACTIVATION-TRUST-CONTRACT-002` (BOUNDED ARCHITECTURE DESIGN). **Status:** design complete; submitted for architect review. **No production code, tests, packages, migrations, projects or ADR status changed.** `OPEN-DEFECTS.md` / `ARCHITECT-JOURNAL.md` untouched. No broad/repetitive test suites were run (docs-only task).

@@ -35,7 +35,7 @@ public sealed class AccountingSourceProviderResolverTests
             TenantId = tenant,
             Provider = provider,
             DisplayName = "S " + source,
-            Status = 0,
+            Status = (int)AccountingSourceStatus.Enabled,
             Tenant = t,
         });
         await seed.SaveChangesAsync();
