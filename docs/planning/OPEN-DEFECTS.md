@@ -1,5 +1,14 @@
 # FaraTaraz — Open Defects and Architecture Acceptance Ledger
 
+## FT-W4-B2-OWNERSHIP-CANCELLATION-001 — ACCEPTED (2026-10-13)
+
+**ACCEPTED** exact implementation SHA `e710ea68f7ca3b554a4e856a9c3dcbd37cdf9479`. Independently reviewed 3 changed files, production diff and new real PostgreSQL cancellation test. [GitHub Actions 38353520665](https://github.com/mrnikiemami-code/farataraz/actions/runs/38353520665) exact-SHA SUCCESS: **336/336 Debug and Release**, including **93 real PG tests** per configuration. The explicit `catch (OperationCanceledException) { throw; }` restores caller cancellation propagation; existing general catch still fails closed for non-cancellation lookup failures. Query changed from `AnyAsync(predicate, ct)` to a tenant-scoped `Where/Select(Id)/FirstOrDefaultAsync(ct)`, preserving existence semantics under the existing non-null unique source ID, and passing the regression test. This narrow departure from originally prescribed diff is **approved**. Do not generalize the reported AnyAsync behavior beyond this observed query/provider path. No Host, Worker, trust producer, schema, API or ADR change. **Cancellation defect CLOSED.**
+
+**Next focus: W4 verified installation grant and genuine bounded trust authority.** Still REJECTED: public `TenantContext.Establish(IAuthenticatedPrincipal)` with forgeable principal. Keep ADR-011 Proposed until cryptographically restricted production seam is independently approved and tested. Avoid unrelated hardening work. W1–W3, W4-B1 and W4-B2 accepted.
+
+---
+
+
 ## FT-W4-B1-DISABLED-SOURCE-ADMISSION — INDEPENDENT ACCEPTANCE (2026-10-13)
 
 **ACCEPTED** at implementation SHA `c5d9149d6140cac6244320811660909c148dd2b8`. Independently inspected exact GitHub commit (14 changed files: 5 new, 9 modified), actual `EfAccountingSourceActivation`, Command/Query handlers, real PostgreSQL integration tests and `EfAccountingSourceOwnership`. GitHub Actions [38348875212](https://github.com/mrnikiemami-code/farataraz/actions/runs/38348875212) exact-SHA SUCCESS; raw job logs verify **335/335 Debug and 335/335 Release** (9 BuildingBlocks +72 SyncContracts +162 Architecture +**92 real PG integration** each; zero failures/skips). 7 new PostgreSQL tests. Production uses trusted `DatabaseTenantScope`, never caller tenantId; shared Application ownership → activation → provider admission. Disabled source rejected in both handlers before provider access; command test asserts zero provider calls and zero record/run/checkpoint writes, query test zero provider calls and record/run writes. Foreign/missing ownership check runs first; Enabled and Syncing remain eligible; fixtures previously seeding Disabled were corrected explicitly, not relaxed. No Worker/Host/TenantContext/Schema/packages/ADR changes. Architecture preserved.
