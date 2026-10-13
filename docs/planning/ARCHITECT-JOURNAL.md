@@ -1,5 +1,15 @@
 # FaraTaraz — Architect Continuity Journal
 
+## W4-C1 REVIEW — CHANGES REQUIRED (2026-10-13)
+
+Independent exact-SHA source/CI review of `b6057c5a3694abef6e89b2b62ba108c3854aa8cb` (17 scoped files). Stage-A isolation and capability-owned crypto placement are preserved. CI 38383469828 checked out exact SHA and passed **362/362 Debug and Release**, including 26 authority and 93 real PostgreSQL tests each. No local .NET runtime was available to independently execute additional probes; findings are source-grounded, with numeric-kind exception behavior checked against .NET documentation.
+
+**Not accepted yet:** unchecked JsonElement numeric kinds can throw; 256-bit key size is not P-256 curve verification; nested base64url decoder accepts standard-base64/padding/whitespace; scope-limit tests are masked by invalid `AA` installation key. Detailed IDs and correction scope are in OPEN-DEFECTS.md, architect commit `2e1aa789b9c239dd5356010137934cb70688ae21`. No assertion that signatures can currently be forged or tenant authority minted.
+
+Next: one bounded C1 correction task, 30–35 minute target / 40 minute hard stop. Do not start C2, add AMD-1, mint trust or widen architecture. The reported 45-minute executor duration violated the hard cap; future hard stops require a truthful PARTIAL checkpoint. Preserve W1–W3/W4-B1/B2 acceptance; ADR-011 remains Proposed.
+
+---
+
 ## W4-B2 ACCEPTED — 2026-10-13
 
 Independent exact-SHA GitHub review of `e710ea68f7ca3b554a4e856a9c3dcbd37cdf9479`: 3 allowed files, targeted cancellation handling and tenant-scoped existence projection, regression test, no unrelated architecture. CI run 38353520665 SUCCESS, **336/336 Debug and 336/336 Release** (93 real PostgreSQL integration each). Narrow `AnyAsync`→`FirstOrDefaultAsync` change accepted based on equivalent ownership existence semantics and observed regression; no broad claim about EF Core behavior. Architect defect ledger closure commit `b098368a0cb6b1ab82f5391f8ac093be290b0741`. **W4-B2 CLOSED; stop incidental fixes.** Next objective is secure, verifiable company-signed installation authorization and genuinely constrained trust establishment. Public forgeable `TenantContext.Establish(IAuthenticatedPrincipal)` remains prohibited; ADR-011 Proposed. W4 Worker/provider delivery not yet ready.
