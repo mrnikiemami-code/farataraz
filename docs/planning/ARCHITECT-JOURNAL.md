@@ -1,5 +1,14 @@
 # FaraTaraz — Architect Continuity Journal
 
+## W4-B1 IMPLEMENTATION ACCEPTED — 2026-10-13
+
+Independent review of OpenCode commit `c5d9149d6140cac6244320811660909c148dd2b8`: **ACCEPTED**. Fourteen changed files: 5 new/9 modified, all scope-compliant. Actual code checks trusted-scope ownership followed by source activation in BOTH MediatR handlers before provider access. New `EfAccountingSourceActivation` trusts only `DatabaseTenantScope`, not caller tenantId. Seven real PostgreSQL integration tests; exact-SHA CI 38348875212 SUCCESS, **335/335 Debug and 335/335 Release**, 92 PG tests per configuration. No modifications to Host, TenantContext, trust minting, schema, packages or architecture guards. Architect defect ledger acceptance commit `b12941532c84c8bdcf0e7e4f0ba50ae4ab0242bd`.
+
+**Open follow-up:** existing `EfAccountingSourceOwnership` bare `catch` swallows `OperationCanceledException` (confirmed from source). Keep DB-error fail-closed policy, but restore cancellation propagation in a small separately scoped task. W4-B1 accepted; W4 delivery remains blocked on secure grant producer, actual issuer/Asan adapter and Worker; ADR-011 Proposed.
+
+---
+
+
 ## W4-002 ARCHITECT CHECKPOINT — 2026-10-13
 
 Independent GitHub review of executor `eeb8e7a22a0761cdd7306a9180e85fcf646105f7`: design doc + RECOVERY only; exact-SHA CI 38346868301 SUCCESS, 328/328 Debug and Release (9+72+162+85 incl PG). Company-issued time-limited single-use codes and signed scoped installation grants retained. **CRITICAL REJECTION:** do not implement public `TenantContext.Establish(IAuthenticatedPrincipal)`: public principal interface is trivially forgeable in-process; static architectural guard is insufficient. No Worker InternalsVisibleTo either. Cryptographically verified grant establishment and scoped DI boundary require a new independently approved safe design. Public-key thumbprint match ≠ proof of private key possession. JWS ES256 encoding, activation atomicity and offline clock/tampering semantics require precision when implemented. Approved FIRST bounded implementation slice **FT-W4-B1-DISABLED-SOURCE-ADMISSION** only: shared Application/AccountingSources active-status check in both handlers, PG tests and fixture corrections. See OPEN-DEFECTS architect review commit `445d3a0b98bdcb71fd2d0187ef86621e98f26250`. W4 Worker/authority implementation not authorized; ADR-011 Proposed. W1–W3 accepted.
