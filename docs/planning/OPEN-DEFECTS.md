@@ -1,5 +1,20 @@
 # FaraTaraz — Open Defects and Architecture Acceptance Ledger
 
+## FT-REBASELINE-W4-ACTIVATION-TRUST-CONTRACT-002 — architect review (2026-10-13)
+
+**DESIGN ACCEPTED IN PART; PUBLIC TRUST ESTABLISHMENT REJECTED; FIRST CODE SLICE AUTHORIZED AS A SEPARATE TASK.** Independently inspected exact executor SHA `eeb8e7a22a0761cdd7306a9180e85fcf646105f7`; exactly two docs-only files (`ARCHITECTURE-W4-ACTIVATION-TRUST-CONTRACT-2026-10-13.md`, `RECOVERY.md`). Exact-SHA GitHub Actions [38346868301](https://github.com/mrnikiemami-code/farataraz/actions/runs/38346868301) SUCCESS; raw log confirms 328/328 Debug and 328/328 Release, including 85 real PostgreSQL integration per configuration.
+
+**REJECTED SECURITY SEAM:** proposed publicly callable `TenantContext.Establish(IAuthenticatedPrincipal)` is a de facto unrestricted trust factory: arbitrary in-process production code can implement `IAuthenticatedPrincipal` with `IsAuthenticated=true`. Static `TenantBoundaryGuards` convention cannot replace runtime cryptographic authorization. Do NOT implement this public Establish API nor grant Worker friend assembly access. Need a restricted, runtime-verified signed-grant establishment mechanism with genuinely constrained authority and DI job-scope binding; architect must independently approve before coding trust producer. Similarly, comparing installation public key thumbprints to stored local public key proves correspondence, **not private-key possession**; require actual proof-of-possession (signed fresh nonce or equivalent secure operation) when appropriate.
+
+**ACCEPTED:** company-issued single-use code, scoped company-signed installation grant, client public key binding, 30-day maximum offline allowance with its revocation limitation; Worker local-first and central-ready design, shared source activation gate, PG session advisory lease concept subject to bounded lifetime and concurrency proof. **NEEDS PRECISION before implementation:** JWS signature algorithm/encoding must be standards-conformant (ES256 fixed-width signature versus DER), code atomic consumption must enforce expiry and grant issuance transactionally, secure trusted-clock/offline limitations cannot be solved by mutable local timestamp alone, OS-bound private-key storage is platform-specific.
+
+**APPROVED IMMEDIATE TASK:** narrow `FT-W4-B1-DISABLED-SOURCE-ADMISSION`: separate ownership from activation, reject Disabled in BOTH command/query handlers before provider resolution, zero provider calls/zero ingestion writes, preserve behavior for missing/foreign sources, fix only success fixtures that incorrectly seed Disabled, focused PostgreSQL tests, no Worker/Host/security factory/schema/ADR changes. Existing `Syncing`/`Error` semantics preserved. This is shared Application admission hardening only; not production Worker delivery certification.
+
+**Status:** W1–W3 ACCEPTED; W4 designs partial; B1 activation runtime and B2 real Asan connector still pending; ADR-011 Proposed.
+
+---
+
+
 ## FT-REBASELINE-W4-WORKER-TRUST-DESIGN-001 — architect design review (2026-10-13)
 
 **DESIGN ACCEPTED WITH BINDING CONDITIONS; IMPLEMENTATION NOT AUTHORIZED.** Independently inspected executor commit `7abc3936170288c61865a0412b862097a2cfc528`, 2 docs-only files, actual design `docs/architecture/ARCHITECTURE-W4-WORKER-TRUST-DESIGN-2026-10-13.md`, GitHub Actions [38344782451](https://github.com/mrnikiemami-code/farataraz/actions/runs/38344782451) exact-SHA SUCCESS; read CI logs 328/328 each Debug and Release (9 BuildingBlocks, 72 SyncContracts, 162 Architecture, 85 PostgreSQL Integration; zero failed/skipped). No new production tests or entrypoint were implemented. Source-grounded audit identified absent production authority minting, absent delivery, absent real provider adapter, disabled-source admission gap, and missing execution lease.
