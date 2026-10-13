@@ -1,5 +1,12 @@
 # FaraTaraz — Architect Continuity Journal
 
+## W4 DELIVERY DIRECTION LOCKED — 2026-10-13
+
+**User decision:** FaraTaraz runs initially as a background Worker, **but must architecturally support both Worker and future authenticated API**. Single shared MediatR Application/Domain path; distinct trustworthy authority producers at delivery boundary. Do not build API now, do not embed worker-specific logic in Domain or Host, do not allow caller-controlled TenantContext. Binding design record: `docs/architecture/ARCHITECTURE-W4-DUAL-DELIVERY-DECISION-2026-10-13.md`, architect commit `da23292789e69a2fbb776e4017c55e7c29abcc6f`. This resolves delivery-shape question **only**; ADR-011 remains Proposed, concrete provisioned tenant/source grant, service identity and real provider are unresolved. **NEXT:** scoped W4 design/authority-contract task, read-only; independent architect approval before code. W1–W3 accepted, latest implementation `115e799`; no W4 implementation started.
+
+---
+
+
 ## CURRENT CHECKPOINT — W3 ACCEPTED / W4 SECURITY DECISION GATE — 2026-10-13
 
 **Mission:** five-wave FaraTaraz controlled reconstruction, no return to piecemeal refactor churn. W1 audit accepted `ac16b25`, architect AD-1..AD-8 locked in `docs/architecture/ARCHITECTURE-W1-ARCHITECT-DECISIONS-2026-10-12.md`; W2 pure Domain policy extraction accepted `60d40ea`; **W3 Application/guard cleanup independently ACCEPTED** at `115e7998b52a501297b83d2c2711b71eed03a498`. Linux Actions [38311155692](https://github.com/mrnikiemami-code/farataraz/actions/runs/38311155692) at exact SHA SUCCESS: **328/328 Debug and 328/328 Release**, each 9 BuildingBlocks + 72 SyncContracts + 162 Architecture + 85 real PostgreSQL Integration, zero failed/skipped. Implementation deleted dead `IApplicationUseCase`, diagnostics/errors scaffolding and `Clock` plus tests exclusively for removed APIs; retained only one durable write command and read-only Query preview; fixed D11 real assembly anchors and on-disk negative fixture; no migrations or Application/persistence changes. Architect's full acceptance and caveats are at TOP of `OPEN-DEFECTS.md`. Architect record commit `92b146c` preceded this journal entry.
