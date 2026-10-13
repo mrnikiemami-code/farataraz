@@ -24,6 +24,28 @@
 
 ---
 
+## WAVE 4 ACTIVATION/TRUST CONTRACT — FT-REBASELINE-W4-ACTIVATION-TRUST-CONTRACT-002 — COMPLETE (DESIGN ONLY), AWAITING ARCHITECT (2026-10-13)
+
+**Task:** `FT-REBASELINE-W4-ACTIVATION-TRUST-CONTRACT-002` (BOUNDED ARCHITECTURE DESIGN). **Status:** design complete; submitted for architect review. **No production code, tests, packages, migrations, projects or ADR status changed.** `OPEN-DEFECTS.md` / `ARCHITECT-JOURNAL.md` untouched. No broad/repetitive test suites were run (docs-only task).
+
+**Baseline / sync:** `d482c2b` (origin/master, fetched + fast-forwarded; worktree clean).
+
+**Deliverable:** new `docs/architecture/ARCHITECTURE-W4-ACTIVATION-TRUST-CONTRACT-2026-10-13.md` — source-grounded architecture + discrepancies, V1 activation/grant protocol, trusted-context establishment seam, dependency/assembly ownership, disabled-source admission correction, lease choice + lifecycle proof, local/central compatibility, threat model + negative test matrix, decisions/unresolved facts/blockers, and one bounded next implementation task.
+
+**Key source findings (file:line in the document).** `TenantContext` has no producer **and** is not registered in DI at all (both module compositions only read `GetService<TenantContext>()`, which is never registered) — the seam must both mint and bind the context per job scope. `ISyncablePort<SourceCustomer>` is registered only in `tests/…/CqrsTestSupport.cs`. `AccountingSourceStatus.Disabled` (value `0`) is persisted but **never enforced** by ownership or provider resolution, and three existing PostgreSQL test seeds use `Status = 0` and expect success → enforcing the active check requires a legitimate fixture correction to `Enabled`. `AccountingSourceEntity` has no credential column. No hosting runtime exists in `src/`.
+
+**Decisions recorded.** Grant = company-signed, installation-key-bound, scoped JWS (ES256/RS256, standard .NET only) with issuer/audience/grant/installation/key-thumbprint/tenant/source-capability/issuedAt/notAfter/maxOfflineDays/signingKeyId; one-time codes hashed + atomically single-use + rate-limited; establishment seam = `IAuthenticatedPrincipal` + `TenantContext.Establish` + scoped write-once holder in `BuildingBlocks.Tenancy` with **no `InternalsVisibleTo` for the Worker** (no assembly-visibility conflict exists; in-process principal forgery is a stated residual mitigated by extended `TenantBoundaryGuards`); disabled-source admission via a dedicated `IAccountingSourceActivation` port + `AccountingSourceDisabledException` applied in both handlers; execution lease = **PostgreSQL session advisory lock** on a dedicated connection (no write path, no migration, auto-release on crash), with **lease granularity DECISION PENDING** (per-job recommended); provider credentials stay separate from the grant.
+
+**Note for the Worker slice:** `ArchitecturePolicy.Classify` returns `Unknown` for any `src/Host/*` project other than `FaraTaraz.Host`, so the Worker project must be explicitly classified and added to the known-project sets rather than exempted.
+
+**Recommended next task:** `FT-W4-B1-DISABLED-SOURCE-ADMISSION` (25–35 min) with exact allowed files and measurable acceptance criteria in document §10 — closes architect gate (C), needs no external facts.
+
+**Files:** new `docs/architecture/ARCHITECTURE-W4-ACTIVATION-TRUST-CONTRACT-2026-10-13.md`; edited this `RECOVERY.md`. Documentation only.
+
+**STOP_FOR_ARCHITECT — no W4 implementation started; no next task dispatched.**
+
+---
+
 ## WAVE 4 WORKER/TRUST DESIGN — FT-REBASELINE-W4-WORKER-TRUST-DESIGN-001 — COMPLETE (DESIGN ONLY), AWAITING ARCHITECT (2026-10-13)
 
 **Task:** `FT-REBASELINE-W4-WORKER-TRUST-DESIGN-001` (ANALYZE + DESIGN ONLY, read-only source). **Status:** design complete; submitted for architect review. **No production code, tests, project references, packages, schema or ADR status changed.** `OPEN-DEFECTS.md` / `ARCHITECT-JOURNAL.md` untouched.
