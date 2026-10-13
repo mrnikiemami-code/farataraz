@@ -24,6 +24,22 @@
 
 ---
 
+## W4-B3-R3 AUTHORITY BOUNDARY CORRECTION — FT-W4-B3-R3-AUTHORITY-BOUNDARY-CORRECTION-001 — DESIGN REVISION 3, AWAITING ARCHITECT (2026-10-13)
+
+**Task:** `FT-W4-B3-R3-AUTHORITY-BOUNDARY-CORRECTION-001` (DESIGN ONLY). **Status:** revision 3 of the verified-grant authority design; submitted for independent architect review. `OPEN-DEFECTS.md` / `ARCHITECT-JOURNAL.md` untouched. No code, projects, packages, guard or ADR-status changes; no builds or full suites.
+
+**Baseline / sync:** `d63367c` (origin/master; worktree clean).
+
+**Five findings resolved.** (1) `BuildingBlocks` now gains **no grant claims, license failures, expiry/scope policy or composition** — only a `TrustedJobScope` value type and a `ScopedTrustedTenantBinding` whose bind entry point is **internal** (so the foundation exposes no public minting/binding API at all); all crypto, claims, policy and DI composition live in the trust-authority module. (2) Signature validation is split from job authorization: `ValidatedGrantClaims` (stage A, signature+parse only) can **never** mint; only `AuthorizedJobGrant` (stage B: possession + validity + offline + granted job scope) is accepted by the minting step. (3) Exact job/scope binding is defined, the grant is atomically single-use (`Interlocked`), the binding is write-once per DI scope and cannot be reused across scopes, and Application enforces `request.SourceId/capability == bound scope` with a distinct `JobScopeMismatch` failure. (4) Exact C# declarations are specified: sealed classes, private readonly fields, **copy-on-construction** into private arrays with indexer/`Count` access, no records/`with`/public setters, and an explicit statement that `sealed record`/`IReadOnlyList` are not treated as immutability proofs. (5) AMD-1 is described honestly as **full internal assembly access**, with all exposed minting paths enumerated (internal ctor, internal factory, internal binder, and reflection), runtime protection separated from supplementary static guards, the TCB named, and alternatives listed as rejected on ownership/security grounds **without** claiming an impossibility theorem.
+
+**C1/C2 inconsistency repaired.** Slice C1 is now "claims verification only" — pure `GrantVerifier` → `ValidatedGrantClaims` in the authority assembly, with **no** `TenantContext`, no binding, no `BuildingBlocks` change and no AMD-1, so it cannot create premature trusted authority. C2 (job authorization + restricted minting + AMD-1 + the Application scope check) is separately gated on architect acceptance of AMD-1.
+
+**Files:** edited `docs/architecture/ARCHITECTURE-W4-VERIFIED-GRANT-AUTHORITY-2026-10-13.md` (now Revision 3) and this `RECOVERY.md`. Documentation only.
+
+**STOP_FOR_ARCHITECT** — no W4 implementation; no automatic next task.
+
+---
+
 ## W4-B3 VERIFIED-GRANT AUTHORITY DESIGN — FT-W4-B3-VERIFIED-GRANT-AUTHORITY-DESIGN-001 — DESIGN COMPLETE (REVISION 2), AWAITING ARCHITECT (2026-10-13)
 
 **Task:** `FT-W4-B3-VERIFIED-GRANT-AUTHORITY-DESIGN-001` (bounded security architecture design; **design only**). **Status:** design complete, revised after the binding responsibility-ownership constraints; submitted for independent architect review. Architect-owned `OPEN-DEFECTS.md` / `ARCHITECT-JOURNAL.md` untouched. No production/test code, no builds or full suites (docs-only task).
