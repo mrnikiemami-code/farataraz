@@ -1,5 +1,20 @@
 # FaraTaraz — Open Defects and Architecture Acceptance Ledger
 
+## FT-W4-C1-GRANT-SIGNATURE-CLAIMS-001 — CHANGES REQUIRED (2026-10-13)
+
+Independent source review of exact implementation `b6057c5a3694abef6e89b2b62ba108c3854aa8cb`: 17 scoped files; capability-owned internal stage-A core, no BuildingBlocks/Host/Application changes or production trust friend. CI [38383469828](https://github.com/mrnikiemami-code/farataraz/actions/runs/38383469828) checked out this exact SHA; raw logs show **362/362 Debug and 362/362 Release** (9 foundation, 72 sync, 162 architecture, 26 authority, 93 PostgreSQL). Green CI does not close the findings below. **C1 NOT ACCEPTED; C2/AMD-1 remain NOT AUTHORIZED.**
+
+- **C1-PARSE-001:** `GrantClaimsReader.TryReadTimestamps` calls JsonElement.TryGetInt64/TryGetInt32 without first checking Number ValueKind. String/null/object/array/bool timestamps can throw InvalidOperationException instead of returning a verification failure. Check kinds explicitly; test a validly signed otherwise-valid payload with each wrong numeric type. No catch-all that hides programming faults/cancellation.
+- **C1-CURVE-001:** both `TrustedAuthorityKeySet.Create` and installation SPKI validation check KeySize==256, not the P-256 curve identity. Other 256-bit EC curves are not ES256. Require named P-256 identity (OID 1.2.840.10045.3.1.7), complete SPKI consumption and public-key validity. Reject another 256-bit curve, not merely P-384.
+- **C1-ENCODING-001:** `JwsCompact.TryDecodeBase64Url` delegates to Convert.FromBase64String after replacement without its own alphabet/padding/whitespace validation. Outer IsCompactAscii does not protect nested installationPublicKey strings. Implement strict decoding for every call site and reject noncanonical encodings (including nonzero unused pad bits); preserve original signing bytes.
+- **C1-TEST-001:** scope/capability count tests use installationPublicKey=`AA`. The reader rejects that invalid key before TryReadScopes, so those tests do not prove the count guards. Rebuild negative cases from an otherwise-valid grant and mutate one condition only; demonstrate the scope-limit test fails when its guard is bypassed. Add direct constructor-input defensive-copy tests and exact new-assembly friend/public-surface assertions; GetTypes alone does not prove absence of external tenant-authority use.
+
+Execution deviation: executor reports approximately 45 minutes against a 40-minute hard stop. Record as a process violation independently of technical completeness; future tasks must checkpoint PARTIAL at the cap instead of extending for green tests.
+
+Next authorized objective: bounded C1-only correction of these findings, no possession/minting/DI/Worker/key-provisioning expansion. ADR-011 remains Proposed.
+
+---
+
 ## FT-W4-B2-OWNERSHIP-CANCELLATION-001 — ACCEPTED (2026-10-13)
 
 **ACCEPTED** exact implementation SHA `e710ea68f7ca3b554a4e856a9c3dcbd37cdf9479`. Independently reviewed 3 changed files, production diff and new real PostgreSQL cancellation test. [GitHub Actions 38353520665](https://github.com/mrnikiemami-code/farataraz/actions/runs/38353520665) exact-SHA SUCCESS: **336/336 Debug and Release**, including **93 real PG tests** per configuration. The explicit `catch (OperationCanceledException) { throw; }` restores caller cancellation propagation; existing general catch still fails closed for non-cancellation lookup failures. Query changed from `AnyAsync(predicate, ct)` to a tenant-scoped `Where/Select(Id)/FirstOrDefaultAsync(ct)`, preserving existence semantics under the existing non-null unique source ID, and passing the regression test. This narrow departure from originally prescribed diff is **approved**. Do not generalize the reported AnyAsync behavior beyond this observed query/provider path. No Host, Worker, trust producer, schema, API or ADR change. **Cancellation defect CLOSED.**
