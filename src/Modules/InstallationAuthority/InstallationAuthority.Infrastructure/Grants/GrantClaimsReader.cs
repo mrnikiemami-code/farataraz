@@ -122,10 +122,13 @@ internal static class GrantClaimsReader
         iat = nbf = exp = 0;
         maxOfflineDays = -1;
 
-        if (!root.TryGetProperty("iat", out var iatElement) || !iatElement.TryGetInt64(out iat) ||
-            !root.TryGetProperty("nbf", out var nbfElement) || !nbfElement.TryGetInt64(out nbf) ||
-            !root.TryGetProperty("exp", out var expElement) || !expElement.TryGetInt64(out exp) ||
+        // ValueKind is checked explicitly: a string/null/bool/object/array timestamp must fail
+        // verification, never throw. There is deliberately no catch-all here.
+        if (!TryNumber(root, "iat", out iat) ||
+            !TryNumber(root, "nbf", out nbf) ||
+            !TryNumber(root, "exp", out exp) ||
             !root.TryGetProperty("maxOfflineDays", out var offlineElement) ||
+            offlineElement.ValueKind != JsonValueKind.Number ||
             !offlineElement.TryGetInt32(out maxOfflineDays))
         {
             return false;
@@ -136,6 +139,16 @@ internal static class GrantClaimsReader
             && exp > nbf
             && exp - iat <= MaxGrantLifetimeSeconds
             && maxOfflineDays is >= 0 and <= MaxOfflineDaysLimit;
+    }
+
+    /// <summary>Reads an integral JSON number, requiring the Number value kind first.</summary>
+    private static bool TryNumber(JsonElement root, string name, out long value)
+    {
+        value = 0;
+
+        return root.TryGetProperty(name, out var element) &&
+               element.ValueKind == JsonValueKind.Number &&
+               element.TryGetInt64(out value);
     }
 
     private static bool TryReadInstallationPublicKey(JsonElement root, out byte[] spki)
@@ -153,7 +166,8 @@ internal static class GrantClaimsReader
             using var probe = ECDsa.Create();
             probe.ImportSubjectPublicKeyInfo(decoded, out var read);
 
-            if (probe.KeySize != 256 || read != decoded.Length)
+            // ES256 identity: named P-256 only, and the whole SPKI must be consumed.
+            if (read != decoded.Length || !P256Curve.IsP256(probe))
             {
                 return false;
             }

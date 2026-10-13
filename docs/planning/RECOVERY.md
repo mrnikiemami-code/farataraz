@@ -24,6 +24,28 @@
 
 ---
 
+## W4-C1-R1 STRICT VALIDATION CLOSURE — FT-W4-C1-R1-STRICT-VALIDATION-CLOSURE-001 — IMPLEMENTED, AWAITING ARCHITECT (2026-10-13)
+
+**Task:** `FT-W4-C1-R1-STRICT-VALIDATION-CLOSURE-001` (bounded implementation; closes C1-PARSE-001, C1-CURVE-001, C1-ENCODING-001, C1-TEST-001). **Status:** implemented; submitted for review. `OPEN-DEFECTS.md` / `ARCHITECT-JOURNAL.md` untouched.
+
+**Baseline / sync:** `371ba34` (origin/master, fast-forwarded; worktree clean) — the architect's C1 changes-required checkpoint.
+
+**Fixes.** (1) **C1-PARSE-001:** `GrantClaimsReader` now checks `JsonValueKind.Number` explicitly before every numeric conversion (`TryNumber`), so string/null/bool/object/array timestamps and offline bounds return a verification failure instead of throwing; no catch-all was added and cancellation still propagates. (2) **C1-CURVE-001:** new `P256Curve` requires named P-256 identity (`OID 1.2.840.10045.3.1.7`, friendly-name fallback only when the platform reports no OID) applied to BOTH the company trust store and the installation SPKI, with complete SPKI consumption retained — a 256-bit key on another curve is now refused by identity, not merely a P-384 by size. (3) **C1-ENCODING-001:** `JwsCompact.TryDecodeBase64Url` is a self-contained canonical decoder (no `Convert.FromBase64String`) that rejects padding, whitespace, `+`, `/`, alphabet violations, impossible lengths, and non-zero unused pad bits; it is the single decoder for outer JWS segments and nested claim encodings, and signing still verifies over the original `header.payload` bytes. (4) **C1-TEST-001:** negative tests rebuilt from an otherwise-valid, correctly signed grant mutating exactly one condition; scope/capability count cases now carry a valid installation key; added wrong-numeric-type theory, nested-key and outer-segment encoding tests, a direct strict-decoder test, constructor-input defensive-copy tests for nested collections and key arrays, and exact assembly assertions (friend list and FaraTaraz reference set are exact; public-surface emptiness is stated as a surface assertion, explicitly not proof that no code uses external tenant authority).
+
+**Negative proofs (both restored before commit).** Bypassing the scope-count guard (`MaxScopes` raised) makes `Too_many_scopes_is_rejected` FAIL; restoring makes it PASS. Bypassing the signature check makes both tampering tests FAIL (verified in the C1 slice; the check is unchanged here).
+
+**Diagnosis note.** Several initially failing tests were traced to the *test helper* (`TestGrantSigner.Payload` interpolating a null `tenantId` produced invalid JSON), not to the production core — confirmed by direct invocation showing `TryReadHeader=None`, `TryReadClaims=None` and `Verify=None` on a correctly generated grant. The helper call site was fixed; no production code was relaxed to accommodate it.
+
+**Verification:** authority tests **55/55** (26 → 55), architecture **162/162**, build 0 warnings/0 errors, `git diff --check` clean. Full Debug/Release matrix delegated to exact-SHA CI.
+
+**Files:** edited `GrantClaimsReader.cs`, `JwsCompact.cs`, `TrustedAuthorityKeySet.cs`, `GrantVerifierTests.cs`, `GrantTypeImmutabilityTests.cs` (existing test file extended); NEW `P256Curve.cs`; this `RECOVERY.md`. No BuildingBlocks/Application/Host/Worker change, no friend/minting/AMD-1, no package/project/schema/architecture-rule change.
+
+**Blocker unchanged:** no approved company verification key was provided; `TrustedAuthorityKeySet.Unprovisioned` remains the fail-closed default.
+
+**STOP_FOR_ARCHITECT** — C2/AMD-1 not authorized.
+
+---
+
 ## W4-C1 GRANT SIGNATURE CLAIMS — FT-W4-C1-GRANT-SIGNATURE-CLAIMS-001 — IMPLEMENTED, AWAITING ARCHITECT (2026-10-13)
 
 **Task:** `FT-W4-C1-GRANT-SIGNATURE-CLAIMS-001` (bounded implementation, stage A only). **Status:** implemented; submitted for independent architect review. `OPEN-DEFECTS.md` / `ARCHITECT-JOURNAL.md` untouched; no defect VERIFIED.

@@ -49,10 +49,12 @@ internal sealed class TrustedAuthorityKeySet
             using var probe = ECDsa.Create();
             probe.ImportSubjectPublicKeyInfo(copy, out var read);
 
-            if (probe.KeySize != 256 || read != copy.Length)
+            // ES256 identity: named P-256 only (a 256-bit key on another curve is not ES256), and
+            // the whole SPKI must be consumed.
+            if (read != copy.Length || !P256Curve.IsP256(probe))
             {
                 throw new ArgumentException(
-                    $"Trust-store key '{pair.Key}' must be a P-256 SubjectPublicKeyInfo.", nameof(spkiByKeyId));
+                    $"Trust-store key '{pair.Key}' must be a named P-256 SubjectPublicKeyInfo.", nameof(spkiByKeyId));
             }
 
             if (!map.TryAdd(pair.Key, copy))
