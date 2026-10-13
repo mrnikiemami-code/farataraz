@@ -1,5 +1,12 @@
 # FaraTaraz — Architect Continuity Journal
 
+## W4-B2 ACCEPTED — 2026-10-13
+
+Independent exact-SHA GitHub review of `e710ea68f7ca3b554a4e856a9c3dcbd37cdf9479`: 3 allowed files, targeted cancellation handling and tenant-scoped existence projection, regression test, no unrelated architecture. CI run 38353520665 SUCCESS, **336/336 Debug and 336/336 Release** (93 real PostgreSQL integration each). Narrow `AnyAsync`→`FirstOrDefaultAsync` change accepted based on equivalent ownership existence semantics and observed regression; no broad claim about EF Core behavior. Architect defect ledger closure commit `b098368a0cb6b1ab82f5391f8ac093be290b0741`. **W4-B2 CLOSED; stop incidental fixes.** Next objective is secure, verifiable company-signed installation authorization and genuinely constrained trust establishment. Public forgeable `TenantContext.Establish(IAuthenticatedPrincipal)` remains prohibited; ADR-011 Proposed. W4 Worker/provider delivery not yet ready.
+
+---
+
+
 ## W4-B1 IMPLEMENTATION ACCEPTED — 2026-10-13
 
 Independent review of OpenCode commit `c5d9149d6140cac6244320811660909c148dd2b8`: **ACCEPTED**. Fourteen changed files: 5 new/9 modified, all scope-compliant. Actual code checks trusted-scope ownership followed by source activation in BOTH MediatR handlers before provider access. New `EfAccountingSourceActivation` trusts only `DatabaseTenantScope`, not caller tenantId. Seven real PostgreSQL integration tests; exact-SHA CI 38348875212 SUCCESS, **335/335 Debug and 335/335 Release**, 92 PG tests per configuration. No modifications to Host, TenantContext, trust minting, schema, packages or architecture guards. Architect defect ledger acceptance commit `b12941532c84c8bdcf0e7e4f0ba50ae4ab0242bd`.
